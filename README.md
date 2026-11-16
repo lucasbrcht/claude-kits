@@ -9,7 +9,7 @@ Ein Marketplace auf GitHub: `lucasbrcht/claude-kits`.
 - **Cowork:** Customize > Plugins > Add marketplace, `lucasbrcht/claude-kits` eintragen, Sync automatically einschalten. Dann installieren: `basis`, `apple`, für WhatsApp und iMessage `chat`, nach Bedarf `service`. Arbeitsaccounts ohne `chat`. `pflege` nie in Cowork.
 - **Claude Code:** `/plugin marketplace add lucasbrcht/claude-kits`, dann je Plugin `/plugin install basis@claude-kits`.
 
-Danach die Einrichtung im Gespräch mit `/basis:einrichten`. macOS-Freigaben und Einzelheiten: `INSTALL.md`.
+Danach die Einrichtung im Gespräch mit `/basis:einrichten`. Schritt für Schritt für Cowork, mit Zusatzprogrammen, macOS-Freigaben und Projekt: `INSTALL.md`.
 
 ## Aufbau
 

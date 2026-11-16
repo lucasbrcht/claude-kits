@@ -2,6 +2,12 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.0.1 (16.11.2026)
+
+Nur Doku, die Plugins bleiben 7.0.0.
+
+- **`INSTALL.md` neu für Cowork:** Zusatzprogramme im Terminal (Entwicklerwerkzeuge, Homebrew, icalBuddy, `.venv` mit EventKit), Festplattenvollzugriff für `python3.9`, Marketplace mit Sync automatically, welche Plugins, Mail-Connector, Projekt Privat mit Kontextordner, dann `/basis:einrichten`. Der Weg über Klon und `paket.py` steht nur noch kurz für den Betreuer am Ende.
+
 ## v7.0.0 (16.11.2026)
 
 Alle Plugins auf 7.0.0. Fünf Plugins nach Zielgruppe statt nach App: `basis`, `apple`, `chat`, `service`, `pflege`.
