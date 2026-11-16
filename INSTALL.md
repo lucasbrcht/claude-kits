@@ -3,7 +3,7 @@
 Für deinen Mac mit der Claude-App. Du richtest einmal ein, danach hilft dir dein Assistent in Cowork bei Mail, Kalender, Nachrichten, Notizen und Erinnerungen.
 
 - **Dauer:** etwa 25 Minuten für die Installation (Schritte 1 bis 5), danach 30 bis 45 Minuten Einrichtung im Gespräch (Schritt 6). Beides geht an einem Termin oder an zwei.
-- **Am besten zu zweit** mit dem Betreuer, der dir das Paket empfohlen hat.
+- **Am einfachsten** lässt du dich von Claude durchführen (nächster Abschnitt). Die Schritte darunter sind zum Nachlesen oder für den Weg von Hand.
 - **Was du tippen sollst**, steht in einem grauen Kasten: kopieren, einfügen, Enter.
 - **Menüs der App** stehen hier mit ihren englischen Namen (Customize, Plugins). Zeigt deine App sie auf Deutsch, heißen sie entsprechend.
 
@@ -14,6 +14,29 @@ Für deinen Mac mit der Claude-App. Du richtest einmal ein, danach hilft dir dei
 - Apple Mail mit deinen Mailkonten, dazu Kalender, Notizen, Erinnerungen und Kontakte, so wie du sie heute nutzt.
 - WhatsApp für Mac, angemeldet, wenn Claude auch WhatsApp lesen soll.
 - Internet.
+
+## Der einfache Weg: Claude führt dich durch
+
+Claude erledigt im Code-Tab der App alles, was sich am Mac per Befehl machen lässt, und prüft es. Was nur du klicken kannst, sagt er dir Schritt für Schritt an.
+
+1. Claude-App öffnen und oben auf **Code** wechseln.
+2. Fragt die App nach einem Ordner, deinen Benutzerordner wählen (der mit deinem Namen und dem Haus-Symbol).
+3. Diesen Text einfügen und Enter:
+
+   ```text
+   Führe mich durch die Installation des Pakets claude-kits auf diesem Mac. Die Anleitung: https://raw.githubusercontent.com/lucasbrcht/claude-kits/main/INSTALL.md
+   So arbeitest du:
+   - Lies erst die ganze Anleitung. Dann Schritt 1 bis 5 der Reihe nach, immer nur einen Schritt, in einfachen Worten.
+   - Prüf vor jedem Schritt, was schon da ist, und überspring es.
+   - Befehle aus der Anleitung führst du selbst aus und prüfst das Ergebnis. Den Homebrew-Befehl (Schritt 1, Befehl 2) gibst du mir zum Einfügen ins Terminal, er braucht mein Passwort.
+   - Was ich in macOS oder in der Claude-App klicken muss, sagst du Klick für Klick an und wartest auf mein "fertig".
+   - Installiere nichts außer dem, was in der Anleitung steht. Lösche nichts.
+   - Zum Schluss sag mir, wie ich Schritt 6 in Cowork starte.
+   ```
+
+4. Vor jedem Befehl fragt Claude, ob er ihn ausführen darf: erlauben. Fenster von macOS bestätigst du selbst.
+
+Zwei Dinge macht Claude nicht für dich: Plugins und Projekt gehören in dein Claude-Konto, das stellst du in der App ein (Schritte 3 und 5). Die Einrichtung im Gespräch (Schritt 6) startest du danach in Cowork, dort arbeitest du auch im Alltag.
 
 ## Schritt 1: Zusatzprogramme für den Mac (Terminal, etwa 15 Minuten)
 
@@ -109,6 +132,8 @@ Was Claude über dich lernt, liegt in einem Ordner auf deinem Mac. Ein Projekt i
 1. Im Finder deinen Benutzerordner öffnen (Cmd+Umschalt+H). Darin den Ordner `Claude Kits` anlegen und darin den Ordner `kontext`. Nicht in iCloud Drive.
 2. In Claude in Cowork links **Projects**, dann **New project**. Name `Privat`, Beschreibung `Familie, Freunde, Haushalt und Freizeit`.
 3. Als Ordner **Use an existing folder** wählen und `Claude Kits/kontext` aussuchen.
+
+Nutzt du Claude auch für die Arbeit, leg trotzdem erst nur Privat an. In Schritt 6 fragt Claude nach deinen Bereichen (Arbeit, Selbständigkeit, Verein) und ob deine Firma ein eigenes Claude-Konto hat. Danach empfiehlt er dir weitere Projekte, je mit Ordnern, Instruktionen und Memory, und schreibt sie in deine Prüfliste.
 
 ## Schritt 6: Einrichtung im Gespräch (30 bis 45 Minuten)
 

@@ -2,6 +2,13 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.0.3 (16.11.2026)
+
+Nur Doku, die Plugins bleiben wie in 7.0.2.
+
+- **`INSTALL.md` mit Start-Prompt:** Claude führt im Code-Tab durch die Schritte 1 bis 5, führt die Befehle selbst aus und sagt an, was nur der Nutzer klicken kann (Homebrew mit Passwort, Festplattenvollzugriff, Plugins und Projekt im Konto). Die Einrichtung startet weiter in Cowork.
+- Schritt 5 sagt, dass bei Arbeit und Privat gemischt erst nur das Projekt Privat entsteht und `einrichten` die weiteren Projekte empfiehlt.
+
 ## v7.0.2 (16.11.2026)
 
 `basis` 7.0.1, die anderen Plugins bleiben 7.0.0.
