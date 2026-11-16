@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "homeassistant": {
+      "command": "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/ha_start.py"]
+    }
+  }
+}

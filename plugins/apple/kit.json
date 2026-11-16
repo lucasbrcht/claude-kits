@@ -1,0 +1,23 @@
+{
+  "_hinweis": "Steckbrief des Plugins apple, nicht im ZIP. paket.py liest nur verbote: Die Datenordner von Mail, Kalender, Erinnerungen und Notizen liest nur der Server, im Code-Tab sind sie gesperrt. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [
+    "Read(~/Library/Mail/**)",
+    "Edit(~/Library/Mail/**)",
+    "Bash(icalBuddy *)",
+    "Read(~/Library/Calendars/**)",
+    "Edit(~/Library/Calendars/**)",
+    "Read(~/Library/Group Containers/group.com.apple.calendar/**)",
+    "Edit(~/Library/Group Containers/group.com.apple.calendar/**)",
+    "Read(~/Library/Group Containers/group.com.apple.reminders/**)",
+    "Edit(~/Library/Group Containers/group.com.apple.reminders/**)",
+    "Read(~/Library/Group Containers/group.com.apple.notes/**)",
+    "Edit(~/Library/Group Containers/group.com.apple.notes/**)"
+  ],
+  "abhaengigkeiten": {
+    "connectoren": [],
+    "macos": ["Automation: Mail", "Automation: System Events", "Automation: Notizen", "Bedienungshilfen",
+              "Kalender: Vollzugriff", "Erinnerungen: Vollzugriff", "Festplattenvollzugriff (Kontakte)"],
+    "programme": ["osascript", "icalBuddy"],
+    "python": {".venv/bin/python3": ["EventKit", "Foundation"]}
+  }
+}

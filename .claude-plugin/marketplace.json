@@ -1,0 +1,34 @@
+{
+  "name": "claude-kits",
+  "description": "Paket Mac: persönlicher Assistent mit Apple Mail, Kalender, Notizen, Erinnerungen, Kontakten, WhatsApp und iMessage, Plugins nach Zielgruppe.",
+  "owner": {
+    "name": "Lucas Bracht"
+  },
+  "plugins": [
+    {
+      "name": "basis",
+      "source": "./plugins/basis",
+      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Rückmeldungen"
+    },
+    {
+      "name": "apple",
+      "source": "./plugins/apple",
+      "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte, ein lokaler Server am Mac"
+    },
+    {
+      "name": "chat",
+      "source": "./plugins/chat",
+      "description": "WhatsApp und iMessage lesen, Entwürfe öffnen, senden nur auf ausdrückliches senden. Nur Privat"
+    },
+    {
+      "name": "service",
+      "source": "./plugins/service",
+      "description": "Roadbook für Rad-Events und Home Assistant"
+    },
+    {
+      "name": "pflege",
+      "source": "./plugins/pflege",
+      "description": "Nur Betreuer im Code-Tab: paket.py, Release, Rückmeldungen, Output-Style"
+    }
+  ]
+}

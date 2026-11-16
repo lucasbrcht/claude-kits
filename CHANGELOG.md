@@ -1,0 +1,119 @@
+# Änderungen
+
+Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
+
+## v7.0.0 (16.11.2026)
+
+Alle Plugins auf 7.0.0. Fünf Plugins nach Zielgruppe statt nach App: `basis`, `apple`, `chat`, `service`, `pflege`.
+
+Teil d, öffentlicher Marketplace (16.11.2026):
+
+- **Ein Marketplace auf GitHub** für alle Accounts: `lucasbrcht/claude-kits`, öffentlich, beginnt mit diesem Stand. In Cowork über Customize > Plugins > Add marketplace mit Sync automatically, neue Versionen kommen dann ohne ZIP. Installationszeilen in den READMEs.
+- `marketplace.json` ohne Mailadresse. Der Skill `feedback` legt den Entwurf dann ohne Empfänger an und sagt das.
+
+Teil b, Plugins nach Zielgruppe (16.11.2026):
+
+- **`apple` übernimmt `mail`.** Mail, Kalender, Notizen, Erinnerungen und Kontakte laufen über einen Server. Die Werkzeuge heißen gleich, ihr Präfix wechselt von `mcp__plugin_mail_mail__` auf `mcp__plugin_apple_apple__` (Aufgabentexte und Rechte prüfen). Das Plugin `mail` entfällt: im Account entfernen, `apple` neu installieren.
+- **Eine `config.json` für `apple`** mit Abschnitten `mail`, `kalender`, `notizen`, `reminders` und `kontakte` in `~/Library/Application Support/Claude Kits/apple/`. Umzug: die bisherige `mail/config.json` aufteilen (Konten, Profile, Anhänge, Suche, Triage nach `mail`, die Kalenderfelder nach `kalender`), `mail/style/` nach `apple/style/`. Eine `.venv` statt zwei.
+- **`basis` nur noch für Nutzer:** `einrichten`, `kontext`, `feedback`. `umzug` entfällt. `einrichten` läuft jetzt auch in Cowork: Haltepunkt für das Modell vor der ersten Recherche, Einstellungen und Stilprofile über Werkzeuge statt Bash, Personen nur bei Vorkommen über mindestens zwei Monate und ins Wissen des Projekts, vorhandene Instructions ergänzen statt ersetzen, Projektschnitt, Text für Instructions for Claude, Rechte der Connectoren in Alltagssprache, geplante Aufgaben als eigener Schritt, nummerierte Proben mit Ort, Eingabe und Erwartung. Vorlagen `profil.md` (Quelle der Instructions) und `CLAUDE-vorlage.md` (Index des Projekts).
+- **Neues Plugin `pflege`** nur für den Betreuer im Code-Tab: `paket.py`, Skills `paket` und `rueckmeldungen`, Output-Style (jetzt `pflege:Assistent`). `--pruefen` vergleicht `kit_basis.py` und `mcp_basis.py` in `apple`, `chat` und über `eigene_plugins` der Einrichtung im Plugin `arbeit`. `--instructions` schreibt nach `einrichtung/instructions.md`.
+- **Neue Werkzeuge in `apple`:** `einstellungen` (lesen) und `einstellungen_schreiben` (Dialog am Mac) für `config.json` und Stilprofile von `apple`, `chat` und `service`. `mail_stilprofil` und `chat_stilprofil` holen mit `stilprobe` eine neue Stichprobe. So erreicht Claude den Datenordner auch in Cowork, auch `roadbook` für seine Vorgaben.
+
+Nachtrag aus der Arbeits-Instanz (16.11.2026):
+
+- `mcp_basis.py` in `apple` und `chat`: Werkzeuge dürfen PNG-Bilder zurückgeben (MCP-Bildinhalt, nur echte PNG bis zu einer Größengrenze). Gebraucht für die Vorschau im Plugin `arbeit`, an den Werkzeugen von `apple` und `chat` ändert sich nichts.
+
+Teil a, Datenordner (15.11.2026):
+
+- Die Server von `mail`, `chat`, `apple` und `service` lesen `config.json`, `style/` und `.venv` nur noch aus `~/Library/Application Support/Claude Kits/<plugin>/`. Der Rückfall auf den Plugin-Ordner im Repo entfällt, damit laufen die Plugins aus dem Account auch ohne Klon des Repos. Wer bisher dort seine Einstellungen hatte, verschiebt `config.json` und `style/` je Plugin in den Datenordner und baut die `.venv` dort neu (Befehl in den READMEs von `mail` und `apple`).
+- Fehlerprotokoll `.fehler.jsonl` in der Wurzel des Datenordners, geschrieben nur bei Start über einen Server.
+- `paket.py` gibt dem Code-Tab Lesen und Schreiben im Datenordner, die `.venv` dort bleibt für Bash gesperrt.
+- `einrichten`, `feedback`, Stil-Referenzen und `roadbook` nennen den Datenordner. Tests brauchen keine `config.json` im Plugin-Ordner mehr.
+
+Nachtrag (16.11.2026):
+
+- Skill `mail`: Eine Mail an den Nutzer selbst geht an die Absenderadresse des passenden Kontos, nicht an die Mailadresse des Claude-Accounts.
+
+## v6.3.1 (14.11.2026)
+
+Alle fünf Plugins auf 6.3.1 (`service` von 6.1.0). Aufräumrunde ohne Änderung am Verhalten der Werkzeuge.
+
+- `kit.json` je Plugin nur noch mit `verbote` (Sperren im Code-Tab) und `abhaengigkeiten`, ohne Bash-Muster, Version und Skill-Liste.
+- Meldungen ohne Zugriff (Kalender, Erinnerungen, Kontakte) nennen zuerst die Freigabe für `python3.9` der Command Line Tools, mit der die Werkzeuge laufen.
+- READMEs beschreiben Server, Werkzeuge und Stufen statt Aufrufe im Code-Tab, Kommentare ohne alte Versionsmarken.
+- `einrichten` ohne Pflegetag und `_eingang.md`: Neues merkt sich Memory, der monatliche Abgleich übernimmt es. `kontext` ohne den Rest aus V5.
+
+## v6.3.0 (14.11.2026)
+
+`basis`, `mail`, `chat` und `apple` auf 6.3.0, `service` unverändert auf 6.1.0. Der Code-Tab dient nur noch der Pflege, die Dialoge sind kurz.
+
+- Dialog nur noch, wenn andere es sehen oder es sich nicht rückgängig machen lässt. `mail_entwurf_anhang` und `notiz_ersetzen` sind jetzt Stufe schreiben (bleibt im eigenen Account). Geteilte Notizordner fragen weiter: `notiz_anlegen_geteilt` heißt jetzt `notiz_geteilt` und ersetzt mit `ersetzen` auch Inhalte. `notiz.py replace` ändert eine geteilte Notiz (oder eine in geteiltem Ordner, im Zweifel auch) nur mit `--ausfuehren`, sonst kommt eine Vorschau.
+- Dialoge vor der Stufe nachfrage in Stichworten, nur was die Entscheidung braucht: `mail_senden` Betreff, An, Cc, Bcc, Von. `termin_mit_nachfrage` Termin, Wann (20.11. 10:00 bis 11:00), Kalender, Hinweis auf Updates an alle Teilnehmer. `imessage_senden` An und Text (höchstens 160 Zeichen). `notiz_geteilt` Notiz, Ordner und ob der Inhalt ersetzt wird, ohne Inhalt. Abbrechen bleibt Vorauswahl. Neu in `mcp_basis.py` (gleich in `mail`, `chat`, `apple`): `angaben` und `ordnername`.
+- Skills `einrichten` und `umzug` empfehlen einen Schnitt der Cowork-Projekte samt Ordnern aus den Befunden des Kontextordners (Runde 5 im Interview, Schritt 4 im Umzug), je Projekt mit Begründung, nach den Empfehlungen von Anthropic zu Projekten und Memory: ein Projekt je dauerhaftem Bereich, Trennung nach Vertraulichkeit mit Use account memory aus, nicht zu fein. Neu `einrichten/references/projektschnitt.md`, in der Vorlage `privat-profil.md` der Abschnitt Bereiche und Projekte.
+
+- `paket.py` schlank (602 statt 1.274 Zeilen): Einrichten schreibt Marketplace, Plugins, Output-Style, die `CLAUDE.md` der Instanz, Rechte für die Pflege des Kontextordners und die Sperren der Apple-Datenordner aus `kit.json`. Keine Regeln mehr für Skripte und Connectoren im Alltag, alte Einträge entfernt der nächste `--apply` (laut Stand). Neu `--zips ORDNER` (ZIP je Plugin aus dem letzten Commit, ohne `tests/` und `kit.json`, `export-ignore` aus `.gitattributes` gilt) und `--instructions` (Text für Instructions for Claude nach `umzug/instructions.md`). Entfallen: `--neu`, `--aktualisieren`, `--wochencheck`, `--exporte`, `--abloesen`, die Felder `connectoren`, `zuender`, `pflegetag`, `exporte`, `profil_im_account` und `modus` je Plugin. `plugins` darf eine Liste sein. `--pruefen` vergleicht jetzt auch `mcp_basis.py`.
+- `zuender.py` gelöscht.
+- Skill `paket` auf Pflege und Release, `umzug` nutzt `--instructions` und liest die Connectoren aus der Session, `kontext` verweist für Memory auf die Regeln der Instructions statt einer eigenen Liste.
+
+## v6.2.0 (14.11.2026)
+
+`basis`, `mail`, `chat` und `apple` auf 6.2.0, `service` unverändert auf 6.1.0. Für den Umzug eines zweiten Accounts nach Cowork.
+
+- Modus lesen je Account: `mcp_nur_lesen` in der `config.json` darf eine Liste von Instanzen sein, etwa `["arbeit"]`. Der Server erkennt die startende App (`privat` für Claude Privat über Config-Ordner, Plugin-Ordner oder Elternprozess, sonst `arbeit`, `KITS_INSTANZ` setzt den Wert fest). So teilen sich zwei Accounts eine `config.json`, und `chat` bietet nur in einem Entwürfe und Senden an. `true` gilt wie bisher immer. Gleich in `mcp_basis.py` von `mail`, `chat` und `apple`.
+- Skill `umzug`: Regeln für einen Account mit Instruktionen der Organisation, für geteilte Bibliotheken als Ordner im Projekt (nur lesen per Instruktion, je Mandat ein Projekt) und für eigene Plugins und den Modus lesen in der Prüfliste.
+
+## v6.1.1 (13.11.2026)
+
+`mail`, `chat` und `apple` auf 6.1.1, `basis` und `service` unverändert auf 6.1.0. Funde aus der Abnahme in Cowork.
+
+- `mail_neues` (`mail.py triage`) trennt nach Konto: ohne Profil alle Konten aus `accounts`, je Konto ein Kopf `Konto ...:`, ein Konto ohne Neues mit nichts Neues. Die Grenze `triage.max_markiert` gilt je Konto. Der Skill `mail` nennt die Konten getrennt.
+- `notiz_anlegen`: Beginnt der Inhalt schon mit dem Titel (etwa als Überschrift), steht er in der Notiz nicht mehr doppelt.
+- Skill `imessage`: Nennt der Nutzer Empfänger und wörtlichen Text mit einem Sendewort (`Schick X: Text`), sendet Claude gleich mit `imessage_senden`, der Dialog am Mac ist die Freigabe. Kein Entwurf mehr, wenn Claude senden soll, damit der Text nicht im Eingabefeld stehen bleibt.
+
+## v6.1.0 (13.11.2026)
+
+`basis` und `service` auf 6.1.0, `mail`, `chat` und `apple` unverändert auf 6.0.0.
+
+- Neuer Skill `/basis:umzug` (Code-Tab): schreibt im Kontextordner `umzug/` mit dem Text für Instructions for Claude, den Cowork-Projekten, den Connector-Rechten zum Abhaken, den geplanten Aufgaben für Cowork und einer Prüfliste. Prüft den Index des Projekts, Vorlage `projekt-index.md`.
+- Profil und Index getrennt: Liegt `profil.md` im Kontextordner, schreibt `paket.py` die `CLAUDE.md` der Instanz aus `profil.md` plus `CLAUDE.md` (Index des Projekts, lädt in Cowork aus dem Projektordner). `praeferenzen.txt` kommt nur aus dem Profil. Schalter `profil_im_account` für die Zeit, in der die Instructions for Claude auch im Code-Tab wirken. Ohne `profil.md` bleibt alles wie bisher.
+- `/basis:kontext`: Merken heißt Memory, `wissen/` ändert sich nur durch Interview, Abgleich oder ausdrücklichen Auftrag. `aktualisieren` ist der monatliche Abgleich: Memory gegen `wissen/`, neue Personen aus WhatsApp, iMessage, gesendeten Mails und Kalender, Fragen in `_interview.md`. Der Eingang entfällt, ein alter wird im Interview abgearbeitet.
+- Kontext-Zünder (Hook bei jedem Prompt) entfällt, auch im Code-Tab.
+- Home Assistant als lokaler MCP-Server im Plugin `service`: Adresse und Paket im Block `homeassistant` der `config.json`, Token aus dem Schlüsselbund, ha-mcp über `uvx`. Ohne Konfiguration startet er ohne Werkzeuge und nennt den Grund.
+
+## v6.0.0 (13.11.2026)
+
+Alle fünf Plugins auf 6.0.0.
+
+- Lokale MCP-Server in `mail` (12 Werkzeuge), `chat` (8) und `apple` (9): Die Skripte laufen jetzt auch in Cowork, wo Bash in einer VM ohne Apple-Apps läuft. Der Server ist eine dünne Schicht über den vorhandenen Skripten (`mcp_basis.py`, gleich in drei Plugins), Start über `.mcp.json` mit `python3` ab 3.9.
+- Stufen je Werkzeug als Annotation: lesen läuft ohne Rückfrage, schreiben legt Entwürfe, Erinnerungen, Notizen und eigene Termine an, nachfrage (Mail senden, Anhang, Arbeitskalender, Termine mit Teilnehmern, iMessage senden, Notiz ersetzen, geteilte Ordner) trägt `destructiveHint`, ihre Beschreibung nennt die Bedingung für den Aufruf. Löschen und Verwerfen gibt es nicht.
+- Datenordner: `config.json`, `style/`, Textdateien und `.venv` kommen aus `~/Library/Application Support/Claude Kits/<plugin>/`, sonst wie bisher aus dem Plugin-Ordner unter `~/Claude Kits/claude-kits/plugins/<plugin>/`. Ein Plugin aus dem Account liegt bei jeder Version woanders.
+- Modus lesen für `chat`: `mcp_nur_lesen: true` in der `config.json` oder `KITS_NUR_LESEN=1` bietet nur die Lese-Werkzeuge an.
+- Die Skills `mail`, `kalender`, `whatsapp`, `imessage`, `erinnerungen` und `notizen` nennen Werkzeuge statt Bash-Befehle, Beschreibungen ohne Liste der Auslöser. `einrichten` und `paket` bleiben im Code-Tab.
+- Wochen-Check beim Sessionstart entfällt, Updates kommen über den Marketplace im Account.
+- Test der Arbeitssignatur ohne feste Texte aus der echten Signatur.
+- Prompt-Audit vor dem Release: jeder Parameter der Werkzeuge mit Beschreibung, `einrichten` nutzt die Werkzeuge, Paketordner über seine feste Ablage statt über den Plugin-Ordner, Befehle in der langen Form (`/basis:kontext`, `/service:homeassistant`, `/service:roadbook`), Beschreibungen von `einrichten`, `feedback`, `paket`, `homeassistant` und `roadbook` ohne Liste der Auslöser.
+
+## v5.1.0 (12.11.2026)
+
+`basis` und `mail` auf 5.1.0, die anderen Plugins unverändert.
+
+- Umstieg vom alten Motor: `paket.py --abloesen`, `gesperrt`, `--exporte`, Pflegetag-Hinweis, Kontext-Zünder als Hook, `/kontext aktualisieren`.
+- Zwei Instanzen auf einem Rechner: `einrichtung.<name>.json` neben `einrichtung.json`, je mit eigenem Stand. In einer Session wählen `paket.py` und der Zünder die Datei selbst, im Terminal `--einrichtung <name>`.
+- Eigene Plugins neben dem Paket: `eigene_plugins` in der Einrichtung trägt eigene lokale Marketplaces samt Rechten aus deren `kit.json` ein.
+- Microsoft 365: `mail` und `kalender` haben Abläufe für den Connector (Triage mit Gesendet, Adressen, Weiterleiten, Termine mit Teilnehmern, Antworten auf Einladungen, Abwesenheit).
+- `/kontext aktualisieren` nimmt eine eigene `pflegelauf.md` im Kontextordner, wenn dort eine liegt.
+
+## v5.0.1 (11.11.2026)
+
+- `einrichten` nach dem Vorbild der Alfred-Einrichtung 1.1: feste Obergrenzen der Auswertung je Schritt für jedes Modell, nach jedem Schritt eine Zeile statt Rückfrage, offene Frage "Wer fehlt noch" mit festem Text, Hinweise bei fehlenden Freigaben statt endlosem Probieren, Probe überspringbar, Abschluss mit gezählten Personen, Konten, Kalender und offenen Punkten, Modell-Tipp für die Desktop-App.
+
+## v5.0.0 (11.11.2026)
+
+Erste Version.
+
+- Paket aus den bisherigen Kits als fünf Plugins: `basis`, `mail`, `chat`, `apple`, `service`.
+- `paket.py`: Rechte, Marketplace und Plugins in die `settings.json`, `CLAUDE.md` aus dem Kontextordner, Prüfung des Pakets, Updates auf den neuesten Tag, Wochen-Check beim Sessionstart.
+- Neue Skills: `einrichten` (Kennenlernen im Gespräch), `feedback` (Rückmeldungen als Mail-Entwurf), `paket` (Rechte und Updates), `rueckmeldungen` (nur für den Betreuer).
+- `mail.py finden`: eine Mail aus dem Mail-Connector in Apple Mail finden und dort beantworten.
+- Fehlerprotokoll: Abbrüche der Skripte landen ohne Inhalt in `.fehler.jsonl`, `feedback` zählt sie für den Bericht.
+- Neutral: Profil `arbeit` statt eines Firmennamens, keine Namen in Code, Tests und Texten.

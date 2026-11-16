@@ -1,0 +1,18 @@
+{
+  "_hinweis": "Vorlage für einrichtung.json im Paketordner (nicht im Git). paket.py liest sie für den Code-Tab: Plugins aus dem Ordner, CLAUDE.md der Instanz aus dem Kontextordner, Rechte für die Pflege. Alle Felder sind optional.",
+  "settings": "~/.claude/settings.json",
+  "kontext": "~/Claude Kits/kontext",
+  "plugins": ["basis", "apple", "chat", "service", "pflege"],
+  "eigene_plugins": {},
+  "_eigene_plugins_hinweis": "Eigene lokale Marketplaces neben dem Paket: {Name: Ordner mit .claude-plugin/marketplace.json}. paket.py trägt Marketplace und Plugins ein, Sperren aus einem kit.json im Plugin-Ordner gelten mit.",
+  "rechte_extra": [],
+  "fragen_extra": ["mcp__<Server des Mail-Connectors>__send_message"],
+  "_fragen_extra_hinweis": "Was im Code-Tab immer fragt, etwa Senden über einen Connector (mcp__<server>__<werkzeug>) oder Schreiben in geteilte Ordner.",
+  "verbote_extra": [],
+  "sandbox_ausnahmen": [],
+  "output_style": "pflege:Assistent",
+  "namen": ["Nachname des Nutzers, Arbeitgeber, Kunden: Wörter, die nie im Paket stehen dürfen"],
+  "namen_aus": ["~/Kontext/wissen/privat-personen.md"],
+  "nummern": [],
+  "ignorieren": []
+}

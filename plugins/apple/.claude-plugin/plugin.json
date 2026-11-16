@@ -1,0 +1,9 @@
+{
+  "name": "apple",
+  "displayName": "Apple",
+  "version": "7.0.0",
+  "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte: lesen, suchen, Entwürfe, Termine, Notizen und Erinnerungen anlegen, senden nur auf ausdrückliches senden. Nie löschen. Ein lokaler MCP-Server am Mac, in Cowork und im Code-Tab. Senden, Arbeitskalender, Termine mit Teilnehmern, geteilte Notizordner und Einstellungen fragen mit einem Dialog am Mac.",
+  "author": {
+    "name": "Lucas Bracht"
+  }
+}

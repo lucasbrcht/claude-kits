@@ -1,0 +1,50 @@
+{
+  "_hinweis": "Vorlage für config.json: kopieren nach config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Alle Einstellungen für whatsapp.py und imessage.py. me, me_names, excluded_chats, forbidden_chars und defaults gelten für beide Kanäle, der Block imessage nur für iMessage. Chatnamen so schreiben, wie sie in WhatsApp oder im Adressbuch heißen (Groß- und Kleinschreibung, Akzente und Emojis egal). Falsche Typen (etwa ein Text statt einer Liste) brechen jeden Befehl ab, statt still zu wirken.",
+
+  "database_dir": "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared",
+  "_database_hinweis": "Ordner der WhatsApp-Mac-App. Gelesen werden nur ChatStorage.sqlite und ContactsV2.sqlite (Namen für Absender in Gruppen und Erwähnungen, Nummern für Entwürfe). Die Kopie liegt nur Sekundenbruchteile im Temp-Ordner, danach im Speicher.",
+
+  "_mcp_nur_lesen_hinweis": "Optional mcp_nur_lesen: true (Server bietet nur Lese-Werkzeuge an) oder eine Liste wie [\"arbeit\"]: nur lesend, wenn die startende App dazu passt (privat für Claude Privat, sonst arbeit). So teilen sich zwei Accounts eine config.json und nur einer darf Entwürfe und Senden.",
+
+  "me": "<eigener Vorname>",
+  "me_names": ["<eigener Vorname>"],
+  "_me_hinweis": "me: Name für eigene Nachrichten in der Ausgabe. me_names: Namen, an denen triage Erwähnungen in Gruppen erkennt, auch als @Name, wenn die eigene Nummer im Adressbuch steht.",
+
+  "excluded_chats": [],
+  "_excluded_hinweis": "Chats, die die Skripte nie lesen, durchsuchen, zählen oder anzeigen, in WhatsApp und iMessage. Name wie in WhatsApp oder im Adressbuch, WhatsApp-JID oder iMessage-Adresse beziehungsweise Chat-GUID (robuster, ein Name ändert sich beim Umbenennen). Wirkt technisch, nicht nur als Regel. check meldet, wie viele Einträge zu keinem Chat passen. Nachrichten dieser Personen in gemeinsamen Gruppen bleiben sichtbar.",
+
+  "exclude_hidden": true,
+  "_hidden_hinweis": "Versteckte Chats (Feld ZHIDDEN, vermutlich auch die Chat-Sperre, nicht getestet) bleiben für das Kit unsichtbar.",
+
+  "hidden_kinds": ["status", "kanal", "broadcast", "community"],
+  "_kinds_hinweis": "Chat-Arten, die in chats, triage und search fehlen. Mit --all sichtbar. Möglich: person, gruppe, community, broadcast, status, kanal.",
+
+  "forbidden_chars": ["—", "–", "…", "...", ";", "„", "“"],
+  "_forbidden_hinweis": "draft öffnet keinen Entwurf mit diesen Zeichen (Schreibregeln: Gedankenstriche, Auslassungspunkte, Semikolons, deutsche Anführungszeichen). Smileys wie ;-) und Links zählen nicht. Das typografische Apostroph in geht‘s bleibt erlaubt.",
+
+  "entwurf_im_hintergrund": true,
+  "_hintergrund_hinweis": "true: draft öffnet WhatsApp mit open -g im Hintergrund, ein Enter in der Claude-App kann dann nichts senden.",
+
+  "imessage": {
+    "database": "~/Library/Messages/chat.db",
+    "adressbuch": "~/Library/Application Support/AddressBook",
+    "landesvorwahl": "49",
+    "hidden_kinds": ["dienst"],
+    "entwurf_link": "",
+    "entwurf_im_hintergrund": true
+  },
+  "_imessage_hinweis": "Nur für imessage.py. database: chat.db der Nachrichten-App, gelesen werden Datenbank und WAL als Kopie, die nur Sekundenbruchteile im Temp-Ordner liegt. adressbuch: Ordner des Adressbuchs, daraus nur Namen zu Nummern und Mailadressen (die selbst nie in einer Ausgabe erscheinen). landesvorwahl: für Nummern ohne + im Adressbuch. hidden_kinds: Chat-Arten, die in chats, triage und search fehlen, mit --all sichtbar (person, gruppe, dienst, Dienst heißt SMS-Absender ohne Rufnummer wie Firmen und Kurzwahlen). entwurf_link: leer, solange nicht getestet ist, dass die Nachrichten-App Text aus einem Link vorbelegt. Sonst die Vorlage mit {adresse} und {text}. Auf macOS 27 belegt sms:{adresse}&body={text} den Text vor (Test 20.10.2026), vor dem Eintragen einmal mit draft prüfen. entwurf_im_hintergrund: Entwurf mit open -g öffnen.",
+
+  "defaults": {
+    "chats_days": 30,
+    "chats_limit": 40,
+    "triage_hours": 48,
+    "read_limit": 60,
+    "search_days": 365,
+    "search_limit": 30,
+    "max_chars": 6000,
+    "style_n": 200,
+    "style_days": 365,
+    "style_max_chars": 20000
+  }
+}

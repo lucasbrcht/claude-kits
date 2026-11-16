@@ -1,0 +1,23 @@
+{
+  "_hinweis": "Steckbrief des Plugins chat, nicht im ZIP. paket.py liest nur verbote: Die Datenbanken von WhatsApp, Nachrichten und Adressbuch liest nur der Server, im Code-Tab sind sie gesperrt. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [
+    "Read(~/Library/Application Support/WhatsApp/**)",
+    "Edit(~/Library/Application Support/WhatsApp/**)",
+    "Read(~/Library/Group Containers/group.net.whatsapp.*/**)",
+    "Edit(~/Library/Group Containers/group.net.whatsapp.*/**)",
+    "Read(~/Library/Group Containers/57T9237FN3.desktop.WhatsApp/**)",
+    "Edit(~/Library/Group Containers/57T9237FN3.desktop.WhatsApp/**)",
+    "Read(~/Library/Containers/net.whatsapp.WhatsApp*/**)",
+    "Edit(~/Library/Containers/net.whatsapp.WhatsApp*/**)",
+    "Read(~/Library/Messages/**)",
+    "Edit(~/Library/Messages/**)",
+    "Read(~/Library/Application Support/AddressBook/**)",
+    "Edit(~/Library/Application Support/AddressBook/**)"
+  ],
+  "abhaengigkeiten": {
+    "connectoren": [],
+    "macos": ["Festplattenvollzugriff", "Automation: Nachrichten"],
+    "programme": ["open", "osascript"],
+    "python": {}
+  }
+}

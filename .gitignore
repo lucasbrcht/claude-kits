@@ -1,0 +1,27 @@
+# Persönliche Einstellungen je Plugin: im Git steht nur die Vorlage config.example.json
+config.json
+# Einrichtung des Nutzers und ihr Stand (paket.py), im Git steht nur einrichtung.example.json
+einrichtung.json
+einrichtung.*.json
+!einrichtung.example.json
+.einrichtung-state.json
+.einrichtung-state.*.json
+# Fehlerprotokoll der Skripte (kit_basis.starten), nur lokal
+.fehler.jsonl
+# Sperre des MCP-Servers im Datenordner (mcp_basis.py), nur lokal
+.mcp.lock
+# Arbeitsdateien von Claude Code
+.claude/
+# EventKit für Kalender und Erinnerungen, lokal erzeugt, nicht teilen
+.venv/
+# Feste Textdateien für Entwürfe, Nachrichten und Notizen, die Skripte löschen sie nach Erfolg
+entwurf.txt
+antwort.txt
+nachricht.txt
+notiz.html
+notiz.md
+# Persönliche Stilprofile und Stilproben, im Git steht nur die Vorlage
+plugins/apple/style/*/
+plugins/chat/style/
+__pycache__/
+.DS_Store

@@ -1,0 +1,88 @@
+{
+  "_hinweis": "Vorlage für config.json im Datenordner ~/Library/Application Support/Claude Kits/apple/: kopieren nach config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Eine Datei mit einem Abschnitt je Bereich: mail, kalender, notizen, reminders, kontakte. Namen exakt so schreiben, wie sie in Apple Mail, Kalender, Notizen und Erinnerungen heißen. Falsche Typen (etwa ein Text statt einer Liste) brechen jeden Befehl ab, statt still zu wirken. Optional ganz oben mcp_nur_lesen: true oder eine Liste von Instanzen wie [\"arbeit\"], dann bietet der Server dort nur Werkzeuge zum Lesen an. In Cowork schreibt die Einrichtung die Abschnitte mit dem Werkzeug einstellungen_schreiben.",
+  "mail": {
+    "_hinweis": "mail.py und style_sample.py. Alle Konten laufen über Apple Mail, ein verbundener Mail-Connector hilft beim Suchen. Das Profil arbeit dient dem Arbeitskonto: Stilprofil aus gesendeten Mails, Signaturdatei, Suchen und Entwürfe mit profil arbeit. Ohne profil suchen mail_suchen und mail_neues in allen Konten aus accounts. Ohne Arbeitskonto das Profil arbeit und das zweite Konto streichen.",
+    "accounts": [
+      "<Name des privaten Kontos in Apple Mail>",
+      "<Name des Arbeitskontos in Apple Mail>"
+    ],
+    "default_profile": "privat",
+    "profiles": {
+      "arbeit": {
+        "account": "<Name des Arbeitskontos in Apple Mail>",
+        "from_name": "<Vorname Nachname>",
+        "from_address": "<eigene Arbeitsadresse>",
+        "signature": "<Firmenname, ab dem die Signatur beginnt>",
+        "_signature_hinweis": "Nur Trennmarke für style_sample.py: ab hier beginnt die Firmensignatur.",
+        "signatur_html": "style/arbeit/signatur.html",
+        "_signatur_html_hinweis": "Kurze Signatur für Entwürfe und Quelle der Apple-Mail-Signatur (mail.py signatur). Nur p, br, a, b, i, keine Farben und Bilder. Liegt im Datenordner, nie exportieren.",
+        "signatur_footer_html": "style/arbeit/signatur_footer.html",
+        "_signatur_footer_html_hinweis": "Footer der langen Fassung (Adresse, Registergericht, Geschäftsführung), nur auf Zuruf direkt nach signatur_html."
+      },
+      "privat": {
+        "account": "<Name des privaten Kontos in Apple Mail>",
+        "from_name": "<Vorname Nachname>",
+        "from_address": "<eigene private Adresse>",
+        "signature": ""
+      }
+    },
+    "_anhang_hinweis": "Ordner (absolut oder mit ~), aus denen mail_entwurf_anhang Dateien nehmen darf. Eine Firmendatei in einem dieser Ordner erkennt die Prüfung nicht, dort gilt die Regel: Firmenunterlagen nie anhängen. Alles andere lehnt das Skript ab, etwa Kundenunterlagen aus einem Cloud-Ordner oder Dateien unter ~/Library.",
+    "anhang_ordner": [
+      "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads",
+      "~/Downloads",
+      "~/Desktop",
+      "~/Documents"
+    ],
+    "noise": [
+      "noreply@",
+      "no-reply@",
+      "newsletter",
+      "mailer-daemon",
+      "linkedin",
+      "notifications@github.com"
+    ],
+    "search": {
+      "default_days": 90,
+      "default_limit": 50
+    },
+    "_triage_hinweis": "mail_neues zeigt alle ungelesenen Mails im Zeitraum und von den nur markierten Mails des letzten Jahres höchstens max_markiert, die neuesten zuerst. Den Rest nennt eine Zeile am Ende.",
+    "triage": {
+      "max_markiert": 10
+    }
+  },
+  "kalender": {
+    "_hinweis": "calendar_today.sh, add_event.py und move_event.py. Die Skripte schreiben nur in Kalender aus allowed_calendars und lehnen Exchange-Kalender ab. Ausnahme: termin_mit_nachfrage (Dialog am Mac) schreibt eigene Termine ohne Teilnehmer in arbeitskalender.",
+    "default_calendar": "<privater Kalender, etwa Privat>",
+    "allowed_calendars": [
+      "<privater Kalender>",
+      "<gemeinsamer Kalender>"
+    ],
+    "private_calendars": [],
+    "hidden_calendars": [
+      "<Kalender, die nur mit alle erscheinen>"
+    ],
+    "_ansicht_hinweis": "dedupe_calendars erscheinen nur einmal, auch wenn mehrere Konten sie liefern. nur_belegt zeigt mit alle nur die Zeiten, ohne Titel und Ort. Fehlt arbeitskalender (der Arbeitskalender aus Exchange) in Apple Kalender, warnt der Gesamtblick, dass die Arbeitstermine fehlen. Ohne Arbeitskalender den Wert leer lassen.",
+    "dedupe_calendars": [
+      "Geburtstage"
+    ],
+    "nur_belegt": [
+      "<Kalender, von dem nur belegte Zeiten zählen>"
+    ],
+    "arbeitskalender": "Kalender"
+  },
+  "notizen": {
+    "_hinweis": "notiz.py. ausgeschlossene_ordner nennt Ordnernamen, die mit allen Unterordnern nie gelesen, durchsucht oder beschrieben werden. Der Papierkorb ist immer ausgenommen. Leer heißt: alle anderen Ordner sind offen.",
+    "ausgeschlossene_ordner": []
+  },
+  "reminders": {
+    "_hinweis": "reminders.py. excluded_lists werden nie gelesen oder beschrieben. geteilte_listen (andere sehen sie) markiert lists mit (geteilt), add und done schreiben dort direkt wie überall.",
+    "excluded_lists": [],
+    "geteilte_listen": [
+      "<geteilte Liste, etwa Einkaufsliste>"
+    ]
+  },
+  "kontakte": {
+    "_hinweis": "kontakte.py. eigene_mails: die eigenen Mailadressen, an ihnen erkennt kontakte.py me die eigene Karte.",
+    "eigene_mails": ["<eigene Mailadresse>"]
+  }
+}

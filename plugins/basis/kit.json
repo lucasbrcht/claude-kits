@@ -1,0 +1,10 @@
+{
+  "_hinweis": "Steckbrief des Plugins basis, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab), abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [],
+  "abhaengigkeiten": {
+    "connectoren": [],
+    "macos": [],
+    "programme": ["git"],
+    "python": {}
+  }
+}

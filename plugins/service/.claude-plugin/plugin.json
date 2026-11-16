@@ -1,0 +1,9 @@
+{
+  "name": "service",
+  "displayName": "Service",
+  "version": "7.0.0",
+  "description": "Dienste für Alltag und Unterwegs: Verpflegungs-Roadbook für Rad-Events aus einer GPX und das Smart Home mit Home Assistant (lokaler MCP-Server, Token aus dem Schlüsselbund).",
+  "author": {
+    "name": "Lucas Bracht"
+  }
+}

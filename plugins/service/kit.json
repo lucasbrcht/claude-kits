@@ -1,0 +1,10 @@
+{
+  "_hinweis": "Steckbrief des Plugins service, nicht im ZIP. Keine Sperren: Die Roadbook-Skripte laufen in der Sandbox aus dem Skill-Ordner (python3.12 wegen numpy, Pillow, reportlab), Home Assistant über den MCP-Server homeassistant (Starter ha_start.py). abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [],
+  "abhaengigkeiten": {
+    "connectoren": ["BROWSER", "HOMEASSISTANT"],
+    "macos": [],
+    "programme": ["curl", "node", "pdftoppm", "git", "uvx"],
+    "python": {"python3.12": ["numpy", "PIL", "reportlab"]}
+  }
+}

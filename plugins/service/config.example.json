@@ -1,0 +1,18 @@
+{
+  "_hinweis": "Vorlage für config.json: kopieren nach ~/Library/Application Support/Claude Kits/service/config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Die Vorgaben fürs Roadbook stehen unter skill_werte, der Skill roadbook liest sie direkt. Eine Strecke bekommt ihre roadbook.json im Arbeitsordner. Den Block homeassistant liest ha_start.py: Adresse, Paket mit fester Version, Name des Eintrags im Schlüsselbund mit dem Token (anlegen mit security add-generic-password -s <Dienst> -a claude -w), optional der Pfad zu uvx. Ohne den Block startet der Server ohne Werkzeuge.",
+  "homeassistant": {
+    "url": "http://<host>:8123",
+    "paket": "ha-mcp@<version>",
+    "schluesselbund": "homeassistant-claude"
+  },
+  "skill_werte": {
+    "ROADBOOK_VORGABEN": [
+      "- **Kategorien:** <welche Stopps zählen, etwa Supermarkt, Bäcker, Tankstelle, Imbiss ab 17 Uhr, Radladen bis 4 km>",
+      "- **Takt:** <etwa ein Stopp pro Stunde, alle 15 bis 20 km>",
+      "- **Puffer:** <Minuten, die eine Option nach der Planzeit noch offen sein muss, etwa 90>",
+      "- **Korridor:** <Abstand zur Strecke, etwa 300 m, Umwege bis 1 km nur in Lücken, Anfang und Ende ohne Stopps>",
+      "- **Grau hinterlegt:** <welche Stopps hervorgehoben werden>",
+      "- **Ausgabe:** <Sticker-Größe in mm, Gerät für das Wallpaper, was darauf steht>"
+    ]
+  }
+}
