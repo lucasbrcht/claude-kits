@@ -17,7 +17,7 @@
     "connectoren": [],
     "macos": ["Automation: Mail", "Automation: System Events", "Automation: Notizen", "Bedienungshilfen",
               "Kalender: Vollzugriff", "Erinnerungen: Vollzugriff", "Festplattenvollzugriff (Kontakte)"],
-    "programme": ["osascript", "icalBuddy"],
+    "programme": ["osascript", "icalBuddy", "swiftc"],
     "python": {".venv/bin/python3": ["EventKit", "Foundation"]}
   }
 }

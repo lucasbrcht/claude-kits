@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Lokaler MCP-Server apple: Mail, Kalender, Notizen, Erinnerungen und Kontakte über die Skripte des Plugins.
+"""Lokaler MCP-Server apple: Mail, Kalender, Notizen, Erinnerungen, Kontakte und PDF aus HTML über die Skripte des
+Plugins.
 
 Start über .mcp.json mit python3 ab 3.9, Arbeitsordner egal. Die Werkzeuge rufen mail.py, style_sample.py,
-calendar_today.sh, add_event.py, move_event.py, reminders.py, notiz.py und kontakte.py ohne Shell auf (mcp_basis.Lauf).
-add_event.py, move_event.py und reminders.py wechseln selbst in die .venv des Datenordners (EventKit).
+calendar_today.sh, add_event.py, move_event.py, reminders.py, notiz.py, kontakte.py und pdf.py ohne Shell auf
+(mcp_basis.Lauf). add_event.py, move_event.py und reminders.py wechseln selbst in die .venv des Datenordners (EventKit).
 
-Stufen: lesen läuft frei. schreiben legt Entwürfe (auch mit Anhang), eigene Termine ohne Teilnehmer, Erinnerungen und
-Notizen in eigenen Ordnern an, alles bleibt im eigenen Account. nachfrage (senden, Arbeitskalender, Termine mit
-Teilnehmern, geteilte Notizordner: andere sehen es; Einstellungen: ändert den Schutz) zeigt vor jedem Aufruf einen
-Dialog am Mac (mcp_basis.bestaetigen). Löschen und Verwerfen gibt es nicht.
+Stufen: lesen läuft frei. schreiben legt Entwürfe (auch mit Anhang), eigene Termine ohne Teilnehmer, Erinnerungen,
+Notizen in eigenen Ordnern und PDFs aus HTML an, alles bleibt im eigenen Account. nachfrage (senden, Arbeitskalender,
+Termine mit Teilnehmern, geteilte Notizordner: andere sehen es; Einstellungen: ändert den Schutz) zeigt vor jedem Aufruf
+einen Dialog am Mac (mcp_basis.bestaetigen). pdf_aus_html mit ersetzen zeigt denselben Dialog, bevor es ein vorhandenes
+PDF überschreibt. Löschen und Verwerfen gibt es nicht.
 
-Eine config.json im Datenordner mit Abschnitten mail, kalender, notizen, reminders und kontakte (Vorlage
+Eine config.json im Datenordner mit Abschnitten mail, kalender, notizen, reminders, kontakte und pdf (Vorlage
 config.example.json). einstellungen und einstellungen_schreiben lesen und schreiben sie für den Skill einrichten, auch
 die der Plugins chat und service: In Cowork erreicht Claude den Datenordner nur über den Server.
 """
@@ -25,7 +27,7 @@ import mcp_basis as mb
 from mcp_basis import Fehler, Werkzeug, langtext, opt, schalter, text, textliste, zahl
 
 NAME = "apple"
-VERSION = "7.0.0"
+VERSION = "7.1.0"
 WURZEL = Path(__file__).resolve().parent
 lauf = mb.Lauf(WURZEL, NAME)
 PLUGINS_DATEN = ("apple", "chat", "service")  # Datenordner, die einstellungen lesen und schreiben darf
@@ -373,6 +375,32 @@ def kontakte(a: dict) -> tuple:
     return lauf("kontakte.py", ["search", "--", suche])
 
 
+# ---------- PDF ----------
+def pdf_aus_html(a: dict) -> tuple:
+    """HTML als PDF im selben Ordner (pdf.py). Neu anlegen ist schreiben. Ein vorhandenes PDF ersetzen lässt sich nicht
+    rückgängig machen: Dann fragt der Server vorher mit dem Dialog am Mac wie bei der Stufe nachfrage. Ein eigenes
+    Werkzeug dafür sprengte die Obergrenze aller Server (test_server.GRENZE_ALLE_SERVER)."""
+    pfad, name = text(a, "pfad", True, 1000), text(a, "name", maximal=120)
+    argumente = [*opt("--quer", schalter(a, "quer")), *opt("--name", name), "--", pfad]
+    if schalter(a, "ersetzen"):
+        frei, grund = mb.bestaetigen(mb.dialog_text(WERKZEUG_PDF, a, pdf_vorschau(a)))
+        if not frei:
+            return 1, (f"Nicht ausgeführt: {grund}. Ein vorhandenes PDF ersetzen gibt nur der Nutzer selbst im Dialog "
+                       "am Mac frei. Nicht erneut aufrufen, außer er bittet ausdrücklich darum.")
+        argumente.insert(0, "--ersetzen")
+    return lauf("pdf.py", argumente, zeit=170)
+
+
+def pdf_vorschau(a: dict) -> str:
+    """Für den Dialog vor dem Ersetzen: Ziel-PDF, Ordner, Quelle."""
+    pfad = str(a.get("pfad") or "")
+    name = str(a.get("name") or "").strip() or Path(pfad).with_suffix(".pdf").name
+    if not name.lower().endswith(".pdf"):
+        name += ".pdf"
+    return mb.angaben(("PDF", name), ("Ordner", mb.ordnername(Path(pfad).parent)), ("Aus", Path(pfad).name),
+                      "Ersetzt das vorhandene PDF")
+
+
 # ---------- Einrichtung ----------
 def plugin_wahl(a: dict) -> str:
     plugin = text(a, "plugin", maximal=20) or NAME
@@ -434,6 +462,16 @@ VERSCHIEBEN = {"titel": d(S, "Teil des Titels, ohne Groß- und Kleinschreibung")
                "kalender": d(S, "Quellkalender, Standard default_calendar aus der config.json"),
                "nach_kalender": d(S, "Termin in diesen Kalender legen, Zeit bleibt"),
                "vorschau": d(B, "nur zeigen, nichts ändern")}
+
+WERKZEUG_PDF = Werkzeug(
+    "pdf_aus_html", "PDF aus HTML",
+    "HTML-Datei als PDF drucken (WebKit am Mac): A4 hoch oder quer, ohne Ränder, mit Hintergründen und Schriften des "
+    "Mac. Gibt Pfad und Seitenzahl zurück, weicht die Seitenzahl ab, ist etwas übergelaufen.", "schreiben",
+    {"pfad": d(S, "absoluter Pfad der HTML-Datei, nur aus den Ordnern in pdf.ordner der config.json"),
+     "quer": d(B, "A4 quer statt hoch"),
+     "name": d(S, "Dateiname des PDF im selben Ordner, Standard wie die HTML-Datei"),
+     "ersetzen": d(B, "vorhandenes PDF ersetzen, nur auf ausdrücklichen Wunsch, mit Dialog am Mac")},
+    pdf_aus_html, pflicht=("pfad",), zeit=170)
 
 WERKZEUGE = [
     Werkzeug("mail_suchen", "Mails suchen",
@@ -558,6 +596,7 @@ WERKZEUGE = [
              "Karte. Adressen, Nummern, Geburtstage.", "lesen",
              {"suche": d(S, "Name, Firma oder Teil davon"), "id": d(S, "ID aus der Suche"),
               "ich": d(B, "die eigene Karte")}, kontakte),
+    WERKZEUG_PDF,
     Werkzeug("einstellungen", "Einstellungen lesen",
              "config.json und Stilprofile im Datenordner eines Plugins zeigen, mit offenen Werten. Für die Einrichtung "
              "und um Vorgaben nachzusehen.", "lesen", {"plugin": PLUGIN}, einstellungen),

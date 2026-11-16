@@ -54,6 +54,7 @@ Personen gehören ins Wissen des Projekts, nie in `profil.md` oder die Instructi
 - `apple`, Abschnitt `mail`: `accounts`, `profiles.privat` (Konto, Name, eigene Adresse aus der Frage, nicht aus Kontakte), `profiles.arbeit` nur mit Arbeitskonto, sonst den Block und das zweite Konto streichen, `default_profile` privat, `anhang_ordner`, `noise`, `search` und `triage` wie in der Vorlage.
 - `apple`, Abschnitt `kalender`: `default_calendar`, `allowed_calendars` (private und gemeinsame Kalender, die der Nutzer beschreiben lassen will), `arbeitskalender` (Exchange, sonst leer), Rest wie in der Vorlage ohne Platzhalter.
 - `apple`, Abschnitte `kontakte` (`eigene_mails`), `notizen` und `reminders` (Ausschlüsse und geteilte Listen nur auf Nennung, sonst leere Listen).
+- `apple`, Abschnitt `pdf`: `ordner` wie in der Vorlage (Downloads im iCloud Drive), weitere Ordner nur auf Nennung.
 - `chat` mit `plugin` chat, nur diese Abschnitte, alles andere hat Standardwerte: `me` (Vorname), `me_names` (Vorname und Spitzname), `forbidden_chars` aus Runde 3 des Interviews (leere Liste, wenn der Nutzer nichts ausschließt, sonst zum Beispiel Gedankenstriche, Auslassungspunkte, Semikolon), `excluded_chats` nur, wenn der Nutzer welche nennt.
 
 ## Personen (Schritt 5)

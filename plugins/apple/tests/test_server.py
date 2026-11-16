@@ -22,7 +22,8 @@ GRENZE_ALLE_SERVER = 32
 # geteilte Notizordner. Verwerfen gibt es gar nicht. Eigene Termine, Entwürfe auch mit Anhang und eigene Notizen
 # bleiben im eigenen Account und brauchen keine (Zusatzrunde V6 Phase 6)
 VERBOTEN_OHNE_NACHFRAGE = {"mail.py": ("send", "--yes", "discard"), "add_event.py": ("--exchange",),
-                           "move_event.py": ("--exchange", "--mit-teilnehmern"), "notiz.py": ("--ausfuehren",)}
+                           "move_event.py": ("--exchange", "--mit-teilnehmern"), "notiz.py": ("--ausfuehren",),
+                           "pdf.py": ("--ersetzen",)}
 NACHFRAGE = {"mail_senden", "termin_mit_nachfrage", "notiz_geteilt", "einstellungen_schreiben"}
 
 
@@ -149,7 +150,7 @@ class Argumente(unittest.TestCase):
             "erinnerung_abhaken": {"titel": "y"}, "notizen_suchen": {"text": "x"}, "notiz_lesen": {"titel": "x"},
             "notiz_anlegen": {"titel": "x", "inhalt": "y", "ordner": "z"},
             "notiz_ersetzen": {"titel": "x", "inhalt": "y", "ordner": "z"}, "kontakte": {"suche": "x"},
-            "einstellungen": {}}
+            "pdf_aus_html": {"pfad": "--ersetzen", "name": "--ersetzen", "quer": True}, "einstellungen": {}}
         with tempfile.TemporaryDirectory() as t, mock.patch.dict(os.environ, {mb.UMGEBUNG: t}):
             for w in server.WERKZEUGE:
                 if w.stufe == "nachfrage":
@@ -163,6 +164,23 @@ class Argumente(unittest.TestCase):
                 vor_trenner = argv[:argv.index("--")] if "--" in argv else argv
                 for wort in VERBOTEN_OHNE_NACHFRAGE.get(skript, ()):
                     self.assertNotIn(wort, vor_trenner, w.name)
+
+    def test_pdf(self):
+        self.assertEqual(self.rufe("pdf_aus_html", {"pfad": "/x/a.html"})[2][:2], ("pdf.py", ["--", "/x/a.html"]))
+        self.assertEqual(self.rufe("pdf_aus_html", {"pfad": "/x/a.html", "quer": True, "name": "B.pdf"})[2][1],
+                         ["--quer", "--name=B.pdf", "--", "/x/a.html"])
+        self.assertEqual(self.rufe("pdf_aus_html", {"pfad": "/x/a.html", "ersetzen": True})[2][1],
+                         ["--ersetzen", "--", "/x/a.html"])  # Dialog im Test frei
+        self.assertTrue(self.rufe("pdf_aus_html", {})[0])  # pfad ist Pflicht
+        self.assertEqual(server.pdf_vorschau({"pfad": "/x/Ordner/a.html", "name": "B"}),
+                         "PDF: B.pdf\nOrdner: Ordner\nAus: a.html\nErsetzt das vorhandene PDF")
+
+    def test_pdf_ersetzen_ohne_dialog_nie(self):
+        with mock.patch.dict(os.environ, {"KITS_DIALOG": "nein"}):
+            fehler, aus, aufruf = self.rufe("pdf_aus_html", {"pfad": "/x/a.html", "ersetzen": True})
+        self.assertTrue(fehler)
+        self.assertIsNone(aufruf)
+        self.assertIn("Nicht ausgeführt", aus)
 
     def test_schadhafte_werte_bleiben_daten(self):
         _, _, (_, argv, _) = self.rufe("notiz_lesen", {"titel": "--ausfuehren", "ordner": "--html"})
@@ -186,7 +204,7 @@ class Einrichtung(unittest.TestCase):
 
     def test_vorlage_hat_alle_abschnitte(self):
         self.assertEqual([k for k in server.vorlage() if not k.startswith("_")],
-                         ["mail", "kalender", "notizen", "reminders", "kontakte"])
+                         ["mail", "kalender", "notizen", "reminders", "kontakte", "pdf"])
 
     def test_schreiben_nur_nach_vorlage_und_dialog(self):
         fehler, aus = self.rufe("einstellungen_schreiben", {"werte": {"kalender": {"default_calendar": "Privat"}}})

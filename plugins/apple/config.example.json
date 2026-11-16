@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Vorlage für config.json im Datenordner ~/Library/Application Support/Claude Kits/apple/: kopieren nach config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Eine Datei mit einem Abschnitt je Bereich: mail, kalender, notizen, reminders, kontakte. Namen exakt so schreiben, wie sie in Apple Mail, Kalender, Notizen und Erinnerungen heißen. Falsche Typen (etwa ein Text statt einer Liste) brechen jeden Befehl ab, statt still zu wirken. Optional ganz oben mcp_nur_lesen: true oder eine Liste von Instanzen wie [\"arbeit\"], dann bietet der Server dort nur Werkzeuge zum Lesen an. In Cowork schreibt die Einrichtung die Abschnitte mit dem Werkzeug einstellungen_schreiben.",
+  "_hinweis": "Vorlage für config.json im Datenordner ~/Library/Application Support/Claude Kits/apple/: kopieren nach config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Eine Datei mit einem Abschnitt je Bereich: mail, kalender, notizen, reminders, kontakte, pdf. Namen exakt so schreiben, wie sie in Apple Mail, Kalender, Notizen und Erinnerungen heißen. Falsche Typen (etwa ein Text statt einer Liste) brechen jeden Befehl ab, statt still zu wirken. Optional ganz oben mcp_nur_lesen: true oder eine Liste von Instanzen wie [\"arbeit\"], dann bietet der Server dort nur Werkzeuge zum Lesen an. In Cowork schreibt die Einrichtung die Abschnitte mit dem Werkzeug einstellungen_schreiben.",
   "mail": {
     "_hinweis": "mail.py und style_sample.py. Alle Konten laufen über Apple Mail, ein verbundener Mail-Connector hilft beim Suchen. Das Profil arbeit dient dem Arbeitskonto: Stilprofil aus gesendeten Mails, Signaturdatei, Suchen und Entwürfe mit profil arbeit. Ohne profil suchen mail_suchen und mail_neues in allen Konten aus accounts. Ohne Arbeitskonto das Profil arbeit und das zweite Konto streichen.",
     "accounts": [
@@ -84,5 +84,11 @@
   "kontakte": {
     "_hinweis": "kontakte.py. eigene_mails: die eigenen Mailadressen, an ihnen erkennt kontakte.py me die eigene Karte.",
     "eigene_mails": ["<eigene Mailadresse>"]
+  },
+  "pdf": {
+    "_hinweis": "pdf.py für pdf_aus_html. ordner nennt die Ordner (absolut oder mit ~), unter denen HTML-Dateien als PDF gedruckt werden dürfen, mit allen Unterordnern. Das PDF entsteht neben der HTML-Datei. pdf.py übersetzt das Swift-Programm html2pdf beim ersten Aufruf einmal nach bin/ im Datenordner (braucht swiftc der Command Line Tools).",
+    "ordner": [
+      "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads"
+    ]
   }
 }

@@ -2,6 +2,15 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.1.0 (16.11.2026)
+
+`apple` 7.1.0, `basis` 7.0.2, die anderen Plugins bleiben 7.0.0.
+
+- **Neues Werkzeug `pdf_aus_html` in `apple`:** druckt eine HTML-Datei als PDF neben die Quelle, nur mit Bordmitteln von macOS (WebKit über `html2pdf.swift`). A4 hoch oder mit `quer` quer, ohne Ränder, mit Hintergründen und den Schriften des Mac, ohne Chrome, Klick oder Dialog. `name` setzt den Dateinamen. Rückgabe Pfad und Seitenzahl als Prüfung auf Überlauf. Stufe schreiben, ein vorhandenes PDF ersetzt es nur mit `ersetzen` nach dem Dialog am Mac. Läuft nur, wo die Plugins am Mac laden (Cowork, Code-Tab), nicht in Cloud-Sitzungen und am iPhone.
+- **Neuer Abschnitt `pdf` in der `config.json`** mit `ordner`: Nur darunter druckt das Werkzeug. Ohne den Abschnitt bricht es ab, nachtragen mit `einstellungen_schreiben` (Vorlage: Downloads im iCloud Drive). `einrichten` schreibt ihn bei neuen Einrichtungen mit.
+- Beim ersten Aufruf übersetzt `pdf.py` das Swift-Programm einmal nach `bin/` im Datenordner (etwa 40 Sekunden, braucht `swiftc` der Command Line Tools).
+- Vorlagen mit Seiten von genau 297 mm bekommen keine leeren Zwischenseiten: WebKit rundet die Seitenhöhe ab, das Programm druckt deshalb auf minimal höheres Papier und schneidet auf A4 zu.
+
 ## v7.0.3 (16.11.2026)
 
 Nur Doku, die Plugins bleiben wie in 7.0.2.

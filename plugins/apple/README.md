@@ -1,6 +1,6 @@
 # Plugin apple
 
-Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy und die Adressbuch-Datenbank (Kontakte).
+Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen, HTML-Dateien als PDF drucken. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy, die Adressbuch-Datenbank (Kontakte) und WebKit (PDF).
 
 Neutral und ohne Kontext oder Chat: Das Plugin taugt auch für Kollegen mit Mac, die nur die Apple-Apps wollen.
 
@@ -21,8 +21,10 @@ Der lokale MCP-Server `server.py` (über `.mcp.json`, Unterbau `mcp_basis.py`) r
 | Stufe | Werkzeuge |
 |---|---|
 | lesen | `mail_suchen`, `mail_neues`, `mail_lesen`, `mail_entwuerfe`, `mail_stilprofil` (mit `stilprobe` eine neue Stichprobe), `termine_lesen`, `erinnerungen_lesen`, `notizen_suchen`, `notiz_lesen`, `kontakte`, `einstellungen` |
-| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `notiz_anlegen`, `notiz_ersetzen` (nur außerhalb geteilter Ordner) |
-| nachfrage | `mail_senden`, `termin_mit_nachfrage` (Arbeitskalender, Termine mit Teilnehmern), `notiz_geteilt` (geteilte Ordner), `einstellungen_schreiben` (config.json und Stilprofile), erst nach Dialog von macOS |
+| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `notiz_anlegen`, `notiz_ersetzen` (nur außerhalb geteilter Ordner), `pdf_aus_html` (nur in `pdf.ordner`) |
+| nachfrage | `mail_senden`, `termin_mit_nachfrage` (Arbeitskalender, Termine mit Teilnehmern), `notiz_geteilt` (geteilte Ordner), `einstellungen_schreiben` (config.json und Stilprofile), erst nach Dialog von macOS. Dazu `pdf_aus_html` mit `ersetzen`: Ein vorhandenes PDF überschreibt es erst nach demselben Dialog. |
+
+`pdf_aus_html` druckt eine HTML-Datei mit WebKit als PDF neben die Quelle: A4 hoch oder mit `quer` quer, ohne Ränder, mit Hintergründen und den Schriften des Mac, optional mit `name` als Dateiname. Rückgabe Pfad und Seitenzahl, die Seitenzahl ist die schnelle Prüfung auf Überlauf. `pdf.py` übersetzt `html2pdf.swift` beim ersten Aufruf einmal nach `bin/` im Datenordner (etwa 40 Sekunden), danach dauert ein Druck wenige Sekunden. WebKit rundet die Seitenhöhe auf ganze CSS-Pixel ab, deshalb druckt das Programm auf 1,5 pt höheres Papier und schneidet jede Seite oben bündig auf A4 zu: Vorlagen mit Seiten von genau 297 mm bekommen so keine leeren Zwischenseiten. Ein eigenes Werkzeug für das Überschreiben gibt es nicht, es sprengte die Obergrenze aller Server.
 
 `einstellungen` und `einstellungen_schreiben` lesen und schreiben den Datenordner von `apple`, `chat` und `service`: für den Skill `einrichten`, weil Claude in Cowork den Ordner nur über den Server erreicht. Geschrieben werden ganze Abschnitte, für `apple` nur die aus `config.example.json` mit gleichem Typ, dazu `mcp_nur_lesen`, oder ein Stilprofil.
 
@@ -38,10 +40,11 @@ Der lokale MCP-Server `server.py` (über `.mcp.json`, Unterbau `mcp_basis.py`) r
 | Erinnerungen | `reminders.py` |
 | Notizen | `notiz.py` |
 | Kontakte | `kontakte.py` (nur lesen) |
+| PDF aus HTML | `pdf.py` mit `html2pdf.swift` (WebKit) |
 
 ## Voraussetzungen
 
-- macOS mit Apple Mail (Kontonamen wie in der Seitenleiste), Kalender, Notizen, Erinnerungen, Kontakte und `brew install ical-buddy`.
+- macOS mit Apple Mail (Kontonamen wie in der Seitenleiste), Kalender, Notizen, Erinnerungen, Kontakte und `brew install ical-buddy`. Für `pdf_aus_html` macOS ab 13.3 und `swiftc` aus den Command Line Tools.
 - python3 (System-Python ab 3.9), der Server startet mit `/Library/Developer/CommandLineTools/usr/bin/python3`. Für Kalender und Erinnerungen eine `.venv` mit EventKit im Datenordner: `/opt/homebrew/opt/python@3.12/bin/python3.12 -m venv "$HOME/Library/Application Support/Claude Kits/apple/.venv"` und danach `"$HOME/Library/Application Support/Claude Kits/apple/.venv/bin/pip" install pyobjc-framework-EventKit`. Die Skripte starten mit `python3` und wechseln selbst in die `.venv`. Entfernt Homebrew diese Python-Version, die `.venv` neu anlegen.
 - Systemeinstellungen > Datenschutz & Sicherheit: Automation (Mail, System Events, Notizen), Bedienungshilfen für Antworten in Mail, Kalender und Erinnerungen auf Vollzugriff, Festplattenvollzugriff für `python3.9` der Command Line Tools (Kontakte). Beim ersten Lauf kommen die Abfragen von selbst.
 
@@ -70,6 +73,7 @@ Eine Datei mit einem Abschnitt je Bereich, Vorlage `config.example.json`. Falsch
 | `reminders.excluded_lists` | Erinnerungslisten, die nie gelesen oder beschrieben werden. |
 | `reminders.geteilte_listen` | Listen, die andere sehen. `lists` markiert sie mit `(geteilt)`, `add` und `done` schreiben dort direkt wie überall. |
 | `kontakte.eigene_mails` | Eigene Mailadressen, an ihnen erkennt `kontakte.py me` die eigene Karte. |
+| `pdf.ordner` | Ordner, unter denen `pdf_aus_html` HTML-Dateien drucken darf, mit allen Unterordnern. Fehlt der Abschnitt, bricht `pdf.py` ab. |
 
 ## Aufruf von Hand
 
