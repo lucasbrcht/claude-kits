@@ -2,6 +2,13 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.1.1 (16.11.2026)
+
+`basis` 7.0.3, die anderen Plugins bleiben wie in 7.1.0.
+
+- **Memory merkt Grund und Datum:** Die Vorlage für das Profil sagt, dass Memory den Grund einer Vorliebe mit merkt und Zeitangaben als Datum statt relativ. Gilt für neue Einrichtungen, bestehende Profile bekommen die Zeile von Hand.
+- **Abgleich meldet unscharfe Memory-Einträge:** Einträge mit relativer Zeitangabe oder abgelaufenem Datum stehen im Abschluss als Aufgabe "in Memory korrigieren", ohne Frage.
+
 ## v7.1.0 (16.11.2026)
 
 `apple` 7.1.0, `basis` 7.0.2, die anderen Plugins bleiben 7.0.0.

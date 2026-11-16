@@ -13,6 +13,7 @@ Was dir als Memory über den Nutzer vorliegt (Projekt und Account). Gibt es hier
 - Dauerhafter Fakt (Person mit Beziehung, Vorliebe, Regeltermin, Vorhaben), der in keiner Wissensdatei steht: Vorschlag, ihn in die passende Datei zu übernehmen.
 - Widerspricht ein Eintrag einer Wissensdatei: Widerspruch mit Zitat der Zeile, Optionen nach `fragen.md` plus `Memory korrigieren`.
 - Steht in Memory etwas, das laut den Memory-Regeln der Instructions nie gemerkt werden darf (etwa Adresse, Gesundheit, Termin anderer, Arbeitswissen im privaten Account): keine Frage, nur im Abschluss als Aufgabe "in Memory löschen" mit dem Thema, nie dem Wert.
+- Eintrag mit relativer Zeitangabe (nächste Woche, bald, gerade) oder abgelaufenem Datum: keine Frage, im Abschluss als Aufgabe "in Memory korrigieren" mit dem Thema.
 - Einzeltermine, Stimmungen und Erledigtes bleiben in Memory, keine Frage.
 
 ## 3 Quellen, nur Überblicke

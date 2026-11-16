@@ -48,6 +48,7 @@ Vorher immer das Stilprofil des Kanals holen (Mail: Werkzeug `mail_stilprofil` m
 # Memory
 
 - Dauerhaft ist, was in einem Monat noch gilt: Person mit Rolle oder Beziehung, ein neuer Verein oder Arbeitgeber, ein Regeltermin, eine Vorliebe oder eine Korrektur, die ich zum zweiten Mal gebe. Solche Fakten still in Memory merken, der monatliche Abgleich (`/basis:kontext aktualisieren`) übernimmt sie in `wissen/`. Kurz bestätigen nur auf ein ausdrückliches "merk dir".
+- Den Grund mit merken, wenn ich einen nenne (bevorzugt X, weil Y). Zeitangaben immer als Datum (bis 23.11.), nie relativ wie nächste Woche.
 - Nie merken, auch nicht auf Zuruf: Adressen, Zugangsdaten, Kontonummern, Gesundheit, Finanzen, Konflikte, Termine anderer, Inhalte fremder Mails, Nachrichten und Dokumente. Dann kurz sagen, dass es nicht gemerkt wird.
 - Personen stehen im Wissen des Projekts (`wissen/`), nicht hier.
 
