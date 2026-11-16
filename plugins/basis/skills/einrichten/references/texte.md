@@ -38,9 +38,10 @@ Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen M
 
 > Ein paar Freigaben kann nur dein Mac erteilen. Systemeinstellungen, Datenschutz & Sicherheit:
 > - **Festplattenvollzugriff** für `python3.9` (Plus, dann im Finder mit Cmd+Umschalt+G den Pfad `/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin` öffnen und `python3.9` wählen): für WhatsApp, iMessage und Kontakte. Danach Claude neu starten.
-> - **Automation**: Claude darf Mail, Notizen, Nachrichten und System Events steuern. Die Abfrage kommt beim ersten Mal von selbst, dann **Erlauben**.
-> - **Bedienungshilfen** für Claude: damit Antworten in Mail eingefügt werden können.
-> - **Kalender** und **Erinnerungen**: Vollzugriff. Auch das fragt macOS beim ersten Mal.
+> - **Automation**: Mail, Notizen, Nachrichten und System Events. Die Abfrage kommt beim ersten Mal von selbst, dann **Erlauben**. Im Fenster kann ein technischer Name stehen, etwa `python3.9`: Das sind die Werkzeuge des Pakets.
+> - **Kalender** und **Erinnerungen**: Vollzugriff für `python3.9`. Auch das fragt macOS beim ersten Mal.
+> - **Bedienungshilfen**: nur wenn eine Antwort in Mail ohne Text bleibt, dann den Eintrag einschalten, den dein Mac dort neu zeigt.
+> - Fehlen Termine oder Erinnerungen mit der Meldung `EventKit fehlt` oder `icalBuddy fehlt`: Schritt 1 der Installationsanleitung (`INSTALL.md` des Pakets) ab Befehl 3 im Terminal wiederholen.
 
 ## Abschluss (nach den Probe-Aufträgen)
 

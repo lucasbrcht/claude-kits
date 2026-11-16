@@ -1,7 +1,7 @@
 {
   "name": "basis",
   "displayName": "Basis",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "Der persönliche Assistent für alle: Einrichtung im Gespräch (auch in Cowork), Kontext merken und monatlich abgleichen, Rückmeldungen an den Betreuer. Braucht die Plugins apple und, wer WhatsApp und iMessage will, chat.",
   "author": {
     "name": "Lucas Bracht"

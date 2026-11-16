@@ -2,6 +2,12 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.0.2 (16.11.2026)
+
+`basis` 7.0.1, die anderen Plugins bleiben 7.0.0.
+
+- **`einrichten` passt zu `INSTALL.md`:** Der Text Freigaben nennt `python3.9` als Eintrag für Automation, Kalender und Erinnerungen, Bedienungshilfen nur bei Bedarf und den Weg bei `EventKit fehlt` oder `icalBuddy fehlt`. Punkt 7 der Prüfliste verweist auf Schritt 1 von `INSTALL.md` statt auf den Befehl aus der Meldung.
+
 ## v7.0.1 (16.11.2026)
 
 Nur Doku, die Plugins bleiben 7.0.0.
