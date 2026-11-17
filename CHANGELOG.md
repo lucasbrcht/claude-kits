@@ -2,6 +2,17 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.2.0 (17.11.2026)
+
+`service` 7.1.0, `pflege` 7.0.1 (Rauchtest im Release-Check, Ausrollen per GitHub, ZIPs nur auf Wunsch), die anderen Plugins bleiben wie in 7.1.1.
+
+- **Hausregeln in den Instruktionen von ha-mcp:** Der Starter gibt `ha_regeln.md` als `HAMCP_CUSTOM_INSTRUCTIONS` mit. Rückfragen, Schlösser, Löschen und Token gelten damit auch, wenn Claude die Werkzeuge ohne den Skill nutzt.
+- **Zweiter Server `homeassistant-lesen`:** derselbe Starter mit `--lesen`, ha-mcp sperrt dort jedes Schreiben (`READ_ONLY_MODE`). Für geplante Aufgaben, Routinen und Analysen.
+- **Vorgaben und Schalter:** keine Settings-Seite von ha-mcp mehr, die nach der Session im Hintergrund weiterläuft (eine laufende beendet der nächste Start), Passwörter in Optionen von Apps und Integrationen geschwärzt. Unter `homeassistant.optionen` in der `config.json` lassen sich erlaubte Schalter setzen, unbekannte sind ein Fehler.
+- **Feste Version:** ohne `paket` gilt ha-mcp 9.2.0 statt `latest`, `paket` muss eine Version wie `ha-mcp@9.2.0` nennen.
+- **Rauchtest:** `ha_start.py --rauchtest ha-mcp@<version>` prüft eine neue Version normal und lesend, bevor sie in die `config.json` kommt.
+- **Skill `homeassistant` schlanker:** allgemeine Best Practices kommen aus `ha_get_skill_guide`, Namen nach dem Schema in `zuhause.md`. Neu der Abschnitt Rückweg mit den automatischen Backups von ha-mcp (`ha_manage_backup`, scope `edits`), auch in Cowork ohne Git.
+
 ## v7.1.1 (16.11.2026)
 
 `basis` 7.0.3, die anderen Plugins bleiben wie in 7.1.0.

@@ -1,9 +1,10 @@
 {
-  "_hinweis": "Vorlage für config.json: kopieren nach ~/Library/Application Support/Claude Kits/service/config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Die Vorgaben fürs Roadbook stehen unter skill_werte, der Skill roadbook liest sie direkt. Eine Strecke bekommt ihre roadbook.json im Arbeitsordner. Den Block homeassistant liest ha_start.py: Adresse, Paket mit fester Version, Name des Eintrags im Schlüsselbund mit dem Token (anlegen mit security add-generic-password -s <Dienst> -a claude -w), optional der Pfad zu uvx. Ohne den Block startet der Server ohne Werkzeuge.",
+  "_hinweis": "Vorlage für config.json: kopieren nach ~/Library/Application Support/Claude Kits/service/config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Die Vorgaben fürs Roadbook stehen unter skill_werte, der Skill roadbook liest sie direkt. Eine Strecke bekommt ihre roadbook.json im Arbeitsordner. Den Block homeassistant liest ha_start.py: Adresse, Paket mit fester Version, Name des Eintrags im Schlüsselbund mit dem Token (anlegen mit security add-generic-password -s <Dienst> -a claude -w), optional der Pfad zu uvx und unter optionen Schalter von ha-mcp (erlaubt: READ_ONLY_MODE, REDACT_SECRETS, DISABLED_TOOLS, BACKUP_READ_ONLY, ENABLE_SNAPSHOT_DELETE, ENABLE_AUTO_BACKUP, HA_MCP_DISABLE_SETTINGS_UI, HA_MCP_DISABLE_UPDATE_CHECK). Ohne optionen gelten die Vorgaben des Starters: keine Settings-Seite im Hintergrund, Geheimnisse geschwärzt. Ohne den Block startet der Server ohne Werkzeuge.",
   "homeassistant": {
     "url": "http://<host>:8123",
-    "paket": "ha-mcp@<version>",
-    "schluesselbund": "homeassistant-claude"
+    "paket": "ha-mcp@9.2.0",
+    "schluesselbund": "homeassistant-claude",
+    "optionen": {}
   },
   "skill_werte": {
     "ROADBOOK_VORGABEN": [

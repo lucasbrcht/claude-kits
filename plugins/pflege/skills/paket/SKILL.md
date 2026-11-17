@@ -33,6 +33,7 @@ Meldet der Trockenlauf eine eigene `CLAUDE.md` des Nutzers, nichts überschreibe
 ## Release
 
 1. Tests je geänderten Plugin, dann `--pruefen`: FEHLER zuerst nennen, WARNUNG danach, je mit Datei. Funde zu persönlichen Daten zeigen nie den Fund selbst, nur Datei und Zeile: die Stelle lesen und neutral umschreiben.
+   Ändert sich die Version von ha-mcp (`PAKET_STANDARD` in `service/ha_start.py` oder `paket` in der `config.json` von service), vorher der Rauchtest außerhalb der Sandbox: `/Library/Developer/CommandLineTools/usr/bin/python3 "${CLAUDE_PLUGIN_ROOT}/../service/ha_start.py" --rauchtest ha-mcp@<version>`. Nur bei "Rauchtest bestanden" weiter, sonst die Fehlerzeile nennen und die alte Version lassen.
 2. Version in `.claude-plugin/plugin.json` jedes geänderten Plugins erhöhen, `CHANGELOG.md` ergänzen, committen.
-3. `--zips` mit dem Ordner für die ZIPs. Ein ZIP gleicher Version bleibt liegen, meldet das Skript nicht committete Änderungen, erst committen.
-4. Tag und Push nur nach Ja des Nutzers. Ein Marketplace mit Sync automatically holt die neue Version nach dem Push selbst, hochgeladene Plugins tauscht der Nutzer in Einstellungen > Plugins gegen das neue ZIP.
+3. Ausgerollt wird über GitHub: Tag `v<Paketversion>` auf den Commit, dann Push von `main` und Tag nach `origin`. Push nur nach Ja des Nutzers. Ein Marketplace mit Sync automatically holt die neue Version nach dem Push selbst.
+4. ZIPs mit `--zips` nur auf Wunsch, für hochgeladene Plugins (Einstellungen > Plugins gegen das neue ZIP tauschen). Ein ZIP gleicher Version bleibt liegen, meldet das Skript nicht committete Änderungen, erst committen.
