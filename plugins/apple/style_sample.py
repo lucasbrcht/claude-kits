@@ -52,7 +52,10 @@ on run argv
   tell application "Mail"
     with timeout of 80 seconds
       set boxes to {}
-      if acct is not "" then set boxes to my account_boxes("sent", {acct})
+      if acct is not "" then
+        set boxes to my account_boxes("sent", {acct})
+        if (my missing_accounts(boxes, {acct})) is not "" then return "#fehlt"
+      end if
       set perAcct to (count boxes) > 0
       if not perAcct then set boxes to {sent mailbox}
       repeat with mb in boxes
@@ -114,7 +117,9 @@ def fetch_sent(prof: dict, n: int, days: int) -> list[dict]:
     rows = []
     for tage in zeitraeume(days):
         out = mk.run_as(mk.AS_COMMON + META_ZEILE + AS_SENT_RUN, str(tage * 86400), account)
-        rows = [r for r in (ln.split("|", 1) for ln in out.splitlines() if "|" in ln)
+        if out.strip() == "#fehlt":  # sonst hieße es keine gesendeten Mails, obwohl nie gesucht wurde
+            sys.exit(mk.nicht_gefunden([account], "Postfach Gesendet")[0] + " Nichts geschrieben.")
+        rows =[r for r in (ln.split("|", 1) for ln in out.splitlines() if "|" in ln)
                 if mk.NUR_ZIFFERN.fullmatch(r[0]) and mk.ISO_ZEIT.fullmatch(r[1])]
         if len(rows) >= n:
             break

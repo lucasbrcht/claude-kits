@@ -282,6 +282,10 @@ def cmd_list(store, exclude, days, show_all: bool, verlauf=None):
     ausdrücklich dasteht (der Tagesstart nimmt 0 für heute und überfällig)."""
     alle = listen(store, exclude)
     heute = dt.date.today()
+    if not alle:  # sonst hieße es keine offenen Erinnerungen, obwohl keine Liste gelesen wurde (Etappe 2 von v7.3.0)
+        print("Keine Erinnerungsliste lesbar: Erinnerungen liefert keine oder nur ausgeschlossene Listen. Nichts "
+              "durchsucht, Listen in Erinnerungen und excluded_lists in der config.json prüfen.")
+        return
     if verlauf is None:
         horizon = heute + dt.timedelta(days=14 if days is None else days)
         groups = gruppen(store, exclude, alle, horizon, show_all, heute)

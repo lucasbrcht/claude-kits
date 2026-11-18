@@ -30,7 +30,7 @@ Der Connector erreicht nur den eigenen Tenant. Personen bei Kunden in einem ande
 
 ## Antworten und neue Mails
 
-Wie im Skill: Mail aus dem Connector mit `mail_suchen` (`message_id`, `profil` Arbeitsprofil) in Apple Mail suchen, dann `mail_entwurf` mit `antwort_auf`. Neue Mails mit `mail_entwurf` und `profil` Arbeitsprofil. Apple Mail wählt Konto und Signatur.
+Wie im Skill: Mail aus dem Connector mit `mail_suchen` (`message_id`, `profil` Arbeitsprofil) in Apple Mail suchen, dann `mail_entwurf` mit `antwort_auf` und `betreff_erwartet`. Neue Mails mit `mail_entwurf` und `profil` Arbeitsprofil. Apple Mail wählt Konto und Signatur.
 
 ## Weiterleiten
 

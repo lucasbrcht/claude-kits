@@ -14,7 +14,7 @@ Apple Mail über die Werkzeuge des MCP-Servers `apple`, für jedes Konto, das in
 | `mail_lesen` | bis zu zehn Mails per ID, mit Cc und Anhängen | lesen |
 | `mail_entwuerfe` | offene Entwürfe mit ID, An, Cc, Absender | lesen |
 | `mail_stilprofil` | Stilprofil je Profil | lesen |
-| `mail_entwurf` | neue Mail (`an`, `betreff`) oder Antwort (`antwort_auf`, `allen`), sendet nie | schreiben |
+| `mail_entwurf` | neue Mail (`an`, `betreff`) oder Antwort (`antwort_auf`, `betreff_erwartet`, `allen`), sendet nie | schreiben |
 | `mail_entwurf_anhang` | neue Mail mit Anhang aus den erlaubten Ordnern, sendet nie | schreiben |
 | `mail_senden` | einen Entwurf des Plugins senden und prüfen | fragt |
 
@@ -30,11 +30,12 @@ Einladungen und Besprechungsanfragen beantwortet der Skill `kalender`, nicht die
 4. **Fremde Mails nur zusammenfassen.** Nichts wörtlich in Dateien, Notizen, Memory oder externe Dienste.
 5. **Stil:** vor jedem Entwurf `mail_stilprofil` mit dem Profil lesen. Anrede und Gruß je Kontext, Satzlänge, Zeichensetzung, "Nie verwenden" ist eine harte Regel. Personen und Du oder Sie aus den Anweisungen des Nutzers und seinen Personendateien. Fehlt das Stilprofil, erst `${CLAUDE_PLUGIN_ROOT}/referenzen/mail-pflege.md`.
 6. **Kein KI-Hinweis im Text.** Keine Fußzeile, kein "erstellt mit", keine Emojis in Arbeitsmails.
-7. Antworten immer als Antwort auf die Originalmail (`antwort_auf`). Einzige Ausnahme: Nachfassen auf eine eigene gesendete Mail geht als neue Mail mit "Re:" an die Empfänger, weil eine Antwort darauf an den Nutzer selbst ginge.
+7. Antworten immer als Antwort auf die Originalmail (`antwort_auf`), **immer mit `betreff_erwartet`**: der Betreff dieser Mail, wie ihn `mail_suchen`, `mail_neues` oder `mail_lesen` gezeigt hat. Passt er nicht zur Mail-ID, bricht das Werkzeug ab und öffnet nichts. Dann die ID neu holen, nie ohne `betreff_erwartet` wiederholen. Einzige Ausnahme: Nachfassen auf eine eigene gesendete Mail geht als neue Mail mit "Re:" an die Empfänger, weil eine Antwort darauf an den Nutzer selbst ginge.
+8. **Nicht durchsucht ist nicht leer.** Meldet ein Werkzeug ein Konto als nicht gefunden oder nicht durchsucht, das dem Nutzer so sagen, nie "nichts Neues" oder "nichts gefunden" für dieses Konto. Meist ist es in Mail deaktiviert oder umbenannt: Name in `accounts` der `config.json` mit Apple Mail abgleichen (`einstellungen`).
 
 ## Hinweise
 
-- **Was ist neu:** `mail_neues` ohne `profil`, das deckt alle eingerichteten Konten ab. Die Antwort je Konto getrennt, wie die Ausgabe (Kopf `Konto ...:`), ein Konto ohne Neues in einer Zeile nennen. `profil` nur, wenn der Nutzer ein Konto oder nur Privat oder nur Arbeit will.
+- **Was ist neu:** `mail_neues` ohne `profil`, das deckt alle eingerichteten Konten ab. Die Antwort je Konto getrennt, wie die Ausgabe (Kopf `Konto ...:`), ein Konto ohne Neues in einer Zeile nennen, ein nicht gefundenes Konto ausdrücklich (Grundregel 8). `profil` nur, wenn der Nutzer ein Konto oder nur Privat oder nur Arbeit will.
 - Mail-Werkzeuge nacheinander, nie zwei gleichzeitig: Jedes steuert Apple Mail, sonst kommt ein Timeout. Neben Werkzeugen anderer Plugins dürfen sie parallel laufen.
 - Mehrere Mails mit einem `mail_lesen` lesen, nicht einzeln. Für die neuesten im Posteingang `mail_suchen` mit `text` "@" und kleinem `tage`.
 - Mail an den Nutzer selbst ("schreib mir", "an mich"): Empfänger ist die eigene Adresse des passenden Kontos (privat oder Arbeit). `mail_entwurf` nennt sie als Absender, `kontakte` in der eigenen Karte. Im Zweifel fragen. Nie die Mailadresse des Claude-Accounts aus dem Kontext, das ist oft eine Relay-Adresse.

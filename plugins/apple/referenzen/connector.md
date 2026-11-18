@@ -14,7 +14,7 @@ Eine Mail aus dem Connector beantworten heißt: sie in Apple Mail wiederfinden, 
 
 1. Aus dem Treffer die Message-ID nehmen (Kopfzeile `Message-ID`, bei Gmail in `get_message` unter den Headern). Fehlt sie: Betreff, Absenderadresse und Tag notieren.
 2. `mail_suchen` mit `message_id`, ohne ID mit `betreff`, `von` (Adresse) und `datum` (JJJJ-MM-TT). Bei Arbeitsmails `profil` dazu.
-3. Meldet die Suche "Eindeutig: id N", weiter wie gewohnt mit `mail_entwurf` und `antwort_auf` N. Bei mehreren Treffern die richtige id nach Absender und Datum wählen, im Zweifel fragen. Ohne Treffer: Die Mail liegt nicht in Apple Mail (anderes Konto, archiviert). Dann sagen, wo sie liegt, und eine neue Mail mit "Re:" an den Absender als Entwurf anbieten.
+3. Meldet die Suche "Eindeutig: id N", weiter wie gewohnt mit `mail_entwurf`, `antwort_auf` N und `betreff_erwartet` mit dem Betreff aus dem Treffer. Bei mehreren Treffern die richtige id nach Absender und Datum wählen, im Zweifel fragen. Ohne Treffer: Die Mail liegt nicht in Apple Mail (anderes Konto, archiviert). Dann sagen, wo sie liegt, und eine neue Mail mit "Re:" an den Absender als Entwurf anbieten.
 
 ## Ausweg: Entwurf über den Connector
 

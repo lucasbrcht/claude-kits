@@ -707,6 +707,54 @@ class MitMail(unittest.TestCase):
         self.assertIn('account_boxes("sent", acctNames)', self.aufrufe[-1][0])
         self.assertEqual(len(out.strip().splitlines()), 2)  # Kopf und eine Zeile, der Weg ist kein Treffer
 
+    def test_suche_nennt_nicht_gefundene_konten(self):
+        """Etappe 2 von v7.3.0: Ein Konto aus accounts, das Mail nicht liefert, fiel still weg. Jetzt meldet das
+        AppleScript es als #fehlt, die Ausgabe nennt es als nicht durchsucht und lässt es aus dem Wo weg."""
+        cfg = {"accounts": ["Privat", "Verein"]}
+        ns = dict(sender="x", subject=None, text=None, unread=False, days=30, limit=5, profile=None, mailbox="inbox")
+        self.treffer = rec("#weg", "konto") + rec("#fehlt", "verein")  # AppleScript vergleicht ohne Groß und Klein
+        out = self.lauf(mail.cmd_search, cfg=cfg, **ns)
+        self.assertEqual(out.splitlines(), [
+            "Keine Treffer (Posteingang von Privat, 30 Tage).",
+            "Konto Verein: in Mail nicht gefunden (deaktiviert oder umbenannt?), Posteingang nicht durchsucht. Name in "
+            "accounts der config.json mit Apple Mail abgleichen."])
+        self.assertIn("my missing_accounts(boxes, acctNames)", self.aufrufe[-1][0])
+        # Gesendet, mit Treffer: die Zeile steht nach den Treffern
+        self.treffer = (rec("#weg", "sammel") + rec("#fehlt", "Verein")
+                        + rec("1", "2026-09-28 08:00", "an a@x.de", "B", "gesendet"))
+        with contextlib.redirect_stderr(io.StringIO()):
+            out = self.lauf(mail.cmd_search, cfg=cfg, **{**ns, "mailbox": "sent"})
+        self.assertTrue(out.splitlines()[1].startswith("1 | "))
+        self.assertIn("Konto Verein: in Mail nicht gefunden (deaktiviert oder umbenannt?), Postfach Gesendet nicht "
+                      "durchsucht.", out.splitlines()[2])
+        # Kein Konto gefunden: nichts durchsucht statt keine Treffer
+        self.treffer = rec("#weg", "sammel") + rec("#fehlt", "Privat") + rec("#fehlt", "Verein")
+        with contextlib.redirect_stderr(io.StringIO()):
+            out = self.lauf(mail.cmd_search, cfg=cfg, **ns)
+        self.assertTrue(out.startswith("Nichts durchsucht: kein Konto aus accounts in Mail gefunden.\n"), out)
+        self.assertNotIn("Keine Treffer", out)
+        self.assertEqual(out.count("nicht durchsucht"), 2)
+
+    def test_fehlt_nur_vorn_und_nur_fuer_eigene_konten(self):
+        """Ein #fehlt zwischen den Mails zählt als unerwartetes Format, ein #fehlt für ein Konto außerhalb von accounts
+        fällt weg."""
+        self.treffer = (rec("#weg", "konto") + rec("#fehlt", "Fremd")
+                        + rec("1", "2026-09-28 08:00", "A", "B", "gelesen") + rec("#fehlt", "Privat"))
+        out = self.lauf(mail.cmd_search, cfg={"accounts": ["Privat"]}, sender="x", subject=None, text=None,
+                        unread=False, days=30, limit=5, profile=None, mailbox="inbox")
+        self.assertNotIn("nicht durchsucht", out)
+        self.assertIn("[1 Datensätze von Mail in unerwartetem Format übersprungen]", out)
+
+    def test_finden_nennt_nicht_gefundene_konten(self):
+        self.treffer = rec("#fehlt", "Verein")
+        out = self.lauf(mail.cmd_finden, cfg={"accounts": ["Privat", "Verein"]}, **self.finden_ns(subject="Angebot"))
+        self.assertIn("Keine passende Mail in Apple Mail (Posteingang)", out)
+        self.assertIn("Konto Verein: in Mail nicht gefunden", out)
+        self.assertIn("my missing_accounts(boxes, acctNames)", self.aufrufe[-1][0])
+        self.treffer = rec("#fehlt", "Privat")
+        out = self.lauf(mail.cmd_finden, cfg={"accounts": ["Privat"]}, **self.finden_ns(subject="Angebot"))
+        self.assertTrue(out.startswith("Nichts durchsucht"), out)
+
     def antwort(self, einfuegen):
         self.einfuegen = einfuegen
         cfg = {"accounts": ["Privat"], "profiles": {"privat": {"account": "Privat"}}}
@@ -724,7 +772,8 @@ class MitMail(unittest.TestCase):
         for liste in ("to recipients of d", "cc recipients of d", "bcc recipients of d"):
             self.assertIn(f"my addr_list({liste})", script)
         self.assertEqual(args[5], str(mail.mindest_zeichen("Hi Nils,\n\nPasst.")))  # Mindestzahl neuer Zeichen
-        self.assertIn("in_accounts(m, argv, 7 + nCc, nAcct)", script)
+        self.assertIn("in_accounts(m, argv, 8 + nCc, nAcct)", script)
+        self.assertEqual(args[6], "")  # ohne --betreff-erwartet keine Prüfung
         self.assertTrue(mail.load_state()["12"]["eingefuegt"])
         self.assertIn("ließ sich nicht nachzählen", self.antwort("ok ungeprueft"))
         self.assertTrue(mail.load_state()["12"]["eingefuegt"])
@@ -735,6 +784,53 @@ class MitMail(unittest.TestCase):
         self.assertIn("zu wenige Zeichen an (Zahl vorher und nachher). (120 121)", err.getvalue())
         self.assertIn("Fehlt der Text im Fenster", err.getvalue())
         self.assertFalse(mail.load_state()["12"]["eingefuegt"])  # send verweigert dann
+
+    def test_antwort_prueft_den_betreff_vor_reply(self):
+        """Etappe 2 von v7.3.0: Mit --betreff-erwartet vergleicht das AppleScript den Betreff vor reply. Passt er, läuft
+        alles wie bisher. Passt er nicht, bricht draft mit beiden Betreffs ab, ohne Fenster und ohne Statuseintrag, die
+        Textdatei bleibt für den nächsten Versuch."""
+        self.einfuegen = "ok"
+        cfg = {"accounts": ["Privat"], "profiles": {"privat": {"account": "Privat"}}}
+        ns = dict(text_file=self.textdatei("Hi Nils,\n\nPasst."), reply_to=5, all=False, profile=None, to=None,
+                  cc=None, subject=None, attach=None, betreff_erwartet="AW:  frage ")
+        out = self.lauf(mail.cmd_draft, cfg=cfg, **ns)
+        self.assertIn("Antwort-Entwurf 12 geöffnet", out)
+        script, args = self.aufrufe[-1]
+        self.assertEqual(args[6], "AW:  frage")
+        self.assertLess(script.index("my same_subject(ist, erwartet)"), script.index("reply m with opening window"))
+        self.assertIn(mail.BETREFF_PRAEFIX.replace("\\", "\\\\"), script)  # dieselbe Regel wie betreff_kern
+
+        mail.save_state({})
+        mail.run_as = lambda script, *args, **kw: "#betreff" + mail.FSEP + "Rechnung März"
+        datei = self.textdatei("Hi Nils,\n\nPasst.")
+        with self.assertRaises(SystemExit) as cm:
+            self.lauf(mail.cmd_draft, cfg=cfg, **{**ns, "text_file": datei, "betreff_erwartet": "Frage"})
+        meldung = str(cm.exception.code)
+        self.assertIn("nichts geöffnet: Mail 5 hat den Betreff Rechnung März, erwartet war Frage", meldung)
+        self.assertEqual(mail.load_state(), {})
+        self.assertTrue(Path(datei).exists())
+
+    def test_betreff_erwartet_nur_bei_antworten_und_nie_leer(self):
+        cfg = {"accounts": ["Privat"], "profiles": {"privat": {"account": "Privat", "from_address": "max@example.org"}},
+               "default_profile": "privat"}
+        neu = dict(text_file=self.textdatei("Hallo"), reply_to=None, all=False, profile=None, to=["a@b.de"], cc=None,
+                   subject="Frage", attach=None, betreff_erwartet="Frage")
+        antwort = {**neu, "reply_to": 5, "to": None, "subject": None, "betreff_erwartet": " Re: "}
+        for ns in (neu, antwort):
+            with self.subTest(ns=ns), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
+                self.lauf(mail.cmd_draft, cfg=cfg, **ns)
+            self.assertEqual(cm.exception.code, 2)
+        self.assertEqual(self.aufrufe, [])  # abgebrochen, bevor Mail etwas gefragt wird
+
+    def test_betreff_kern(self):
+        for ist, erwartet in (("AW: WG:  Angebot  Q4", "angebot q4"), ("Re[2]: Fwd: Übergabe", "übergabe"),
+                              (" RE :Termin morgen", "Termin morgen"), ("Fw: Antw: Bericht", "BERICHT"),
+                              ("Re: Re: ", "")):
+            with self.subTest(ist=ist):
+                self.assertEqual(mail.betreff_kern(ist), mail.betreff_kern(erwartet))
+        for ist, erwartet in (("Re: Angebot", "Angebot neu"), ("Reise: Plan", "Plan"), ("Rechnung", "Re: Rechnung 2")):
+            with self.subTest(ist=ist):
+                self.assertNotEqual(mail.betreff_kern(ist), mail.betreff_kern(erwartet))
 
     def test_mindestzahl_ohne_leerraum_und_nie_null(self):
         self.assertEqual(mail.mindest_zeichen("ab cd\n\nef"), 3)
@@ -1017,6 +1113,28 @@ class TriageGrenze(unittest.TestCase):
             "Konto Verein: nichts Neues",
             "[1 ältere markierte Mails ausgelassen, Grenze 1 je Konto in config.json unter triage.max_markiert]"])
 
+    def test_nicht_gefundenes_konto_ist_nicht_nichts_neues(self):
+        """Etappe 2 von v7.3.0: Ein deaktiviertes oder umbenanntes Konto meldete nichts Neues, obwohl nie gesucht wurde.
+        Jetzt steht es als nicht gefunden in der Ausgabe, auch nicht in der Zeile Nichts Neues."""
+        cfg = {"accounts": ["Privat", "Firma", "Verein"]}
+        code, out, err, _ = triage_lauf(cfg, "48", zeilen=[("#fehlt", "Verein")])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.splitlines(), [
+            "Nichts Neues in Privat, Firma: keine ungelesenen oder markierten Mails im Zeitraum.",
+            "Konto Verein: in Mail nicht gefunden (deaktiviert oder umbenannt?), Posteingang nicht durchsucht. Name in "
+            "accounts der config.json mit Apple Mail abgleichen."])
+        zeilen = [("#fehlt", "Firma"), ("1", "2026-09-28 09:00", "Anna", "Neu", "ungelesen", "n", "Privat")]
+        _code, out, _err, _ = triage_lauf(cfg, "48", zeilen=zeilen)
+        self.assertEqual(out.splitlines()[1:], [
+            "Konto Privat:", "1 | 2026-09-28 09:00 | Anna | Neu | ungelesen",
+            "Konto Firma: in Mail nicht gefunden (deaktiviert oder umbenannt?), Posteingang nicht durchsucht. Name in "
+            "accounts der config.json mit Apple Mail abgleichen.",
+            "Konto Verein: nichts Neues"])
+        _code, out, _err, _ = triage_lauf({"accounts": ["Privat"]}, "48", zeilen=[("#fehlt", "Privat")])
+        self.assertTrue(out.startswith("Nichts durchsucht: kein Konto aus accounts in Mail gefunden.\n"), out)
+        self.assertNotIn("Nichts Neues", out)
+        self.assertIn("my missing_accounts(boxes, acctNames)", mail.AS_TRIAGE)
+
     def test_ohne_konto_uebersprungen(self):
         """Ein Datensatz ohne Konto (leeres siebtes Feld) zählt als unerwartetes Format, statt unter keinem Konto zu
         landen."""
@@ -1073,6 +1191,16 @@ class StilProbe(unittest.TestCase):
         self.assertTrue(all(a[1] == "Firma" for _s, a in aufrufe))
         self.assertIn('account_boxes("sent", {acct})', aufrufe[0][0])
         self.assertIn("cc recipients of m", style_sample.TEXT_ZEILE)  # Namen aus Cc ersetzt die Stilprobe auch
+
+    def test_konto_nicht_in_mail(self):
+        """Etappe 2 von v7.3.0: Kennt Mail das Konto nicht, bricht die Stilprobe mit dem Grund ab, statt keine
+        gesendeten Mails zu melden."""
+        with mock.patch.object(mail, "run_as", lambda script, *args, **kw: "#fehlt"), \
+                self.assertRaises(SystemExit) as cm:
+            style_sample.fetch_sent({"account": "Verein"}, 2, 30)
+        self.assertIn("Konto Verein: in Mail nicht gefunden (deaktiviert oder umbenannt?), Postfach Gesendet nicht "
+                      "durchsucht.", str(cm.exception.code))
+        self.assertIn('my missing_accounts(boxes, {acct})', style_sample.AS_SENT_RUN)
 
     def test_nur_vollstaendige_mails(self):
         """Review 21.10.2026: Trennzeichen in Betreff, Namen und Text ersetzt das AppleScript (no_sep). Datensätze ohne

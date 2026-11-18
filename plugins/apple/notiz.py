@@ -410,11 +410,22 @@ def cmd_folders(args) -> None:
         print(f"Hinweis: {int(kopf)} Einträge in config.json (ausgeschlossene_ordner) passen zu keinem Ordner.")
 
 
+def keine_notizen(ordner: str | None) -> None:
+    """Leeres list. Mit --folder sagt die Zeile, dass der Ordner auch fehlen kann: Ein Tippfehler im Namen sähe sonst
+    aus wie ein leerer Ordner (Etappe 2 von v7.3.0). Gleicher Text für einen ausgeschlossenen Ordner, er bestätigt so
+    keinen Ausschluss."""
+    if ordner:
+        print(f"Keine Notizen gefunden: Ordner {sauber(ordner)} ist leer, unbekannt oder ausgeschlossen. Freie Ordner "
+              "zeigt folders.")
+    else:
+        print("Keine Notizen gefunden.")
+
+
 def cmd_list(args) -> None:
     """Notizen auflisten. --limit beendet beide Schleifen (Review 21.10.2026), ein ausgeschlossener --folder fragt Notes
     nicht und meldet sich wie ein unbekannter."""
     if ordner_gesperrt(args.folder):
-        print("Keine Notizen gefunden.")
+        keine_notizen(args.folder)
         return
     grenze = int(args.limit)
     script = f'''
@@ -440,7 +451,7 @@ def cmd_list(args) -> None:
     '''
     zeilen = saetze(osa(script))
     if not zeilen:
-        print("Keine Notizen gefunden.")
+        keine_notizen(args.folder)
         return
     print(f"titel | ordner | geändert  {HINWEIS}")
     for z in zeilen:

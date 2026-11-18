@@ -108,8 +108,12 @@ def entwurf_argumente(a: dict, neu: bool) -> tuple:
     allen = schalter(a, "allen")
     if allen and not antwort_auf:
         raise Fehler("allen gilt nur mit antwort_auf.")
+    erwartet = text(a, "betreff_erwartet", maximal=300) if not neu else ""
+    if erwartet and not antwort_auf:
+        raise Fehler("betreff_erwartet gilt nur mit antwort_auf.")
     argumente = ["draft", *an, *adressen(a, "cc", "--cc"), *opt("--subject", text(a, "betreff", maximal=300)),
                  f"--text-file={datei}", *opt("--reply-to", antwort_auf), *opt("--all", allen),
+                 *([f"--betreff-erwartet={erwartet}"] if erwartet else []),
                  *opt("--profile", text(a, "profil", maximal=50))]
     return argumente, {datei: langtext(a, "text", 100_000)}
 
@@ -574,9 +578,11 @@ WERKZEUGE = [
                        "html": d(B, "HTML-Quelltext statt Text"), "profil": PROFIL}, mail_lesen, pflicht=("ids",)),
     Werkzeug("mail_entwurf", "Mail-Entwurf anlegen",
              "Entwurf sichtbar in Apple Mail anlegen, sendet nie. Neue Mail mit an und betreff, Antwort mit "
-             "antwort_auf (Mail-ID), allen für allen antworten.", "schreiben",
+             "antwort_auf (Mail-ID) und betreff_erwartet, allen für allen antworten.", "schreiben",
              {"an": AN, "cc": CC, "betreff": BETREFF_NEU, "text": TEXT_ENTWURF,
               "antwort_auf": d(I, "Mail-ID für eine echte Antwort mit Verlauf"),
+              "betreff_erwartet": d(S, "mit antwort_auf: Betreff der Mail, auf die geantwortet wird, wie aus "
+                                       "mail_suchen oder mail_neues. Passt er nicht, bricht es ab und öffnet nichts"),
               "allen": d(B, "mit antwort_auf allen antworten"), "profil": PROFIL},
              mail_entwurf, pflicht=("text",), zeit=150),
     Werkzeug("mail_entwurf_anhang", "Mail-Entwurf mit Anhang",

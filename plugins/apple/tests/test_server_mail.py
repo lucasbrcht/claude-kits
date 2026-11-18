@@ -63,6 +63,15 @@ class Argumente(unittest.TestCase):
         self.assertTrue(self.rufe("mail_entwurf", {"antwort_auf": 1, "an": ["x@y.de"], "text": "x"})[0])
         self.assertTrue(self.rufe("mail_entwurf", {"an": ["x@y.de"], "allen": True, "text": "x"})[0])
 
+    def test_antwort_mit_erwartetem_betreff(self):
+        """Etappe 2 von v7.3.0: betreff_erwartet geht als eigener Schalter an mail.py, nur mit antwort_auf."""
+        _, _, (_, argv, _) = self.rufe("mail_entwurf", {"antwort_auf": 77, "betreff_erwartet": "AW: Angebot",
+                                                       "text": "Danke"})
+        self.assertEqual(argv, ["draft", "--text-file=antwort.txt", "--reply-to=77", "--betreff-erwartet=AW: Angebot"])
+        self.assertTrue(self.rufe("mail_entwurf", {"an": ["x@y.de"], "betreff": "Frage", "betreff_erwartet": "Frage",
+                                                   "text": "x"})[0])
+        self.assertIn("betreff_erwartet", {w.name: w for w in server.WERKZEUGE}["mail_entwurf"].eigenschaften)
+
     def test_anhang_ohne_und_senden_mit_nachfrage(self):
         with mock.patch.dict(os.environ, {"KITS_DIALOG": "nein"}):  # Entwurf mit Anhang kommt ohne Dialog durch
             _, _, (_, argv, _) = self.rufe("mail_entwurf_anhang", {"an": ["a@b.de"], "betreff": "B", "text": "T",

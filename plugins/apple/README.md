@@ -90,6 +90,7 @@ python3 mail.py finden --message-id "<abc123@mail.example.org>"      # Mail aus 
 python3 mail.py read 12345 12346                                     # bis 10 Mails
 python3 mail.py draft --to a@b.de --subject 'Kurze Frage' --text-file entwurf.txt
 python3 mail.py draft --reply-to 12345 --text-file antwort.txt        # echte Antwort mit Verlauf
+python3 mail.py draft --reply-to 12345 --betreff-erwartet "Angebot" --text-file antwort.txt  # nur, wenn der Betreff passt
 python3 mail.py --attach ~/Downloads/datei.pdf draft --to a@b.de --subject 'Unterlagen' --text-file entwurf.txt
 python3 mail.py drafts                                               # offene Entwürfe mit id, An, Cc, Bcc, Absender
 python3 mail.py send 7 --yes                                         # sendet

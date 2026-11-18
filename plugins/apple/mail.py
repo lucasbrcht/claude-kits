@@ -76,6 +76,13 @@ Gelernte Fallstricke, die hier eingebaut sind:
   Exchange-Postfach. search sucht deshalb in den Postfächern der Konten darunter
   (account_boxes). Liefert Mail sie nicht einzeln, sucht es wie früher im
   Sammelpostfach und prüft das Konto je Treffer.
+- Ein Konto aus accounts, das Mail nicht kennt (deaktiviert oder umbenannt), fiele
+  dabei still weg, und "nichts Neues" wäre gelogen. missing_accounts meldet es als
+  Steuersatz #fehlt, search, finden und triage nennen es in der Ausgabe als nicht
+  durchsucht (Etappe 2 von v7.3.0).
+- draft --reply-to mit --betreff-erwartet vergleicht den Betreff der Mail im selben
+  AppleScript vor reply, ohne Re:, AW:, WG:, Fwd: und Leerraum, Groß und Klein egal.
+  Passt er nicht, öffnet sich nichts: Schutz gegen eine verwechselte Mail-ID.
 - Nach dem Einfügen einer Antwort zählt das Skript die Zeichen im Nachrichtentext
   (AXNumberOfCharacters) vorher und nachher. Kommt deutlich weniger an als erwartet,
   gilt der Text als nicht eingefügt. Liefern die Bedienungshilfen keine Zahl, gilt er
@@ -363,6 +370,27 @@ def uebersprungen(anzahl: int) -> str:
     return f"[{anzahl} Datensätze von Mail in unerwartetem Format übersprungen]" if anzahl else ""
 
 
+def steuersaetze(recs: list[list[str]], konten: list[str]) -> tuple[str, list[str], list[list[str]]]:
+    """Steuersätze vorn in der Ausgabe abtrennen: #weg (konto oder sammel, nur als erster Datensatz) und je ein #fehlt
+    für ein Konto aus accounts, das Mail nicht liefert (missing_accounts). Ergebnis: Weg, fehlende Konten in der
+    Reihenfolge von konten, übrige Datensätze. Ein Steuersatz zwischen den Mails bleibt drin und zählt in gueltige als
+    unerwartetes Format. Ein #fehlt mit einem Namen außerhalb von konten fällt weg."""
+    weg, fehlt, i = "", set(), 0
+    if recs and len(recs[0]) == 2 and recs[0][0] == "#weg":
+        weg, i = recs[0][1], 1
+    while i < len(recs) and len(recs[i]) == 2 and recs[i][0] == "#fehlt":
+        fehlt.add(recs[i][1].casefold())  # AppleScript vergleicht Namen ohne Groß und Klein
+        i += 1
+    return weg, [k for k in konten if k.casefold() in fehlt], recs[i:]
+
+
+def nicht_gefunden(fehlt: list[str], postfach: str) -> list[str]:
+    """Je Konto aus accounts, das Mail nicht liefert, eine Zeile. Ein leeres Ergebnis ist sonst kein Beweis: Das Konto
+    wurde nie durchsucht (Etappe 2 von v7.3.0)."""
+    return [f"Konto {clean(k)}: in Mail nicht gefunden (deaktiviert oder umbenannt?), {postfach} nicht durchsucht. "
+            "Name in accounts der config.json mit Apple Mail abgleichen." for k in fehlt]
+
+
 @functools.lru_cache(maxsize=1)
 def mail_start() -> str:
     """Startzeit des laufenden Mail-Prozesses. Mail vergibt Entwurfs-IDs nach einem Neustart neu, deshalb gehört
@@ -459,6 +487,29 @@ on account_boxes(which, acctNames)
   end tell
   return boxes
 end account_boxes
+on missing_accounts(boxes, acctNames)
+  set found to {}
+  tell application "Mail"
+    try
+      if (count boxes) > 0 then
+        repeat with mb in boxes
+          set end of found to (name of account of (contents of mb))
+        end repeat
+      else
+        repeat with ac in (get accounts)
+          if enabled of ac then set end of found to (name of ac)
+        end repeat
+      end if
+    on error
+      set found to {}
+    end try
+  end tell
+  set out to ""
+  repeat with nm in acctNames
+    if found does not contain (contents of nm) then set out to out & "#fehlt@F@" & my no_sep(contents of nm) & "@R@"
+  end repeat
+  return out
+end missing_accounts
 '''.replace("@F@", FSEP).replace("@R@", RSEP)
 
 # Muss ganz oben im Skript stehen. Nötig für die Zwischenablage (NSPasteboard).
@@ -678,8 +729,9 @@ on run argv
   tell application "Mail"
     with timeout of 80 seconds
       set boxes to my account_boxes("{a.mailbox}", acctNames)
+      set fehlt to my missing_accounts(boxes, acctNames)
       if (count boxes) > 0 then
-        set out to "#weg" & (character id 31) & "konto" & (character id 30)
+        set out to "#weg" & (character id 31) & "konto" & (character id 30) & fehlt
         repeat with mb in boxes
           set hits to (get messages of (contents of mb) whose {where})
           repeat with m in hits
@@ -690,7 +742,7 @@ on run argv
           if n is greater than or equal to lim then exit repeat
         end repeat
       else
-        set out to "#weg" & (character id 31) & "sammel" & (character id 30)
+        set out to "#weg" & (character id 31) & "sammel" & (character id 30) & fehlt
         set hits to (get messages of {mailbox_ref(a.mailbox)} whose {where})
         repeat with m in hits
           if my in_accounts(m, argv, {acct_start}, nAcct) then
@@ -705,19 +757,25 @@ on run argv
   return out
 end run
 '''
-    recs = records(run_as(script, *argv))
-    weg = recs[0][1] if recs and len(recs[0]) == 2 and recs[0][0] == "#weg" else ""  # nur der erste Datensatz
-    rows, falsch = gueltige(recs[1:] if weg else recs, 5, datum=1)
+    weg, fehlt, recs = steuersaetze(records(run_as(script, *argv)), accounts)
+    rows, falsch = gueltige(recs, 5, datum=1)
     postfach = "Gesendet" if a.mailbox == "sent" else "Posteingang"
+    gesucht = [k for k in accounts if k not in fehlt]
+    luecken = nicht_gefunden(fehlt, "Postfach Gesendet" if a.mailbox == "sent" else "Posteingang")
     if weg == "konto":
-        wo = f"{postfach} von {', '.join(accounts)}"
+        wo = f"{postfach} von {', '.join(gesucht)}"
     else:
-        wo = f"{postfach} aller Konten" + (f", nur {', '.join(accounts)}" if accounts else "")
-        if weg == "sammel" and accounts:
+        wo = f"{postfach} aller Konten" + (f", nur {', '.join(gesucht)}" if gesucht else "")
+        if weg == "sammel" and gesucht:
             print("HINWEIS: Mail liefert die Postfächer der Konten nicht einzeln, gesucht wurde im Sammelpostfach "
                   "(langsamer).", file=sys.stderr)
     if not rows:
-        print(f"Keine Treffer ({wo}, {days} Tage).")
+        if gesucht:
+            print(f"Keine Treffer ({wo}, {days} Tage).")
+        else:
+            print("Nichts durchsucht: kein Konto aus accounts in Mail gefunden.")
+        for zeile in luecken:
+            print(zeile)
         if falsch:
             print(uebersprungen(falsch))
         return
@@ -729,6 +787,8 @@ end run
         print(" | ".join(clean(f) for f in r))
     if len(rows) > limit:
         print(f"[{len(rows) - limit} weitere Treffer, Zeitraum eingrenzen oder --limit erhöhen]")
+    for zeile in luecken:
+        print(zeile)
     if falsch:
         print(uebersprungen(falsch))
 
@@ -797,6 +857,7 @@ on run argv
   tell application "Mail"
     with timeout of 80 seconds
       set boxes to my account_boxes("{a.mailbox}", acctNames)
+      set out to my missing_accounts(boxes, acctNames)
       if (count boxes) > 0 then
         repeat with mb in boxes
           repeat with m in (get messages of (contents of mb) whose {where})
@@ -813,11 +874,18 @@ on run argv
   return out
 end run
 '''
-    rows, falsch = gueltige(records(run_as(script, *argv)), 5, datum=1)
+    _weg, fehlt, recs = steuersaetze(records(run_as(script, *argv)), accounts)
+    rows, falsch = gueltige(recs, 5, datum=1)
     postfach = "Gesendet" if a.mailbox == "sent" else "Posteingang"
+    luecken = nicht_gefunden(fehlt, "Postfach Gesendet" if a.mailbox == "sent" else "Posteingang")
     if not rows:
-        print(f"Keine passende Mail in Apple Mail ({postfach}). Angaben aus dem Connector prüfen oder mit search "
-              f"weitersuchen, etwa über den Absender.")
+        if len(fehlt) == len(accounts):
+            print("Nichts durchsucht: kein Konto aus accounts in Mail gefunden.")
+        else:
+            print(f"Keine passende Mail in Apple Mail ({postfach}). Angaben aus dem Connector prüfen oder mit search "
+                  f"weitersuchen, etwa über den Absender.")
+        for zeile in luecken:
+            print(zeile)
         if falsch:
             print(uebersprungen(falsch))
         return
@@ -831,6 +899,8 @@ end run
     else:
         print(f"{len(rows)} Treffer, nicht eindeutig: mit --from oder --datum eingrenzen oder die id nach Absender und "
               f"Datum wählen.")
+    for zeile in luecken:
+        print(zeile)
     if falsch:
         print(uebersprungen(falsch))
 
@@ -861,6 +931,7 @@ on run argv
   tell application "Mail"
     with timeout of 80 seconds
       set boxes to my account_boxes("inbox", acctNames)
+      set out to my missing_accounts(boxes, acctNames)
       set perAcct to (count boxes) > 0
       if not perAcct then set boxes to {inbox}
       repeat with mb in boxes
@@ -895,18 +966,26 @@ def cmd_triage(cfg: dict, a: argparse.Namespace) -> None:
     """Was ist neu in den Konten aus accounts (oder nur im Konto von a.profil): ungelesene Mails der letzten a.stunden
     Stunden und von den nur markierten Mails des letzten Jahres je Konto höchstens triage.max_markiert (die neuesten),
     nach Konto in der Reihenfolge von accounts, darin neueste zuerst. Ein Konto ohne Treffer bekommt die Zeile nichts
-    Neues, damit Claude Privat und Arbeit getrennt nennen kann. Newsletter (noise: Teilstring im
+    Neues, damit Claude Privat und Arbeit getrennt nennen kann. Ein Konto, das Mail nicht liefert, bekommt
+    stattdessen die Zeile nicht gefunden, nicht durchsucht (nicht_gefunden). Newsletter (noise: Teilstring im
     Absender, Groß- und Kleinschreibung egal) fallen weg. Kein Volltext, nichts wird verändert."""
     konten = resolve_accounts(cfg, a.profil)  # vor Mail: leere Konten oder das Arbeitskonto brechen hier ab
     grenze = cfg.get("triage", {}).get("max_markiert", TRIAGE_MARKIERT)
     noise = [n.casefold() for n in cfg.get("noise", []) if n]
-    gut, falsch = gueltige(records(run_as(AS_TRIAGE, str(a.stunden), str(len(konten)), *konten)), 7, datum=1)
+    _weg, fehlt, recs = steuersaetze(records(run_as(AS_TRIAGE, str(a.stunden), str(len(konten)), *konten)), konten)
+    gut, falsch = gueltige(recs, 7, datum=1)
     rows = [r for r in gut if r[5] in ("n", "m") and r[6].strip()]
     falsch += len(gut) - len(rows)
     rows = [r for r in rows if not any(n in r[2].casefold() for n in noise)]
+    gesucht = [k for k in konten if k not in fehlt]
     if not rows:
-        print(f"Nichts Neues in {', '.join(clean(k) for k in konten)}: keine ungelesenen oder markierten Mails im "
-              "Zeitraum.")
+        if gesucht:
+            print(f"Nichts Neues in {', '.join(clean(k) for k in gesucht)}: keine ungelesenen oder markierten Mails im "
+                  "Zeitraum.")
+        else:
+            print("Nichts durchsucht: kein Konto aus accounts in Mail gefunden.")
+        for zeile in nicht_gefunden(fehlt, "Posteingang"):
+            print(zeile)
         if falsch:
             print(uebersprungen(falsch))
         return
@@ -916,6 +995,9 @@ def cmd_triage(cfg: dict, a: argparse.Namespace) -> None:
     print(f"id | datum | absender | betreff | status  ({DATA_NOTE})")
     for konto in reihe:
         eigene = [r for r in rows if r[6] == konto]
+        if not eigene and konto in fehlt:
+            print(nicht_gefunden([konto], "Posteingang")[0])
+            continue
         if not eigene:
             print(f"Konto {clean(konto)}: nichts Neues")
             continue
@@ -1160,6 +1242,8 @@ def cmd_draft(cfg: dict, a: argparse.Namespace) -> None:
         return
     if a.all:
         sys.exit("--all gibt es nur zusammen mit --reply-to.")
+    if getattr(a, "betreff_erwartet", None) is not None:
+        falscher_aufruf("--betreff-erwartet gibt es nur zusammen mit --reply-to.")
 
     profile_name = a.profile or cfg.get("default_profile")
     if not profile_name:
@@ -1278,6 +1362,33 @@ INSERT_PROBLEMS = {
 }
 
 
+# Präfixe vor dem Betreff einer Antwort oder Weiterleitung, auch gestapelt und mit Zähler (Re[2]:). Gilt gleich in
+# Python (betreff_kern, für Tests und Meldungen) und im AppleScript (same_subject über NSRegularExpression, ICU).
+BETREFF_PRAEFIX = r"(?i)^(?:\s*(?:re|aw|wg|fwd?|antw)\s*(?:\[\d+\])?\s*:)+"
+
+
+def betreff_kern(betreff: str) -> str:
+    """Betreff ohne Re:, AW:, WG:, Fwd: vorn, Leerraum vereinheitlicht, Groß und Klein egal, Umlaute in einer Form."""
+    kern = re.sub(BETREFF_PRAEFIX, "", unicodedata.normalize("NFC", betreff or ""))
+    return " ".join(kern.split()).lower()
+
+
+# Vergleich des Betreffs vor reply, Logik wie betreff_kern. Braucht AS_USE_OBJC.
+AS_BETREFF = '''
+on subj_core(s)
+  set ns to current application's NSString's stringWithString:(s as string)
+  set ns to ns's precomposedStringWithCanonicalMapping()
+  set ns to ns's stringByReplacingOccurrencesOfString:"@PRAEFIX@" withString:"" options:(current application's NSRegularExpressionSearch) range:{0, ns's |length|()}
+  set ns to ns's stringByReplacingOccurrencesOfString:"\\\\s+" withString:" " options:(current application's NSRegularExpressionSearch) range:{0, ns's |length|()}
+  set ns to ns's stringByTrimmingCharactersInSet:(current application's NSCharacterSet's whitespaceAndNewlineCharacterSet())
+  return ns's lowercaseString()
+end subj_core
+on same_subject(ist, erwartet)
+  return ((my subj_core(ist))'s isEqualToString:(my subj_core(erwartet))) as boolean
+end same_subject
+'''.replace("@PRAEFIX@", BETREFF_PRAEFIX.replace("\\", "\\\\"))
+
+
 def mindest_zeichen(body: str) -> int:
     """So viele Zeichen muss der Nachrichtentext nach dem Einfügen mindestens mehr haben. Die Hälfte des Textes ohne
     Leerraum, weil Mail Umbrüche und Umlaute beim Einsetzen anders zählen kann."""
@@ -1289,6 +1400,9 @@ def draft_reply(cfg: dict, a: argparse.Namespace, text: str) -> None:
     if a.to or a.subject or a.attach:
         sys.exit("Bei --reply-to setzt Mail Empfänger und Betreff selbst. "
                  "--to, --subject und --attach weglassen, Anhänge im Fenster ergänzen.")
+    erwartet = (getattr(a, "betreff_erwartet", None) or "").strip()
+    if getattr(a, "betreff_erwartet", None) is not None and not betreff_kern(erwartet):
+        falscher_aufruf("--betreff-erwartet ist leer. Den Betreff der Mail angeben, auf die geantwortet wird.")
     # Profil und Signatur hängen am Konto der Mail, nicht am Standardprofil.
     # Nur Posteingang: auf eigene gesendete Mails adressiert Mail die Antwort an einen selbst.
     account = message_account(cfg, a.reply_to, "inbox", a.profile)
@@ -1299,11 +1413,14 @@ def draft_reply(cfg: dict, a: argparse.Namespace, text: str) -> None:
     tmp = write_temp(body + "\n")  # der Zeilenumbruch lässt einen leeren Absatz vor der Signatur
     cc = list(a.cc or [])
     # argv: 1 Mail-ID, 2 Textdatei, 3 Allen antworten, 4 Anzahl Cc, 5 Anzahl Konten, 6 Mindestzahl neuer Zeichen,
-    # dann Cc und Konten
-    argv = [str(a.reply_to), tmp, "yes" if a.all else "no", str(len(cc)), str(len(accounts)), str(mindest_zeichen(body))]
+    # 7 erwarteter Betreff (leer: keine Prüfung), dann Cc und Konten
+    argv = [str(a.reply_to), tmp, "yes" if a.all else "no", str(len(cc)), str(len(accounts)), str(mindest_zeichen(body)),
+            erwartet]
     argv += cc + accounts
 
-    script = AS_USE_OBJC + AS_COMMON + AS_CLIPBOARD + AS_INSERT + '''
+    # Mit erwartetem Betreff prüft das Skript ihn vor reply: Passt er nicht, öffnet sich kein Fenster, zurück kommt
+    # #betreff und der Betreff der Mail.
+    script = AS_USE_OBJC + AS_COMMON + AS_CLIPBOARD + AS_INSERT + AS_BETREFF + '''
 on run argv
   set mid to (item 1 of argv) as integer
   set txt to read ((item 2 of argv) as POSIX file) as «class utf8»
@@ -1311,16 +1428,24 @@ on run argv
   set nCc to (item 4 of argv) as integer
   set nAcct to (item 5 of argv) as integer
   set mindest to (item 6 of argv) as integer
+  set erwartet to item 7 of argv
   tell application "Mail"
     with timeout of 60 seconds
       set m to (first message of @MAILBOX@ whose id is mid)
-      if not my in_accounts(m, argv, 7 + nCc, nAcct) then error "Mail gehört nicht zu den erlaubten Konten"
+      if not my in_accounts(m, argv, 8 + nCc, nAcct) then error "Mail gehört nicht zu den erlaubten Konten"
+      if erwartet is not "" then
+        set ist to ""
+        try
+          set ist to (subject of m) as string
+        end try
+        if not my same_subject(ist, erwartet) then return "#betreff@F@" & my no_sep(ist)
+      end if
       if toAll then
         set d to reply m with opening window and reply to all
       else
         set d to reply m with opening window
       end if
-      repeat with i from 7 to (6 + nCc)
+      repeat with i from 8 to (7 + nCc)
         tell d to make new cc recipient at end of cc recipients with properties {address:(item i of argv)}
       end repeat
       set did to id of d
@@ -1338,6 +1463,10 @@ end run
         out = run_as(script, *argv)
     finally:
         os.unlink(tmp)
+    if out.startswith("#betreff" + FSEP):
+        ist = out.split(FSEP, 1)[1]
+        sys.exit(f"Abgebrochen, nichts geöffnet: Mail {a.reply_to} hat den Betreff {clean(ist) or '(leer)'}, erwartet "
+                 f"war {clean(erwartet)}. Die id mit mail_suchen oder mail_neues neu holen.")
     # Empfänger setzt Mail bei einer Antwort selbst, mit --all auch Cc: Sie gehören in die Ausgabe (Review 21.10.2026)
     draft_id, subj, an, cc_ist, bcc, res = (out.split(FSEP, 5) + [""] * 5)[:6]
     kind, _, detail = res.partition(" ")
@@ -1860,6 +1989,7 @@ def main() -> None:
   mail.py draft --profile privat --to a@b.de --subject "Kurze Frage" --text-file entwurf.txt
   mail.py draft --reply-to 12345 --text-file antwort.txt
   mail.py draft --reply-to 12345 --all --text-file antwort.txt
+  mail.py draft --reply-to 12345 --betreff-erwartet "Angebot" --text-file antwort.txt
   mail.py drafts
   mail.py send 7 --yes
   mail.py discard 7
@@ -1927,6 +2057,9 @@ eingefügt, 4 neuer Entwurf leer, 5 neuer Entwurf mit anderem Absender als in co
     d.add_argument("--reply-to", type=int, metavar="ID",
                    help="echte Antwort auf diese Mail im Posteingang: Verlauf, Zitat, Signatur und Konto setzt Mail")
     d.add_argument("--all", action="store_true", help="mit --reply-to: allen antworten")
+    d.add_argument("--betreff-erwartet", metavar="BETREFF",
+                   help="mit --reply-to: Betreff der Mail, auf die geantwortet wird. Passt er nicht (ohne Re:, AW:, "
+                        "WG:, Fwd:, Leerraum, Groß und Klein), bricht draft ab und öffnet nichts")
     d.add_argument("--attach", action="append",
                    help="Anhang (Pfad) aus einem Ordner in config.json/anhang_ordner, mehrfach möglich (nur neue Mail)")
     d.add_argument("--profile", help="Kontoprofil mit Konto aus config.json/accounts und from_address "

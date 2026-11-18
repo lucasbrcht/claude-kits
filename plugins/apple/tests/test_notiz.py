@@ -519,8 +519,12 @@ class NotizTest(unittest.TestCase):
         out, fehler = self.lauf(Notes((0, f"0{Z}", "")), "folders")
         self.assertEqual((out, fehler), ("Keine Ordner gefunden.\n", None))  # ohne Hinweis, wenn alle passen
         notes = Notes()
-        out, fehler = self.lauf(notes, "list", "--folder", "Kündigung ")  # auch bei --folder
-        self.assertEqual((out, fehler, notes.skripte), ("Keine Notizen gefunden.\n", None, []))
+        out, fehler = self.lauf(notes, "list", "--folder", "Kündigung")  # auch bei --folder
+        leer = "Keine Notizen gefunden: Ordner Kündigung ist leer, unbekannt oder ausgeschlossen. Freie Ordner zeigt folders.\n"
+        self.assertEqual((out, fehler, notes.skripte), (leer, None, []))
+        # Etappe 2 von v7.3.0: Ein unbekannter Ordner meldet sich gleich, statt wie ein leerer auszusehen
+        out, fehler = self.lauf(Notes((0, "", "")), "list", "--folder", "Kündigung")
+        self.assertEqual((out, fehler), (leer, None))
 
     def test_keine_abkuerzungen(self):
         for befehl in (("list", "--fol", "X"), ("add", "--tit", "X", "--file", "notiz.md"),

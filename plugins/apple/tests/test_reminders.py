@@ -75,6 +75,15 @@ class Reminders(KitTest):
         _out, fehler = self.lauf(reminders.main, "list")
         self.assertIn("nicht geladen", fehler)
 
+    def test_ohne_lesbare_liste_nichts_durchsucht(self):
+        """Etappe 2 von v7.3.0: Ohne eine lesbare Liste meldete list keine offenen Erinnerungen, obwohl es nichts
+        gelesen hatte."""
+        self.s.kalender.clear()
+        out, fehler = self.lauf(reminders.main, "list")
+        self.assertIsNone(fehler)
+        self.assertTrue(out.startswith("Keine Erinnerungsliste lesbar"), out)
+        self.assertNotIn("Keine offenen Erinnerungen", out)
+
     def test_nur_offene(self):
         self.erinnerung("Erledigt", tage=1, erledigt=True)
         self.erinnerung("Offen", tage=1)
