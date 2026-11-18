@@ -283,6 +283,49 @@ class Pruefungen(PaketTest):
         self.assertEqual(paket.namen_aus_dateien([str(f)]), {"Erika Muster", "Max Beispiel"})
 
 
+class SicherheitUndDoku(PaketTest):
+    """7.3: SICHERHEIT.md nennt jedes Werkzeug der Stufe nachfrage, die Doku-Tests von apple und chat laufen mit."""
+
+    SERVER = ('WERKZEUGE = [\n    Werkzeug("x_senden", "Senden", "b", "nachfrage", {}, None),\n'
+              '    Werkzeug("y_lesen", "Lesen", "b"\n             " weiter", "lesen", {}, None),\n]\n')
+
+    def server(self, pl="apple", doku="import sys\nsys.exit(0)\n"):
+        ordner = self.paket / "plugins" / pl
+        (ordner / "tests").mkdir(parents=True, exist_ok=True)
+        (ordner / "server.py").write_text(self.SERVER, encoding="utf-8")
+        if doku is not None:
+            (ordner / "tests" / "test_doku.py").write_text(doku, encoding="utf-8")
+
+    def test_sicherheit_fehlt_oder_unvollstaendig(self):
+        self.assertIn("fehlt", paket.sicherheit_pruefung()[0][1])
+        self.assertEqual(paket.sicherheit_pruefung()[0][0], "FEHLER")
+        self.server()
+        self.assertEqual(paket.werkzeuge_mit_stufe(self.paket / "plugins" / "apple" / "server.py"),
+                         {"x_senden": "nachfrage", "y_lesen": "lesen"})
+        (self.paket / "SICHERHEIT.md").write_text("# Sicherheit\nStand: 2026-11-18\n\n| y_lesen |\n", encoding="utf-8")
+        msgs = paket.sicherheit_pruefung()
+        self.assertEqual(msgs[0][0], "FEHLER")
+        self.assertIn("x_senden", msgs[0][1])
+        self.assertNotIn("y_lesen", msgs[0][1])  # nur die Stufe nachfrage muss stehen
+        (self.paket / "SICHERHEIT.md").write_text("| Senden | `x_senden` |\n", encoding="utf-8")
+        self.assertEqual([s for s, _t in paket.sicherheit_pruefung()], ["OK"])
+
+    def test_doku_test_als_unterprozess(self):
+        self.assertEqual(paket.doku_pruefung(), [])  # ohne Plugins mit Server nichts zu prüfen
+        self.server("apple")
+        self.server("chat", doku=None)
+        msgs = paket.doku_pruefung()
+        self.assertEqual([s for s, _t in msgs], ["FEHLER", "OK"])
+        self.assertIn("chat: tests/test_doku.py fehlt", msgs[0][1])
+        self.server("chat", doku="raise AssertionError('x_senden fehlt: steht in keiner Werkzeugtabelle')\n")
+        msgs = paket.doku_pruefung()
+        self.assertEqual([s for s, _t in msgs], ["FEHLER", "OK"])
+        self.assertIn("x_senden fehlt", msgs[0][1])
+        with contextlib.redirect_stdout(io.StringIO()) as aus:
+            self.assertEqual(paket.cmd_pruefen(), 1)
+        self.assertIn("FEHLER: chat: Doku-Test schlägt fehl", aus.getvalue())
+
+
 class Zips(PaketTest):
     def test_zip_aus_head_ohne_tests_und_kit_json(self):
         (self.plugin / "tests").mkdir()
@@ -357,7 +400,8 @@ class EchtesPaket(unittest.TestCase):
     """Das Paket selbst besteht seine Prüfungen ohne FEHLER."""
 
     def test_pruefungen_ohne_fehler(self):
-        msgs = paket.skill_pruefung() + paket.gleichstand_pruefung({})
+        msgs = (paket.skill_pruefung() + paket.gleichstand_pruefung({}) + paket.sicherheit_pruefung()
+                + paket.doku_pruefung())
         self.assertEqual([t for s, t in msgs if s == "FEHLER"], [])
 
 

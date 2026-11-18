@@ -5,7 +5,13 @@ description: Apple Erinnerungen: offene Aufgaben zeigen, Aufgaben und Einkäufe 
 
 # erinnerungen
 
-Apple Erinnerungen über die Werkzeuge des MCP-Servers `apple`: `erinnerungen_lesen`, `erinnerung_anlegen`, `erinnerung_abhaken`. Sie laufen am Mac, in Cowork wie im Code-Tab. Nie über EventKit, die Datenbank oder ein eigenes Skript.
+Apple Erinnerungen über die Werkzeuge des MCP-Servers `apple`. Sie laufen am Mac, in Cowork wie im Code-Tab. Nie über EventKit, die Datenbank oder ein eigenes Skript.
+
+| Werkzeug | Zweck | Stufe |
+|---|---|---|
+| `erinnerungen_lesen` | offene, überfällige und bald fällige, `liste` zeigt eine Liste ganz, `nur_listen` alle Listen | lesen |
+| `erinnerung_anlegen` | in einer Liste, mit Fristen und Notiz, legt keine Dublette an | schreiben |
+| `erinnerung_abhaken` | offene Erinnerung als erledigt markieren | schreiben |
 
 ## Grundregeln
 

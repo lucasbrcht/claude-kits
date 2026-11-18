@@ -5,7 +5,16 @@ description: WhatsApp der Mac-App lesen, durchsuchen, Neues sichten, Antworten a
 
 # whatsapp
 
-Lokale WhatsApp-Daten über die Werkzeuge des MCP-Servers `chat` mit `dienst` whatsapp: `chat_neues`, `chat_liste`, `chat_lesen`, `chat_suchen`, `chat_stilprofil`, `whatsapp_entwurf`. Sie laufen am Mac, in Cowork wie im Code-Tab, und lesen nur aus einer kurzlebigen Kopie der Datenbank. Senden kann das Plugin nicht.
+Lokale WhatsApp-Daten über die Werkzeuge des MCP-Servers `chat` mit `dienst` whatsapp. Sie laufen am Mac, in Cowork wie im Code-Tab, und lesen nur aus einer kurzlebigen Kopie der Datenbank. Senden kann das Plugin nicht. Die Werkzeuge mit `dienst` gelten auch für iMessage (Skill `imessage`).
+
+| Werkzeug | Zweck | Stufe |
+|---|---|---|
+| `chat_neues` | Neues der letzten Stunden, Einzelchats mit neuer Nachricht zuerst | lesen |
+| `chat_liste` | Chats auflisten oder per `suche` finden, Mitglieder einer Gruppe | lesen |
+| `chat_lesen` | Verlauf eines Chats, mit Zeitraum, `limit` oder `vor_id` | lesen |
+| `chat_suchen` | Nachrichten nach 1 bis 3 Begriffen durchsuchen | lesen |
+| `chat_stilprofil` | Stilprofil für WhatsApp und iMessage | lesen |
+| `whatsapp_entwurf` | Chat mit Text öffnen, der Nutzer sendet selbst | schreiben |
 
 **Modus lesen:** Fehlt `whatsapp_entwurf` (Einrichtung nur lesend, etwa in einer Arbeitsumgebung), keine Entwürfe. Dann den Text zum Kopieren im Chat geben.
 

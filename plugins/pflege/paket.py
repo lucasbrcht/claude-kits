@@ -8,7 +8,8 @@ für den Upload.
 
   python3 paket.py                 Trockenlauf: was sich in settings.json und CLAUDE.md der Instanz ändert
   python3 paket.py --apply         schreibt beides (im Terminal, der Auto-Modus lässt es aus der Session nicht zu)
-  python3 paket.py --pruefen       Skills, gleiche Dateien in den Plugins, Persönliches in versionierten Dateien
+  python3 paket.py --pruefen       Skills, gleiche Dateien in den Plugins, SICHERHEIT.md, Doku-Tests von apple und
+                                   chat, Persönliches in versionierten Dateien
   python3 paket.py --zips ORDNER   je Plugin <name>-<version>.zip aus dem letzten Commit, ohne tests/, kit.json und
                                    was .gitattributes des Plugins mit export-ignore ausnimmt (eigene Plugins dazu)
   python3 paket.py --instructions  Text für Instructions for Claude: Profil ohne nur-code-Teile nach
@@ -23,6 +24,7 @@ CLAUDE.md der Instanz entsteht aus profil.md plus CLAUDE.md (Index des Projekts)
 der CLAUDE.md allein. Nur Standardbibliothek.
 """
 import argparse
+import ast
 import json
 import os
 import re
@@ -72,6 +74,12 @@ SKILL_KB = 8
 # arbeit im work-kit), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz lesen kann.
 GLEICHE_PLUGINS = ("apple", "chat")
 GLEICHE_DATEIEN = ("kit_basis.py", "mcp_basis.py", "tests/test_kit_basis.py", "tests/test_mcp_basis.py")
+# Gefahren und Gegenmaßnahmen im Hauptordner. Jedes Werkzeug der Stufe nachfrage aus den Plugins mit Server steht dort,
+# deren Doku-Test (tests/test_doku.py: jedes Werkzeug in genau einer Werkzeugtabelle) läuft bei --pruefen mit.
+SICHERHEIT = "SICHERHEIT.md"
+SERVER_PLUGINS = ("apple", "chat")
+DOKU_TEST = "tests/test_doku.py"
+DOKU_ZEIT = 120
 
 
 class KitFehler(Exception):
@@ -462,6 +470,59 @@ def gleichstand_pruefung(cfg: dict = None) -> list:
                                                 f"{stellen}")] + msgs
 
 
+def werkzeuge_mit_stufe(server_py: Path) -> dict:
+    """{Name: Stufe} aus den Aufrufen Werkzeug("name", "titel", "beschreibung", "stufe", ...) in server.py, ohne Import
+    (beide Server haben ein eigenes mcp_basis)."""
+    werkzeuge = {}
+    for knoten in ast.walk(ast.parse(server_py.read_text(encoding="utf-8"))):
+        if (isinstance(knoten, ast.Call) and isinstance(knoten.func, ast.Name) and knoten.func.id == "Werkzeug"
+                and len(knoten.args) >= 4 and all(isinstance(a, ast.Constant) for a in (knoten.args[0], knoten.args[3]))):
+            werkzeuge[knoten.args[0].value] = knoten.args[3].value
+    return werkzeuge
+
+
+def sicherheit_pruefung() -> list:
+    """SICHERHEIT.md im Hauptordner vorhanden und jedes Werkzeug der Stufe nachfrage aus apple und chat darin genannt
+    (in Backticks)."""
+    datei = PAKET / SICHERHEIT
+    if not datei.is_file():
+        return [("FEHLER", f"{SICHERHEIT} fehlt im Hauptordner (Gefahren und Gegenmaßnahmen je Werkzeug)")]
+    text = datei.read_text(encoding="utf-8")
+    nachfrage = sorted(name for pl in SERVER_PLUGINS if (PLUGINS / pl / "server.py").is_file()
+                       for name, stufe in werkzeuge_mit_stufe(PLUGINS / pl / "server.py").items() if stufe == "nachfrage")
+    fehlt = [n for n in nachfrage if f"`{n}`" not in text]
+    if fehlt:
+        return [("FEHLER", f"{SICHERHEIT}: Werkzeug der Stufe nachfrage ohne Zeile: {', '.join(fehlt)}")]
+    return [("OK", f"{SICHERHEIT} nennt alle {len(nachfrage)} Werkzeuge der Stufe nachfrage")]
+
+
+def doku_pruefung() -> list:
+    """Doku-Test der Plugins mit Server als Unterprozess: jedes Werkzeug in genau einer Werkzeugtabelle mit der Stufe aus
+    server.py. Fehlt der Test oder schlägt er fehl, ein FEHLER mit der letzten Zeile der Ausgabe."""
+    msgs, ok = [], []
+    for pl in SERVER_PLUGINS:
+        if not (PLUGINS / pl / "server.py").is_file():
+            continue
+        test = PLUGINS / pl / DOKU_TEST
+        if not test.is_file():
+            msgs.append(("FEHLER", f"{pl}: {DOKU_TEST} fehlt"))
+            continue
+        try:
+            lauf = subprocess.run([sys.executable, "-B", str(test)], capture_output=True, text=True, timeout=DOKU_ZEIT,
+                                  cwd=str(PLUGINS / pl), env={**os.environ, "KITS_FEHLERPROTOKOLL": "aus"})
+        except (OSError, subprocess.SubprocessError) as e:
+            msgs.append(("FEHLER", f"{pl}: Doku-Test lief nicht ({type(e).__name__})"))
+            continue
+        if lauf.returncode != 0:
+            zeilen = [z for z in (lauf.stderr + lauf.stdout).splitlines() if z.strip()]
+            grund = next((z.strip() for z in zeilen if z.lstrip().startswith(("'", '"', "AssertionError"))),
+                         zeilen[-1].strip() if zeilen else f"Code {lauf.returncode}")
+            msgs.append(("FEHLER", f"{pl}: Doku-Test schlägt fehl: {grund[:300]}"))
+        else:
+            ok.append(pl)
+    return msgs + ([("OK", f"Doku-Test: Werkzeugtabellen passen zu den Servern ({', '.join(ok)})")] if ok else [])
+
+
 def git_dateien(ordner: Path):
     try:
         r = subprocess.run(["git", "-C", str(ordner), "ls-files", "-z"], capture_output=True, text=True, timeout=10)
@@ -537,7 +598,8 @@ def persoenlich_pruefung(cfg: dict = None) -> list:
 # ---------- Ablauf ----------
 
 def cmd_pruefen() -> int:
-    msgs = skill_pruefung() + gleichstand_pruefung() + persoenlich_pruefung()
+    msgs = (skill_pruefung() + gleichstand_pruefung() + sicherheit_pruefung() + doku_pruefung()
+            + persoenlich_pruefung())
     for stufe, text in msgs:
         print(f"{stufe}: {text}")
     return 1 if any(s == "FEHLER" for s, _t in msgs) else 0

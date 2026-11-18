@@ -7,6 +7,11 @@ description: Den persönlichen Assistenten zum ersten Mal einrichten oder die Ei
 
 > **Datenordner: `~/Library/Application Support/Claude Kits/<plugin>/`** mit `config.json` und `style/` je Plugin (`apple`, `chat`, `service`). Die Server lesen nur dort. Gelesen und geschrieben wird er nur über die Werkzeuge `einstellungen` und `einstellungen_schreiben` des Plugins `apple`, nie mit Read, Write oder Bash: In Cowork erreicht Claude den Ordner nur über den Server.
 
+| Werkzeug | Zweck | Stufe |
+|---|---|---|
+| `einstellungen` | `config.json` und Stilprofile eines Plugins zeigen, mit offenen Werten und Vorlage | lesen |
+| `einstellungen_schreiben` | ganze Abschnitte der `config.json` ersetzen oder ein Stilprofil speichern | fragt |
+
 Der Assistent lernt den Nutzer kennen. Was er dabei erfährt, liegt im **Kontextordner** (Standard `~/Claude Kits/kontext/`, lokal, nie in iCloud). In Cowork ist er der erste Ordner des Projekts Privat, im Code-Tab ein Arbeitsordner der Session. Ziel: unter 45 Minuten, pausieren geht jederzeit.
 
 ## Start

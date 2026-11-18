@@ -2,6 +2,15 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.3.0 (in Arbeit)
+
+Versionen der Plugins setzt der Release.
+
+- **Werkzeugtabellen in allen Skills von `apple` und `chat`:** `erinnerungen`, `notizen`, `whatsapp` und `imessage` zeigen ihre Werkzeuge jetzt wie `mail` und `kalender` als Tabelle mit Zweck und Stufe. `kontakte` und vorläufig `pdf_aus_html` stehen in `notizen`, `einstellungen` und `einstellungen_schreiben` in `einrichten`, die gemeinsamen Lesewerkzeuge `chat_*` in `whatsapp`.
+- **Doku-Test:** `tests/test_doku.py` in `apple` und `chat` prüft, dass jedes Werkzeug aus `server.py` in genau einer Tabelle eines Skills steht, mit der richtigen Stufe. Fehlende, überzählige und doppelte Namen sind ein Fehler.
+- **`SICHERHEIT.md`:** neue Übersicht im Hauptordner mit Gefahr, Auslöser, Folge, Gegenmaßnahme und ob Code oder nur der Skill sie erzwingt. Ein eigener Abschnitt nennt, was heute nur im Skill steht.
+- **`paket.py --pruefen` (pflege):** meldet einen FEHLER, wenn `SICHERHEIT.md` fehlt oder ein Werkzeug der Stufe nachfrage dort nicht vorkommt, und lässt die Doku-Tests von `apple` und `chat` mitlaufen. Der Skill `paket` beschreibt die neuen Prüfpunkte.
+
 ## v7.2.0 (17.11.2026)
 
 `service` 7.1.0, `pflege` 7.0.1 (Rauchtest im Release-Check, Ausrollen per GitHub, ZIPs nur auf Wunsch), die anderen Plugins bleiben wie in 7.1.1.

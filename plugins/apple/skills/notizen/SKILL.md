@@ -5,7 +5,17 @@ description: Apple Notizen suchen, lesen, anlegen und ändern, Übersichten für
 
 # notizen
 
-Apple Notizen und Kontakte über die Werkzeuge des MCP-Servers `apple`: `notizen_suchen`, `notiz_lesen`, `notiz_anlegen`, `notiz_ersetzen`, `notiz_geteilt`, `kontakte`. Sie laufen am Mac, in Cowork wie im Code-Tab. Nie über `osascript` oder die Datenbank direkt. Notizen liegen in iCloud und sind am iPhone sofort da.
+Apple Notizen und Kontakte über die Werkzeuge des MCP-Servers `apple`. Sie laufen am Mac, in Cowork wie im Code-Tab. Nie über `osascript` oder die Datenbank direkt. Notizen liegen in iCloud und sind am iPhone sofort da.
+
+| Werkzeug | Zweck | Stufe |
+|---|---|---|
+| `notizen_suchen` | Titel und Inhalt durchsuchen, ohne `text` die neuesten, `nur_ordner` die Ordner | lesen |
+| `notiz_lesen` | eine Notiz als Text, mit `html` als HTML | lesen |
+| `notiz_anlegen` | neue eigene Notiz aus Markdown oder HTML | schreiben |
+| `notiz_ersetzen` | Inhalt einer eigenen Notiz ganz ersetzen | schreiben |
+| `notiz_geteilt` | in einem geteilten Ordner anlegen oder ersetzen | fragt |
+| `kontakte` | Apple Kontakte: suchen, Eintrag ganz, eigene Karte | lesen |
+| `pdf_aus_html` | HTML-Datei aus den Ordnern in `pdf.ordner` als PDF drucken, A4 hoch oder quer | schreiben |
 
 ## Grundregeln
 

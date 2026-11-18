@@ -5,7 +5,12 @@ description: iMessage und SMS der Nachrichten-App lesen, suchen, Neues sichten, 
 
 # imessage
 
-Lokale Daten der Nachrichten-App über die Werkzeuge des MCP-Servers `chat` mit `dienst` imessage: `chat_neues`, `chat_liste`, `chat_lesen`, `chat_suchen`, `chat_stilprofil`, `imessage_entwurf`, `imessage_senden`. Sie laufen am Mac, in Cowork wie im Code-Tab, und lesen aus einer kurzlebigen Kopie der Datenbank. Namen kommen aus dem Adressbuch, Nummern und Mailadressen erscheinen nie.
+Lokale Daten der Nachrichten-App über die Werkzeuge des MCP-Servers `chat` mit `dienst` imessage. Sie laufen am Mac, in Cowork wie im Code-Tab, und lesen aus einer kurzlebigen Kopie der Datenbank. Namen kommen aus dem Adressbuch, Nummern und Mailadressen erscheinen nie. Lesen, Suchen und Stil laufen über `chat_neues`, `chat_liste`, `chat_lesen`, `chat_suchen` und `chat_stilprofil` (Tabelle im Skill `whatsapp`), hier nur die eigenen Werkzeuge:
+
+| Werkzeug | Zweck | Stufe |
+|---|---|---|
+| `imessage_entwurf` | Chat in Nachrichten mit Text öffnen, der Nutzer sendet mit Enter | schreiben |
+| `imessage_senden` | genau diesen Text senden, nach "senden" des Nutzers | fragt |
 
 **Modus lesen:** Fehlen `imessage_entwurf` und `imessage_senden` (Einrichtung nur lesend, etwa in einer Arbeitsumgebung), keine Entwürfe und kein Senden. Dann den Text zum Kopieren im Chat geben.
 
