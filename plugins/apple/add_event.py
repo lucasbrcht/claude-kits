@@ -21,7 +21,8 @@ ohne Rückfrage. Gespeichert wird nur mit --ausfuehren. Der
 Schalter steht direkt hinter dem Skript, an anderer Stelle bricht das Skript ab. Abkürzungen der Optionen
 gelten nicht.
 Steht im Zielkalender schon ein Termin mit gleichem Titel und Start, steht ein Start zweimal im Aufruf oder gibt es eine
-Uhrzeit wegen der Zeitumstellung zweimal oder gar nicht, bricht das Skript ab, bevor es etwas anlegt.
+Uhrzeit wegen der Zeitumstellung zweimal oder gar nicht, bricht das Skript ab, bevor es etwas anlegt. Nach dem Speichern
+lädt es die Termine frisch und nennt jede Abweichung bei Zeit oder Kalender in einer Zeile Nachkontrolle.
 """
 import argparse
 import datetime as dt
@@ -29,8 +30,8 @@ import sys
 
 import kit_basis
 from eventkit_basis import konto, nsdate, store_with_access, venv_starten, zeitraum
-from kalender_basis import (EXCHANGE, dubletten, exchange_calendar, exchange_name, exchange_vorn, kalender_config,
-                            kalender_name, ortszeit_eindeutig, target_calendar)
+from kalender_basis import (EXCHANGE, dubletten, exchange_calendar, exchange_name, exchange_vorn, gewollt,
+                            kalender_config, kalender_name, nachkontrolle, ortszeit_eindeutig, target_calendar)
 
 
 def parse_range(start_s: str, end_s: str):
@@ -109,7 +110,7 @@ def main(argv=None):
         return
 
     import EventKit  # erst hier: store_with_access hat es schon geladen oder mit Hinweis auf .venv abgebrochen
-    angelegt = []
+    angelegt, kontrolle = [], []
     for start, end, ganz in termine:
         ev = EventKit.EKEvent.eventWithEventStore_(store)
         ev.setCalendar_(cal)
@@ -128,7 +129,8 @@ def main(argv=None):
             sys.exit(f"Fehler beim Speichern von {zeitraum(start, end, ganz)}: {err}. {schon_da}Die übrigen nicht "
                      f"angelegt.")
         angelegt.append(zeitraum(start, end, ganz))
-    print("\n".join([f"Angelegt: {kopf}"] + zeilen))
+        kontrolle.append(gewollt(ev, start, end, ganz, cal.title()))
+    print("\n".join([f"Angelegt: {kopf}"] + zeilen + nachkontrolle(store, kontrolle)))
 
 
 if __name__ == "__main__":

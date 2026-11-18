@@ -8,6 +8,7 @@ Zeitumstellung am 25.10.2026 überall gleich rechnen. Läuft in der Sandbox.
 import contextlib
 import datetime as dt
 import io
+import itertools
 import json
 import os
 import sys
@@ -129,10 +130,14 @@ class Termin:
         self._ende = NSDate(D(ende).timestamp()) if ende else None
         self._teilnehmer, self._serie = teilnehmer, serie
         self.ort = self.notiz = None
+        self._id = f"T{next(NUMMERN)}"
 
     @classmethod
     def eventWithEventStore_(cls, store):
         return cls(store)
+
+    def eventIdentifier(self):
+        return self._id
 
     def title(self):
         return self._titel
@@ -179,9 +184,10 @@ class Termin:
 
 class Erinnerung:
     def __init__(self, store=None, titel="", liste=None, faellig=None, mit_zeit=True, erledigt=False, angelegt=None,
-                 erledigt_am=None, notiz=None):
+                 erledigt_am=None, notiz=None, prioritaet=0):
         self._titel, self._liste, self._erledigt = titel, liste, erledigt
         self._comp, self.alarme, self.notiz = None, [], notiz
+        self._prioritaet, self._id = prioritaet, f"E{next(NUMMERN)}"
         # wie EventKit: Anlage- und Erledigtdatum als NSDate oder None (V3 Phase 4a, Verlauf im Tagesstart), erledigt
         # ohne Datum heißt jetzt erledigt
         self._angelegt = NSDate(angelegt.timestamp()) if angelegt else None
@@ -240,6 +246,24 @@ class Erinnerung:
     def addAlarm_(self, a):
         self.alarme.append(a)
 
+    def alarms(self):
+        return list(self.alarme) or None  # wie EventKit: ohne Wecker None
+
+    def removeAlarm_(self, a):
+        self.alarme.remove(a)
+
+    def priority(self):
+        return self._prioritaet
+
+    def setPriority_(self, v):
+        self._prioritaet = v
+
+    def calendarItemIdentifier(self):
+        return self._id
+
+
+NUMMERN = itertools.count(1)  # IDs für Termine und Erinnerungen, wie eventIdentifier und calendarItemIdentifier
+
 
 class EKAlarm:
     @classmethod
@@ -247,6 +271,9 @@ class EKAlarm:
         a = cls()
         a.datum = datum
         return a
+
+    def absoluteDate(self):
+        return self.datum
 
 
 class ErledigtAbfrage:
@@ -267,9 +294,21 @@ class Store:
         self.kalender, self.termine, self.erinnerungen = list(kalender), list(termine), list(erinnerungen)
         self.zugriff, self.antwortet = zugriff, antwortet  # zugriff None: der Freigabe-Dialog antwortet nie
         self.gespeichert, self.abfragen = [], []
+        # nach_speichern(Objekt) ändert nach dem Speichern, was gespeichert ist: so sieht die Nachkontrolle eine
+        # Abweichung wie bei einer App, die einen Wert nicht übernimmt (Etappe 4 von v7.3.0)
+        self.nach_speichern = None
 
     def init(self):
         return self
+
+    def reset(self):
+        self.zurueckgesetzt = getattr(self, "zurueckgesetzt", 0) + 1
+
+    def eventWithIdentifier_(self, ident):
+        return next((t for t in self.termine if t.eventIdentifier() == ident), None)
+
+    def calendarItemWithIdentifier_(self, ident):
+        return next((r for r in self.erinnerungen if r.calendarItemIdentifier() == ident), None)
 
     def requestFullAccessToEventsWithCompletion_(self, cb):
         if self.zugriff is not None:
@@ -291,6 +330,8 @@ class Store:
         self.gespeichert.append((ev, span))
         if ev not in self.termine:
             self.termine.append(ev)
+        if self.nach_speichern:
+            self.nach_speichern(ev)
         return True, None
 
     def predicateForIncompleteRemindersWithDueDateStarting_ending_calendars_(self, s, e, cals):
@@ -315,6 +356,8 @@ class Store:
             if r.creationDate() is None:
                 r._angelegt = NSDate(time.time())  # wie EventKit: das erste Speichern setzt das Anlagedatum
             self.erinnerungen.append(r)
+        if self.nach_speichern:
+            self.nach_speichern(r)
         return True, None
 
 

@@ -27,7 +27,8 @@ zweimal oder gar nicht gibt, bricht ab.
 Ohne --ausfuehren zeigt das Skript nur alt und neu und speichert nichts, das läuft ohne Rückfrage. Gespeichert wird nur
 mit --ausfuehren, direkt hinter dem Skript, an anderer Stelle bricht das Skript ab. Abkürzungen der Optionen gelten nicht.
 Passen mehrere Termine zur gleichen Zeit und heißt genau einer wie der Titel-Teil, rückt nur dieser. Passt zu einem der
-Starts nicht genau ein Termin, ändert das Skript keinen.
+Starts nicht genau ein Termin, ändert das Skript keinen. Nach dem Speichern lädt es die Termine frisch und nennt jede
+Abweichung bei Zeit oder Kalender in einer Zeile Nachkontrolle.
 """
 import argparse
 import datetime as dt
@@ -35,8 +36,8 @@ import sys
 
 import kit_basis
 from eventkit_basis import konto, nsdate, nsdate_ts, pydt, store_with_access, ts, venv_starten, zeitraum
-from kalender_basis import (EINE_MINUTE, EXCHANGE, dubletten, exchange_calendar, exchange_name, exchange_vorn,
-                            kalender_config, kalender_name, ortszeit_eindeutig, target_calendar)
+from kalender_basis import (EINE_MINUTE, EXCHANGE, dubletten, exchange_calendar, exchange_name, exchange_vorn, gewollt,
+                            kalender_config, kalender_name, nachkontrolle, ortszeit_eindeutig, target_calendar)
 
 
 def find_event(store, cal, part: str, old: dt.datetime) -> list:
@@ -173,7 +174,7 @@ def main(argv=None):
         print("\n".join([f"Probelauf, nichts gespeichert: {kopf}"] + zeilen + ([serie] if serie else [])))
         return
 
-    erledigt = []
+    erledigt, kontrolle = [], []
     for ev, start, ende, alt, _neu in plan:
         if wechsel:
             ev.setCalendar_(ziel_cal)  # derselbe Termin, nur der Kalender ändert sich
@@ -185,8 +186,9 @@ def main(argv=None):
             schon = f"Schon geändert: {'; '.join(erledigt)}. " if erledigt else ""
             sys.exit(f"Speichern fehlgeschlagen bei {ev.title()} ({alt}): {err}. {schon}Die übrigen nicht geändert.")
         erledigt.append(f"{ev.title()} ({alt})")
+        kontrolle.append(gewollt(ev, start, ende, bool(ev.isAllDay()), (ziel_cal if wechsel else cal).title()))
     print("\n".join([f"{'Kalender gewechselt' if wechsel else 'Verschoben'}: {kopf}"] + zeilen
-                    + ([serie] if serie else [])))
+                    + ([serie] if serie else []) + nachkontrolle(store, kontrolle)))
 
 
 if __name__ == "__main__":

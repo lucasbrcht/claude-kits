@@ -106,6 +106,26 @@ class Argumente(unittest.TestCase):
                          ["add", "--notes=privat: x", "--", "Aufgaben", "-Milch", "2026-11-20", "2026-11-21", "18:00"])
         self.assertEqual(self.rufe("erinnerung_abhaken", {"titel": "Milch", "liste": "Einkauf"})[2][1],
                          ["done", "--liste=Einkauf", "--", "Milch"])
+        # Etappe 4 von v7.3.0: Suche, Erledigtes, Priorität, Ändern
+        self.assertEqual(self.rufe("erinnerungen_lesen", {"text": "Reifen", "tage": 60})[2][1],
+                         ["list", "--days=60", "--text=Reifen"])
+        self.assertEqual(self.rufe("erinnerungen_lesen", {"erledigt": True, "tage": 3})[2][1],
+                         ["list", "--days=3", "--erledigt"])
+        self.assertEqual(self.rufe("erinnerung_anlegen", {"liste": "Aufgaben", "titel": "X",
+                                                          "prioritaet": "hoch"})[2][1],
+                         ["add", "--prioritaet=hoch", "--", "Aufgaben", "X"])
+        self.assertTrue(self.rufe("erinnerung_anlegen", {"liste": "A", "titel": "X", "prioritaet": "dringend"})[0])
+        self.assertEqual(self.rufe("erinnerung_aendern", {"titel": "-Reifen", "frist": "2026-11-20 18:00",
+                                                          "liste": "Aufgaben", "neuer_titel": "-Reifen holen",
+                                                          "notiz": "privat: x", "nach_liste": "Privat",
+                                                          "wieder_offen": True, "prioritaet": "keine"})[2][1],
+                         ["aendern", "--liste=Aufgaben", "--frist=2026-11-20 18:00", "--neuer-titel=-Reifen holen",
+                          "--notes=privat: x", "--nach-liste=Privat", "--wieder-offen", "--prioritaet=keine", "--",
+                          "-Reifen"])
+        self.assertEqual(self.rufe("erinnerung_aendern", {"titel": "X", "ohne_frist": True})[2][1],
+                         ["aendern", "--ohne-frist", "--", "X"])
+        self.assertTrue(self.rufe("erinnerung_aendern", {"titel": "X", "frist": "Freitag"})[0])
+        self.assertTrue(self.rufe("erinnerung_aendern", {"frist": "2026-11-20"})[0])  # titel ist Pflicht
 
     def test_notizen(self):
         self.assertEqual(self.rufe("notizen_suchen", {"text": "Rad"})[2][1], ["search", "--", "Rad"])
@@ -198,7 +218,9 @@ class Argumente(unittest.TestCase):
             "termin_verschieben": {"titel": "x", "termine": [{"start": "2026-11-20 10:00",
                                                               "neu_start": "2026-11-20 11:00"}]},
             "erinnerungen_lesen": {"liste": "x"}, "erinnerung_anlegen": {"liste": "x", "titel": "y"},
-            "erinnerung_abhaken": {"titel": "y"}, "notizen_suchen": {"text": "x"}, "notiz_lesen": {"titel": "x"},
+            "erinnerung_abhaken": {"titel": "y"},
+            "erinnerung_aendern": {"titel": "--ausfuehren", "neuer_titel": "--ausfuehren", "wieder_offen": True},
+            "notizen_suchen": {"text": "x"}, "notiz_lesen": {"titel": "x"},
             "notiz_anlegen": {"titel": "x", "inhalt": "y", "ordner": "z"},
             "notiz_ersetzen": {"titel": "x", "inhalt": "y", "ordner": "z", "stand": "--ausfuehren"},
             "notiz_ergaenzen": {"titel": "x", "inhalt": "y", "ordner": "--ausfuehren", "stand": "2026-11-18 10:00:00"},

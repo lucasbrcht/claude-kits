@@ -292,7 +292,20 @@ def erinnerungen_lesen(a: dict) -> tuple:
     if schalter(a, "nur_listen"):
         return lauf("reminders.py", ["lists"])
     return lauf("reminders.py", ["list", *opt("--days", zahl(a, "tage", 0, 3650)), *opt("--all", schalter(a, "alle")),
-                                 *opt("--verlauf", text(a, "liste", maximal=200))])
+                                 *opt("--verlauf", text(a, "liste", maximal=200)),
+                                 *opt("--text", text(a, "text", maximal=200)),
+                                 *opt("--erledigt", schalter(a, "erledigt"))])
+
+
+PRIORITAET = {"type": "string", "enum": ["hoch", "mittel", "niedrig", "keine"],
+              "description": "hoch, mittel, niedrig oder keine, in der App !!!, !!, !"}
+
+
+def prioritaet(a: dict) -> list:
+    wert = text(a, "prioritaet", maximal=10)
+    if wert and wert not in PRIORITAET["enum"]:
+        raise Fehler("prioritaet ist hoch, mittel, niedrig oder keine.")
+    return opt("--prioritaet", wert)
 
 
 def fristen(a: dict) -> list:
@@ -304,12 +317,26 @@ def fristen(a: dict) -> list:
 
 
 def erinnerung_anlegen(a: dict) -> tuple:
-    return lauf("reminders.py", ["add", *opt("--notes", text(a, "notiz", maximal=2000)), "--",
+    return lauf("reminders.py", ["add", *opt("--notes", text(a, "notiz", maximal=2000)), *prioritaet(a), "--",
                                  text(a, "liste", True, 200), text(a, "titel", True, 300), *fristen(a)])
 
 
 def erinnerung_abhaken(a: dict) -> tuple:
     return lauf("reminders.py", ["done", *opt("--liste", text(a, "liste", maximal=200)), "--",
+                                 text(a, "titel", True, 300)])
+
+
+def erinnerung_aendern(a: dict) -> tuple:
+    """Frist, Titel, Notiz, Liste, Status und Priorität einer Erinnerung. Ohne Änderung bricht reminders.py ab."""
+    frist = a.get("frist")
+    if frist is not None:
+        frist = zeitpunkt(frist, "frist")
+    return lauf("reminders.py", ["aendern", *opt("--liste", text(a, "liste", maximal=200)), *opt("--frist", frist),
+                                 *opt("--ohne-frist", schalter(a, "ohne_frist")),
+                                 *opt("--neuer-titel", text(a, "neuer_titel", maximal=300)),
+                                 *opt("--notes", text(a, "notiz", maximal=2000)),
+                                 *opt("--nach-liste", text(a, "nach_liste", maximal=200)),
+                                 *opt("--wieder-offen", schalter(a, "wieder_offen")), *prioritaet(a), "--",
                                  text(a, "titel", True, 300)])
 
 
@@ -675,24 +702,39 @@ WERKZEUGE = [
                                                           "neu_start", "items": {"type": "object"}}},
              termin_mit_nachfrage, pflicht=("aktion", "titel", "termine"), vorschau=termin_vorschau),
     Werkzeug("erinnerungen_lesen", "Erinnerungen lesen",
-             "Apple Erinnerungen: offene, überfällige und in N Tagen fällige (Standard 14). liste zeigt eine Liste "
-             "ganz mit Erledigtem, nur_listen alle Listen.", "lesen",
-             {"tage": d(I, "fällig in so vielen Tagen, 0 bis 3650, Standard 14"),
+             "Apple Erinnerungen: offene und in N Tagen fällige (Standard 14). liste zeigt eine Liste ganz, text sucht "
+             "in allen Listen offen und erledigt, erledigt zeigt Geschafftes, nur_listen die Listen.", "lesen",
+             {"tage": d(I, "fällig in so vielen Tagen, 0 bis 3650, Standard 14. Mit text oder erledigt: Erledigtes "
+                           "so viele Tage zurück, 0 nur heute, Standard 30 und 7"),
               "alle": d(B, "auch Einträge ohne Frist"),
               "liste": d(S, "eine Liste ganz, mit Erledigtem der letzten 14 Tage"),
+              "text": d(S, "Suche in Titel und Notiz aller Listen, offene und erledigte"),
+              "erledigt": d(B, "nur Erledigtes aller Listen im Zeitraum tage, mit text nur passendes"),
               "nur_listen": d(B, "nur die Listen mit Konto")}, erinnerungen_lesen),
     Werkzeug("erinnerung_anlegen", "Erinnerung anlegen",
              "Erinnerung in einer Liste anlegen, optional mit Fristen (JJJJ-MM-TT oder JJJJ-MM-TT HH:MM, je Frist "
-             "eine Erinnerung) und Notiz. Legt keine Dublette an.", "schreiben",
+             "eine Erinnerung), Notiz und Priorität. Legt keine Dublette an.", "schreiben",
              {"liste": d(S, "Name der Liste, etwa Aufgaben"), "titel": d(S, "Titel der Erinnerung"),
               "fristen": {"type": "array", "items": S, "description": "JJJJ-MM-TT oder JJJJ-MM-TT HH:MM"},
-              "notiz": d(S, "Notiz zur Erinnerung")}, erinnerung_anlegen, pflicht=("liste", "titel")),
+              "notiz": d(S, "Notiz zur Erinnerung"), "prioritaet": PRIORITAET},
+             erinnerung_anlegen, pflicht=("liste", "titel")),
     Werkzeug("erinnerung_abhaken", "Erinnerung abhaken",
              "Offene Erinnerung als erledigt markieren, Titel wie erinnerungen_lesen ihn zeigt. Bei unklarem Titel "
              "kommen Kandidaten, nichts wird geändert.", "schreiben",
              {"titel": d(S, "Titel, wie erinnerungen_lesen ihn zeigt"),
               "liste": d(S, "nur nötig bei gleichem Titel in zwei Listen")},
              erinnerung_abhaken, pflicht=("titel",)),
+    Werkzeug("erinnerung_aendern", "Erinnerung ändern",
+             "Eine Erinnerung ändern: Frist verschieben oder entfernen, Titel, Notiz, andere Liste, Priorität, "
+             "Erledigtes wieder öffnen. Gefunden wie beim Abhaken, danach geprüft.", "schreiben",
+             {"titel": d(S, "Titel, wie erinnerungen_lesen ihn zeigt"),
+              "liste": d(S, "nur nötig bei gleichem Titel in zwei Listen"),
+              "frist": d(S, "neue Frist JJJJ-MM-TT oder JJJJ-MM-TT HH:MM"),
+              "ohne_frist": d(B, "Frist entfernen"), "neuer_titel": d(S, "neuer Titel"),
+              "notiz": d(S, "neue Notiz, ersetzt die alte"), "nach_liste": d(S, "in diese Liste verschieben"),
+              "wieder_offen": d(B, "erledigte Erinnerung wieder öffnen, sucht unter den erledigten"),
+              "prioritaet": PRIORITAET},
+             erinnerung_aendern, pflicht=("titel",)),
     Werkzeug("notizen_suchen", "Notizen suchen",
              "Apple Notizen: mit text Titel und Inhalt durchsuchen, ohne text die neuesten (optional in ordner), "
              "nur_ordner listet die Ordner.", "lesen",

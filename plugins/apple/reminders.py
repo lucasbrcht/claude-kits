@@ -7,21 +7,32 @@ Aufruf (startet als python3 und wechselt selbst in die .venv des Kits, dort lieg
   reminders.py list --verlauf "<Liste>" [--days N]   die Liste ganz (auch ohne Frist) mit Anlagedatum, Notiz und
                                            Liegezeit, dazu die erledigten seit 0 Uhr vor 14 Tagen (15 Kalendertage mit
                                            heute). Andere Listen nur mit --days
+  reminders.py list --text "<Suche>" [--days N]   Titel und Notiz in allen Listen, offene und die seit 0 Uhr vor N
+                                           Tagen erledigten (Standard 30)
+  reminders.py list --erledigt [--text "<Suche>"] [--days N]   nur Erledigtes seit 0 Uhr vor N Tagen (Standard 7, 0
+                                           heute), alle Listen
   reminders.py lists                       alle Listen mit Konto
-  reminders.py add "<Liste>" "<Titel>" [JJJJ-MM-TT [HH:MM] ...] [--notes "Text"]   mehrere Fristen zum selben Titel
-                                           in einem Aufruf: je Frist eine Erinnerung, ein
+  reminders.py add "<Liste>" "<Titel>" [JJJJ-MM-TT [HH:MM] ...] [--notes "Text"] [--prioritaet hoch]   mehrere
+                                           Fristen zum selben Titel in einem Aufruf: je Frist eine Erinnerung, ein
                                            Speichern für alle
   reminders.py done "<Titel>" [--liste "<Liste>"]   Titel, wie list ihn zeigt, sonst Kandidaten zeigen und nichts
                                            ändern, --liste bei gleichem Titel in zwei Listen
+  reminders.py aendern "<Titel>" [--liste "<Liste>"] [--frist "JJJJ-MM-TT [HH:MM]" | --ohne-frist]
+      [--neuer-titel "Text"] [--notes "Text"] [--nach-liste "<Liste>"] [--wieder-offen] [--prioritaet P]
+                                           eine Erinnerung ändern, gefunden wie bei done. Mit --wieder-offen unter den
+                                           in 365 Tagen erledigten, bei gleichem Titel in einer Liste die zuletzt
+                                           erledigte. Danach neu laden und vergleichen (Zeile Nachkontrolle)
+  Priorität: hoch, mittel, niedrig oder keine, list zeigt sie wie die App als !!!, !! und ! vor dem Titel.
   --ausfuehren wirkt nicht und steht, wenn überhaupt, direkt hinter dem Skript, an anderer Stelle bricht das
   Skript ab
 
 Listen aus reminders.excluded_lists in config.json werden nie gelesen oder beschrieben.
-add und done schreiben in alle Listen direkt, auch in geteilte aus reminders.geteilte_listen (die
+add, done und aendern schreiben in alle Listen direkt, auch in geteilte aus reminders.geteilte_listen (die
 Erinnerungen sind die eigene App des Nutzers, der Auftrag ist die Freigabe). lists markiert geteilte Listen weiter mit (geteilt).
 Abkürzungen der Optionen gelten nicht. Gibt es eine Liste in zwei Konten mit gleichem Namen, liest das Skript beide
 und schreibt in keine. Steht in der Liste schon eine offene Erinnerung mit gleichem Titel und gleicher Frist, legt add
-nichts an, auch keine der anderen Fristen.
+nichts an, auch keine der anderen Fristen, und aendern ändert nichts. Löschen kann das Skript nicht, aendern entfernt
+höchstens die Frist samt dem Wecker zu ihrer Uhrzeit.
 """
 import argparse
 import datetime as dt
@@ -32,7 +43,7 @@ import unicodedata
 
 import kit_basis  # Nummern, Steuerzeichen, Datenhinweis, gleich in apple und chat
 from eventkit_basis import (EK_REMINDER, konto, load_config, namen, nsdate, ortszeit_eindeutig, pydt, store_with_access,
-                            tag, uhr, venv_starten)
+                            tag, ts, uhr, venv_starten)
 
 UNDEFINIERT = 9000  # NSDateComponentUndefined ist NSIntegerMax, echte Werte liegen weit darunter
 HINWEIS = f"({kit_basis.daten_hinweis('Inhalte von Erinnerungen')})"
@@ -51,6 +62,19 @@ VORSAETZE = ("arbeit:", "privat:")
 # add: ein Wort, das wie ein Datum aussieht (2026-09-30, auch deutsch 30.09.2026), gilt als neue Frist, sonst als
 # Uhrzeit der vorigen. So meldet 30.09.2026 das Datumsformat und 18 Uhr das Format der Uhrzeit
 DATUM_ARTIG = re.compile(r"\s*(\d{4}-|\d{1,2}\.\d{1,2}\.)")
+# Priorität wie EventKit (EKReminderPriority): 1 hoch, 5 mittel, 9 niedrig, 0 keine. Andere Apps setzen über CalDAV
+# auch 2 bis 4 und 6 bis 8, die gelten als hoch und niedrig. Anzeige wie in der App (Etappe 4 von v7.3.0)
+PRIORITAETEN = {"hoch": 1, "mittel": 5, "niedrig": 9, "keine": 0}
+STUFEN = {3: "hoch", 2: "mittel", 1: "niedrig", 0: "keine"}
+ZEICHEN = {3: "!!! ", 2: "!! ", 1: "! ", 0: ""}
+VOR_ZEICHEN = re.compile(r"^!{1,3}\s+")  # !!! vor einem Titel aus der Ausgabe gehört nicht zum Titel
+# Suche (list --text, --erledigt): Erledigtes ab 0 Uhr vor so vielen Tagen, wenn --days fehlt, höchstens so viele Zeilen
+SUCHE_TAGE = 30
+ERLEDIGT_TAGE = 7
+SUCHE_MAX = 50
+WIEDER_TAGE = 365  # aendern --wieder-offen sucht unter den in so vielen Tagen erledigten
+KEINE_LISTE = ("Keine Erinnerungsliste lesbar: Erinnerungen liefert keine oder nur ausgeschlossene Listen. Nichts "
+               "durchsucht, Listen in Erinnerungen und excluded_lists in der config.json prüfen.")
 
 
 def sauber(s) -> str:
@@ -80,7 +104,7 @@ def liste_fehlt(name: str, alle) -> None:
              f"{', '.join(sorted({sauber(c.title()) for c in alle}))}")
 
 
-def ziel_liste(store, exclude, name: str):
+def ziel_liste(store, exclude, name: str, folge: str = "Nichts angelegt."):
     """Genau eine Liste mit dem Namen, sonst Abbruch: Bei Dubletten landet nichts zufällig im falschen Konto. Dubletten
     sind mehrdeutig und enden mit Code 2 (Prüfung 20.10.2026)."""
     alle = listen(store, exclude)
@@ -90,7 +114,7 @@ def ziel_liste(store, exclude, name: str):
     if len(treffer) > 1:
         aufruf_falsch(f"Liste '{sauber(name)}' gibt es {len(treffer)} Mal (Konten: "
                       f"{', '.join(sauber(konto(c)) for c in treffer)}). Eine davon in Erinnerungen umbenennen, sonst "
-                      f"landet der Eintrag womöglich in der falschen. Nichts angelegt.")
+                      f"landet der Eintrag womöglich in der falschen. {folge}")
     return treffer[0]
 
 
@@ -134,6 +158,24 @@ def due_of(r):
     return dt.datetime(y, m, d, h if has_time else 0, mi if has_time else 0), has_time
 
 
+def stufe_von(wert) -> int:
+    """3 hoch, 2 mittel, 1 niedrig, 0 keine aus dem Wert von EventKit (1 bis 4 hoch, 5 mittel, 6 bis 9 niedrig)."""
+    try:
+        p = int(wert or 0)
+    except (TypeError, ValueError):
+        return 0
+    return 3 if 1 <= p <= 4 else 2 if p == 5 else 1 if 6 <= p <= 9 else 0
+
+
+def stufe(r) -> int:
+    return stufe_von(r.priority())
+
+
+def titel_zeile(r) -> str:
+    """Titel für die Ausgabe, mit !!!, !! oder ! davor wie in der App."""
+    return ZEICHEN[stufe(r)] + sauber(r.title())
+
+
 def listenname(cal, doppelt) -> str:
     """Listenname für die Ausgabe, bei gleichen Namen mit Konto, beides bereinigt (Review 21.10.2026)."""
     return f"{sauber(cal.title())} ({sauber(konto(cal))})" if cal.title() in doppelt else sauber(cal.title())
@@ -172,18 +214,30 @@ def gruppen(store, exclude, cals, horizon: dt.date, show_all: bool, heute: dt.da
     groups = {}
     for r in fetch(store, cals, exclude):
         due = due_of(r)
+        if due is None and not show_all:
+            continue
         if due is None:
-            if not show_all:
-                continue
-            key, line = (1, dt.datetime.max, sauber(r.title())), f"- {sauber(r.title())}"
+            line = f"- {titel_zeile(r)}"
         else:
             d, has_time = due
             if d.date() > horizon:
                 continue
             when = tag_j(d, heute) + (f", {uhr(d)} Uhr" if has_time else "")
-            key, line = (0, d, sauber(r.title())), f"- {faellig_flag(d, heute)}{when}  {sauber(r.title())}"
-        groups.setdefault(listenname(r.calendar(), doppelt), []).append((key, line))
+            line = f"- {faellig_flag(d, heute)}{when}  {titel_zeile(r)}"
+        groups.setdefault(listenname(r.calendar(), doppelt), []).append((reihe(r, heute), line))
     return groups
+
+
+def reihe(r, heute: dt.date, angelegt=None) -> tuple:
+    """Sortierschlüssel je Liste: erst heute Fälliges und Überfälliges, Wichtiges vorn, dann später Fälliges nach Frist
+    (bei gleicher Frist Wichtiges vorn), zuletzt ohne Frist, Wichtiges vorn, dann nach angelegt (Etappe 4 von
+    v7.3.0)."""
+    due, wichtig, titel = due_of(r), -stufe(r), sauber(r.title())
+    if due is None:
+        return 2, wichtig, angelegt or dt.date.max, titel
+    if due[0].date() <= heute:
+        return 0, wichtig, due[0], titel
+    return 1, due[0], wichtig, titel
 
 
 def drucke(groups: dict):
@@ -235,23 +289,22 @@ def verlauf_listen(alle, name: str) -> list:
 
 
 def zeile_offen(r, heute: dt.date) -> tuple:
-    """(Schlüssel, Zeile) im Verlauf: Fälliges nach Frist, ohne Frist die ältesten zuerst, ohne Anlagedatum zuletzt."""
+    """(Schlüssel, Zeile) im Verlauf: wie reihe, ohne Frist die ältesten zuerst, ohne Anlagedatum zuletzt."""
     angelegt = datum_von(r.creationDate())
     zusatz = [f"angelegt {tag_j(angelegt, heute)}"] if angelegt else []
     due = due_of(r)
     if due is None:
-        when, key = "ohne Frist", (1, angelegt or dt.date.max, sauber(r.title()))
+        when = "ohne Frist"
         liegt = werktage(angelegt, heute) if angelegt else 0
         if liegt >= LIEGT_AB:
             zusatz.append(f"liegt seit {liegt} Werktagen")
     else:
         d, has_time = due
         when = faellig_flag(d, heute) + tag_j(d, heute) + (f", {uhr(d)} Uhr" if has_time else "")
-        key = (0, d, sauber(r.title()))
     notiz = notiz_kurz(r)
     if notiz:
         zusatz.append(f"Notiz: {notiz}")
-    return key, f"- {when}  {sauber(r.title())}" + (f"  ({', '.join(zusatz)})" if zusatz else "")
+    return reihe(r, heute, angelegt), f"- {when}  {titel_zeile(r)}" + (f"  ({', '.join(zusatz)})" if zusatz else "")
 
 
 def zeile_erledigt(r, heute: dt.date) -> tuple:
@@ -283,8 +336,7 @@ def cmd_list(store, exclude, days, show_all: bool, verlauf=None):
     alle = listen(store, exclude)
     heute = dt.date.today()
     if not alle:  # sonst hieße es keine offenen Erinnerungen, obwohl keine Liste gelesen wurde (Etappe 2 von v7.3.0)
-        print("Keine Erinnerungsliste lesbar: Erinnerungen liefert keine oder nur ausgeschlossene Listen. Nichts "
-              "durchsucht, Listen in Erinnerungen und excluded_lists in der config.json prüfen.")
+        print(KEINE_LISTE)
         return
     if verlauf is None:
         horizon = heute + dt.timedelta(days=14 if days is None else days)
@@ -312,22 +364,87 @@ def cmd_list(store, exclude, days, show_all: bool, verlauf=None):
     drucke(groups)
 
 
-def parse_faellig(date_s, time_s):
+def wann_text(due, heute: dt.date) -> str:
+    """ÜBERFÄLLIG Mo 16.11., 18 Uhr aus (Fälligkeit, mit Uhrzeit)."""
+    d, has_time = due
+    return faellig_flag(d, heute) + tag_j(d, heute) + (f", {uhr(d)} Uhr" if has_time else "")
+
+
+def treffer_in(r, gesucht: str) -> str:
+    """Wo der Suchtext steht: titel, notiz oder leer. Verglichen wie name_norm, ohne Suchtext passt jeder Eintrag."""
+    if gesucht in name_norm(r.title()):
+        return "titel"
+    return "notiz" if gesucht in name_norm(r.notes() or "") else ""
+
+
+def zeile_treffer(r, wo: str, heute: dt.date) -> str:
+    """Eine Zeile der Suche: offen mit Frist oder erledigt mit Datum, Treffer nur in der Notiz steht dabei. Die Notiz
+    selbst nur mit Vorsatz und ohne Nummern (notiz_kurz), auch wenn der Treffer dort liegt."""
+    if r.isCompleted():
+        am = datum_von(r.completionDate())
+        wann = f"erledigt {tag_j(am, heute) if am else 'ohne Datum'}"
+    else:
+        due = due_of(r)
+        wann = "offen, " + (wann_text(due, heute) if due else "ohne Frist")
+    zusatz = ["Treffer in der Notiz"] if wo == "notiz" else []
+    notiz = notiz_kurz(r)
+    if notiz:
+        zusatz.append(f"Notiz: {notiz}")
+    return f"- {wann}  {titel_zeile(r)}" + (f"  ({', '.join(zusatz)})" if zusatz else "")
+
+
+def cmd_suche(store, exclude, text, days, nur_erledigt: bool):
+    """Suche über alle Listen: mit text in Titel und Notiz, offene (ohne Grenze der Frist) und die seit 0 Uhr vor days
+    Tagen erledigten. nur_erledigt lässt die offenen weg und geht ohne text (Was habe ich geschafft?). Höchstens
+    SUCHE_MAX Zeilen, offene vor erledigten, die Zahlen im Kopf zählen alle."""
+    alle = listen(store, exclude)
+    heute = dt.date.today()
+    if not alle:
+        print(KEINE_LISTE)
+        return
+    tage = days if days is not None else (ERLEDIGT_TAGE if nur_erledigt else SUCHE_TAGE)
+    seit = dt.datetime.combine(heute - dt.timedelta(days=tage), dt.time(0, 0))
+    gesucht = name_norm(text or "")
+    offen = [] if nur_erledigt else [(r, wo) for r in fetch(store, alle, exclude) for wo in [treffer_in(r, gesucht)]
+                                     if wo]
+    erledigt = [(r, wo) for r in fetch(store, alle, exclude, erledigt_seit=seit) for wo in [treffer_in(r, gesucht)]
+                if wo]
+    wo_text = f"zu '{sauber(text)}' " if text else ""
+    zeitraum_text = f"erledigt seit {tag_j(seit, heute)}"
+    if not offen and not erledigt:
+        print(f"Nichts gefunden {wo_text}in allen Listen, " + ("" if nur_erledigt else "offen und ") + zeitraum_text
+              + ".")
+        return
+    print(HINWEIS)
+    kopf = f"{len(erledigt)} {zeitraum_text}" if nur_erledigt else f"{len(offen)} offen, {len(erledigt)} {zeitraum_text}"
+    print(f"Suche {wo_text}in allen Listen: {kopf}" if text else f"Alle Listen: {kopf}")
+    sortiert = (sorted(offen, key=lambda t: reihe(t[0], heute))
+                + sorted(erledigt, key=lambda t: -(ts(t[0].completionDate()) if t[0].completionDate() else 0)))
+    doppelt = doppelte_namen(alle)
+    groups = {}
+    for n, (r, wo) in enumerate(sortiert[:SUCHE_MAX]):
+        groups.setdefault(listenname(r.calendar(), doppelt), []).append((n, zeile_treffer(r, wo, heute)))
+    drucke(groups)
+    if len(sortiert) > SUCHE_MAX:
+        print(f"Dazu {len(sortiert) - SUCHE_MAX} weitere Treffer, Suche oder Zeitraum eingrenzen.")
+
+
+def parse_faellig(date_s, time_s, folge: str = "Nichts angelegt."):
     """(Fälligkeit, mit Uhrzeit) oder (None, False). Klare Meldung statt Traceback, bevor etwas angelegt wird."""
     if not date_s:
         return None, False
     try:
         d = dt.datetime.strptime(date_s.strip(), "%Y-%m-%d")
     except ValueError:
-        sys.exit(f"Datum '{date_s}' nicht lesbar: als JJJJ-MM-TT angeben, etwa 2026-09-30. Nichts angelegt.")
+        sys.exit(f"Datum '{date_s}' nicht lesbar: als JJJJ-MM-TT angeben, etwa 2026-09-30. {folge}")
     if not time_s:
         return d, False
     try:
         t = dt.datetime.strptime(time_s.strip(), "%H:%M")
     except ValueError:
-        sys.exit(f"Uhrzeit '{time_s}' nicht lesbar: als HH:MM angeben, etwa 18:00. Nichts angelegt.")
+        sys.exit(f"Uhrzeit '{time_s}' nicht lesbar: als HH:MM angeben, etwa 18:00. {folge}")
     d = d.replace(hour=t.hour, minute=t.minute)
-    ortszeit_eindeutig(d, "Nichts angelegt.")  # wie im Kalender, sonst eine Stunde versetzt
+    ortszeit_eindeutig(d, folge)  # wie im Kalender, sonst eine Stunde versetzt
     return d, True
 
 
@@ -380,7 +497,7 @@ def schon_offen(store, exclude, cal, title: str, fristen: list) -> list:
     return [f for f in fristen if f[0] and f in vorhanden]
 
 
-def cmd_add(store, exclude, list_name: str, title: str, fristen: list, notes: str):
+def cmd_add(store, exclude, list_name: str, title: str, fristen: list, notes: str, prioritaet=None):
     """Eine Erinnerung je Frist in derselben Liste. Ziel und Dublettenprüfung gelten für alle
     zusammen: Steht eine Frist schon offen in der Liste, legt add keine an. Bei einer Frist bleiben die Zeilen wie
     vorher. Geteilte Listen ohne Vorschau."""
@@ -390,9 +507,11 @@ def cmd_add(store, exclude, list_name: str, title: str, fristen: list, notes: st
         sys.exit(f"In {sauber(cal.title())} steht schon offen: {sauber(title)}, {fristen_satz(doppelt)} Ohne diese "
                  "Frist erneut aufrufen. Nichts angelegt.")
     mehrere = len(fristen) > 1
-    kopf = f"{len(fristen)} Erinnerungen {sauber(title)}" if mehrere else sauber(title) + faellig_text(*fristen[0])
+    zeichen = ZEICHEN[stufe_von(prioritaet)]
+    kopf = (f"{len(fristen)} Erinnerungen {zeichen}{sauber(title)}" if mehrere
+            else zeichen + sauber(title) + faellig_text(*fristen[0]))
     for n, (faellig, mit_zeit) in enumerate(fristen):
-        ok, err = speichere(store, cal, title, faellig, mit_zeit, notes)
+        ok, err = speichere(store, cal, title, faellig, mit_zeit, notes, prioritaet)
         if not ok:  # EventKit speichert je Erinnerung: was schon steht, bleibt, und die Meldung nennt beides
             folge = (f"Schon angelegt: {fristen_satz(fristen[:n])} Nicht angelegt: {fristen_satz(fristen[n:])}"
                      if n else "Nichts angelegt.")
@@ -408,54 +527,209 @@ def drucke_fristen(fristen: list) -> None:
             print(f"  - fällig {frist_kurz(*f)}")
 
 
-def speichere(store, cal, title: str, faellig, mit_zeit: bool, notes: str) -> tuple:
-    """Eine Erinnerung anlegen, mit Uhrzeit samt Wecker. (ok, Fehler) von EventKit."""
+def frist_setzen(r, faellig, mit_zeit: bool) -> None:
+    """Frist als Datumsteile, mit Uhrzeit samt Wecker zu genau dieser Zeit (wie die App), ohne faellig keine Frist."""
     import EventKit  # store_with_access hat es schon geladen oder mit Hinweis auf die .venv abgebrochen
     import Foundation
+    if not faellig:
+        r.setDueDateComponents_(None)
+        return
+    comp = Foundation.NSDateComponents.alloc().init()
+    comp.setYear_(faellig.year)
+    comp.setMonth_(faellig.month)
+    comp.setDay_(faellig.day)
+    if mit_zeit:
+        comp.setHour_(faellig.hour)
+        comp.setMinute_(faellig.minute)
+        r.addAlarm_(EventKit.EKAlarm.alarmWithAbsoluteDate_(nsdate(faellig)))
+    r.setDueDateComponents_(comp)
+
+
+def speichere(store, cal, title: str, faellig, mit_zeit: bool, notes: str, prioritaet=None) -> tuple:
+    """Eine Erinnerung anlegen, mit Uhrzeit samt Wecker. (ok, Fehler) von EventKit."""
+    import EventKit
     r = EventKit.EKReminder.reminderWithEventStore_(store)
     r.setTitle_(title)
     r.setCalendar_(cal)
     if notes:
         r.setNotes_(notes)
+    if prioritaet:
+        r.setPriority_(prioritaet)
     if faellig:
-        comp = Foundation.NSDateComponents.alloc().init()
-        comp.setYear_(faellig.year)
-        comp.setMonth_(faellig.month)
-        comp.setDay_(faellig.day)
-        if mit_zeit:
-            comp.setHour_(faellig.hour)
-            comp.setMinute_(faellig.minute)
-            r.addAlarm_(EventKit.EKAlarm.alarmWithAbsoluteDate_(nsdate(faellig)))
-        r.setDueDateComponents_(comp)
+        frist_setzen(r, faellig, mit_zeit)
     return store.saveReminder_commit_error_(r, True, None)
 
 
-def cmd_done(store, exclude, title: str, liste=None):
-    """Genau ein offener Eintrag mit dem Titel, verglichen wie list ihn zeigt (name_norm, Review 21.10.2026). Bei
-    gleichem Titel in zwei Listen grenzt --liste ein, sonst nennt es die Kandidaten (Code 2)."""
+def suchtitel(title: str) -> set:
+    """Gesuchte Titel normiert: wie übergeben und ohne !!!, !! oder ! davor, falls der Titel aus der Ausgabe stammt."""
+    return {name_norm(title), name_norm(VOR_ZEICHEN.sub("", sauber(title)))} - {""}
+
+
+def erledigt_am(r) -> float:
+    return ts(r.completionDate()) if r.completionDate() is not None else 0.0
+
+
+def waehle(store, exclude, title: str, liste=None, erledigt: bool = False):
+    """Genau ein Eintrag mit dem Titel, verglichen wie list ihn zeigt (name_norm, Review 21.10.2026). Offene, mit
+    erledigt die in WIEDER_TAGE Tagen erledigten: gibt es dort den Titel in einer Liste mehrmals, gilt der zuletzt
+    erledigte. Bei gleichem Titel in zwei Listen grenzt liste ein, sonst nennt es die Kandidaten (Code 2)."""
     alle = listen(store, exclude)
     cals = alle if liste is None else [c for c in alle if name_norm(c.title()) == name_norm(liste)]
     if liste is not None and not cals:
         liste_fehlt(liste, alle)
-    items = fetch(store, cals, exclude)
-    gesucht = name_norm(title)
-    exact = [r for r in items if name_norm(r.title()) == gesucht]
+    seit = dt.datetime.combine(dt.date.today() - dt.timedelta(days=WIEDER_TAGE), dt.time(0, 0))
+    items = fetch(store, cals, exclude, erledigt_seit=seit) if erledigt else fetch(store, cals, exclude)
+    gesucht = suchtitel(title)
+    exact = [r for r in items if name_norm(r.title()) in gesucht]
+    if erledigt and exact and len({(sauber(r.calendar().title()), konto(r.calendar())) for r in exact}) == 1:
+        exact = [max(exact, key=erledigt_am)]
     if len(exact) == 1:
-        r = exact[0]
-        r.setCompleted_(True)
-        ok, err = store.saveReminder_commit_error_(r, True, None)
-        if not ok:
-            sys.exit(f"Fehler beim Speichern: {err}. Nichts geändert.")
-        print(f"Erledigt: {sauber(r.title())} ({sauber(r.calendar().title())})")
-        return
-    cand = [r for r in items if gesucht in name_norm(r.title())]
+        return exact[0]
+    cand = [r for r in items if any(g in name_norm(r.title()) for g in gesucht)]
     if not cand:
+        if erledigt:
+            sys.exit(f"Nichts Erledigtes zu '{sauber(title)}' in den letzten {WIEDER_TAGE} Tagen. Nichts geändert.")
         sys.exit(f"Nichts gefunden zu '{sauber(title)}'. Nichts geändert.")
     print(f"Nicht eindeutig, nichts geändert. Titel genau so nehmen, gleiche Titel in zwei Listen mit --liste "
           f"eingrenzen. Kandidaten {HINWEIS}:")
-    for r in cand:
-        print(f"  {sauber(r.calendar().title())}: {sauber(r.title())}")
+    for r in sorted(cand, key=erledigt_am, reverse=True) if erledigt else cand:
+        am = datum_von(r.completionDate()) if erledigt else None
+        zusatz = f" (erledigt {tag_j(am, dt.date.today())})" if am else ""
+        print(f"  {sauber(r.calendar().title())}: {sauber(r.title())}{zusatz}")
     sys.exit(2)
+
+
+def cmd_done(store, exclude, title: str, liste=None):
+    """Genau ein offener Eintrag mit dem Titel (waehle) wird erledigt."""
+    r = waehle(store, exclude, title, liste)
+    r.setCompleted_(True)
+    ok, err = store.saveReminder_commit_error_(r, True, None)
+    if not ok:
+        sys.exit(f"Fehler beim Speichern: {err}. Nichts geändert.")
+    print(f"Erledigt: {sauber(r.title())} ({sauber(r.calendar().title())})")
+
+
+def werte(r) -> dict:
+    """Was aendern setzt und die Nachkontrolle vergleicht: Titel, Frist, Liste, erledigt, Priorität, Notiz. Titel und
+    Notiz normiert (name_norm), die Liste als Name mit Konto."""
+    cal = r.calendar()
+    return {"titel": name_norm(r.title()), "frist": due_of(r), "liste": (sauber(cal.title()), sauber(konto(cal))),
+            "erledigt": bool(r.isCompleted()), "prioritaet": stufe(r), "notiz": name_norm(r.notes() or "")}
+
+
+def wert_text(schluessel: str, wert, titel: str = "") -> str:
+    """Ein Wert aus werte für eine Meldung. Den Titel nimmt sie bereinigt, eine Notiz nie (ohne Vorsatz bleibt sie
+    draußen)."""
+    if schluessel == "frist":
+        return frist_kurz(*wert) if wert else "ohne Frist"
+    if schluessel == "liste":
+        return wert[0]
+    if schluessel == "erledigt":
+        return "erledigt" if wert else "offen"
+    if schluessel == "prioritaet":
+        return STUFEN[wert]
+    return titel
+
+
+NAMEN = {"titel": "Titel", "frist": "Frist", "liste": "Liste", "erledigt": "Status", "prioritaet": "Priorität",
+         "notiz": "Notiz"}
+
+
+def frist_wecker_weg(r, alte) -> None:
+    """Wecker zur alten Frist mit Uhrzeit entfernen (den legen add und die App mit an), sonst klingelte er zur alten
+    Zeit. Andere Wecker bleiben."""
+    if not alte or not alte[1]:
+        return
+    for a in list(r.alarms() or []):
+        datum = a.absoluteDate()
+        if datum is not None and abs(ts(datum) - alte[0].timestamp()) < 60:
+            r.removeAlarm_(a)
+
+
+def cmd_aendern(store, exclude, title: str, liste, neu: dict):
+    """Eine Erinnerung ändern: Frist (oder keine), Titel, Notiz, Liste, wieder offen, Priorität. Findet sie wie done,
+    mit wieder_offen unter den erledigten. Steht in der Zielliste schon eine offene mit gleichem Titel und gleicher
+    Frist, ändert es nichts. Nach dem Speichern lädt es die Erinnerung neu und nennt jede Abweichung in einer Zeile
+    Nachkontrolle."""
+    r = waehle(store, exclude, title, liste, erledigt=neu["wieder_offen"])
+    alt = werte(r)
+    alt_titel, alt_frist = sauber(r.title()), due_of(r)
+    ziel = r.calendar()
+    if neu["nach_liste"] is not None:
+        ziel = ziel_liste(store, exclude, neu["nach_liste"], "Nichts geändert.")
+    soll = dict(alt)
+    soll_titel = sauber(neu["neuer_titel"]) if neu["neuer_titel"] is not None else alt_titel
+    if neu["neuer_titel"] is not None:
+        soll["titel"] = name_norm(neu["neuer_titel"])
+    if neu["ohne_frist"]:
+        soll["frist"] = None
+    elif neu["frist"] is not None:
+        soll["frist"] = neu["frist"]
+    soll["liste"] = (sauber(ziel.title()), sauber(konto(ziel)))
+    if neu["wieder_offen"]:
+        soll["erledigt"] = False
+    if neu["prioritaet"] is not None:
+        soll["prioritaet"] = stufe_von(neu["prioritaet"])
+    if neu["notes"] is not None:
+        soll["notiz"] = name_norm(neu["notes"])
+    anders = [k for k in NAMEN if soll[k] != alt[k]]
+    wo = f"{alt_titel} ({sauber(r.calendar().title())})"
+    if not anders:
+        print(f"Nichts geändert: {wo} hat diese Werte schon.")
+        return
+    if soll["frist"] and not soll["erledigt"] and {"titel", "frist", "liste", "erledigt"} & set(anders):
+        ident = r.calendarItemIdentifier()
+        doppelt = [x for x in fetch(store, [ziel], exclude) if x.calendarItemIdentifier() != ident
+                   and name_norm(x.title()) == soll["titel"] and due_of(x) == soll["frist"]]
+        if doppelt:
+            sys.exit(f"In {sauber(ziel.title())} steht schon offen: {soll_titel}, {fristen_satz([soll['frist']])} "
+                     f"Nichts geändert.")
+    if "titel" in anders:
+        r.setTitle_(neu["neuer_titel"])
+    if "notiz" in anders:
+        r.setNotes_(neu["notes"])
+    if "prioritaet" in anders:
+        r.setPriority_(neu["prioritaet"])
+    if "liste" in anders:
+        r.setCalendar_(ziel)
+    if "frist" in anders:
+        frist_wecker_weg(r, alt_frist)
+        frist_setzen(r, *(soll["frist"] or (None, False)))
+    if "erledigt" in anders:
+        r.setCompleted_(False)
+    ident = r.calendarItemIdentifier()
+    ok, err = store.saveReminder_commit_error_(r, True, None)
+    if not ok:
+        sys.exit(f"Fehler beim Speichern: {err}. Nichts geändert.")
+    print(f"Geändert: {wo}")
+    for k in anders:
+        if k == "notiz":
+            print("  - Notiz ersetzt")
+        elif k == "erledigt":
+            print("  - wieder offen")
+        else:
+            print(f"  - {NAMEN[k]} {wert_text(k, soll[k], soll_titel)} statt {wert_text(k, alt[k], alt_titel)}")
+    nachkontrolle(store, ident, soll, soll_titel)
+
+
+def nachkontrolle(store, ident, soll: dict, soll_titel: str) -> None:
+    """Erinnerung neu laden und mit dem Gewollten vergleichen (wie notiz.nachkontrolle in Etappe 3 von v7.3.0). Eine
+    Zeile je Abweichung, ohne Abweichung keine. reset verwirft die Objekte im Speicher des Stores (gespeichert ist
+    schon alles), so kommt die Erinnerung frisch aus der Datenbank von Erinnerungen."""
+    store.reset()
+    neu = store.calendarItemWithIdentifier_(ident)
+    if neu is None:
+        print("Nachkontrolle: Erinnerung nach dem Speichern nicht wiedergefunden, bitte in Erinnerungen prüfen.")
+        return
+    ist = werte(neu)
+    for k in NAMEN:
+        if ist[k] == soll[k]:
+            continue
+        if k == "notiz":
+            print("Nachkontrolle: Notiz weicht ab, bitte in Erinnerungen prüfen.")
+        else:
+            print(f"Nachkontrolle: {NAMEN[k]} ist {wert_text(k, ist[k], sauber(neu.title()))}, gewollt "
+                  f"{wert_text(k, soll[k], soll_titel)}.")
 
 
 def main(argv=None):
@@ -469,24 +743,50 @@ def main(argv=None):
     p.add_argument("--days", type=int, default=None)  # ohne Angabe 14, mit --verlauf dann keine anderen Listen
     p.add_argument("--all", action="store_true")
     p.add_argument("--verlauf", default=None)
-    p.add_argument("--notes", default="")
+    p.add_argument("--notes", default=None)
     p.add_argument("--ausfuehren", action="store_true")
-    p.add_argument("--liste", default=None)  # done: nur in dieser Liste, bei gleichem Titel in zwei Listen
+    p.add_argument("--liste", default=None)  # done, aendern: nur in dieser Liste, bei gleichem Titel in zwei Listen
+    p.add_argument("--text", default=None)  # list: Suche in Titel und Notiz
+    p.add_argument("--erledigt", action="store_true")  # list: nur Erledigtes
+    p.add_argument("--prioritaet", default=None)  # add, aendern
+    for name in ("--frist", "--neuer-titel", "--nach-liste"):  # aendern
+        p.add_argument(name, default=None)
+    p.add_argument("--ohne-frist", action="store_true")
+    p.add_argument("--wieder-offen", action="store_true")
     vorn, rest = kit_basis.schalter_vorn(argv, ("--ausfuehren",))  # nur direkt hinter dem Skript
     a = p.parse_intermixed_args(vorn + rest)  # andere Schalter an beliebiger Stelle, etwa done --liste X 'Titel'
     if a.cmd in ("list", "lists") and a.args:
         aufruf_falsch(f"{a.cmd} nimmt keine Liste als Wort, für eine Liste ganz: list --verlauf '<Liste>'. "
                       "Nichts gelesen.")
-    if a.verlauf is not None and a.cmd != "list":
-        aufruf_falsch("--verlauf gilt nur für list. Nichts geändert.")
+    gilt = {"--verlauf": (a.verlauf is not None, ("list",)), "--text": (a.text is not None, ("list",)),
+            "--erledigt": (a.erledigt, ("list",)), "--liste": (a.liste is not None, ("done", "aendern")),
+            "--notes": (a.notes is not None, ("add", "aendern")),
+            "--prioritaet": (a.prioritaet is not None, ("add", "aendern")),
+            "--frist": (a.frist is not None, ("aendern",)), "--ohne-frist": (a.ohne_frist, ("aendern",)),
+            "--neuer-titel": (a.neuer_titel is not None, ("aendern",)),
+            "--nach-liste": (a.nach_liste is not None, ("aendern",)),
+            "--wieder-offen": (a.wieder_offen, ("aendern",))}
+    for name, (da, befehle) in gilt.items():
+        if da and a.cmd not in befehle:
+            aufruf_falsch(f"{name} gilt nur für {' und '.join(befehle)}. Nichts geändert.")
     if a.verlauf is not None and not a.verlauf.strip():
         aufruf_falsch("--verlauf braucht einen Listennamen, etwa --verlauf 'Aufgaben'. Nichts gelesen.")
-    if a.liste is not None and a.cmd != "done":
-        aufruf_falsch("--liste gilt nur für done. Nichts geändert.")
-    if a.liste is not None and not a.liste.strip():
-        aufruf_falsch("--liste braucht einen Listennamen, etwa --liste 'Aufgaben'. Nichts geändert.")
+    if a.verlauf is not None and (a.text is not None or a.erledigt):
+        aufruf_falsch("--verlauf zeigt eine Liste, --text und --erledigt suchen in allen. Nur eins davon. Nichts "
+                      "gelesen.")
+    if a.text is not None and not a.text.strip():
+        aufruf_falsch("--text braucht einen Suchtext, etwa --text 'Reifen'. Nichts gelesen.")
+    if a.all and (a.text is not None or a.erledigt):
+        aufruf_falsch("--text und --erledigt zeigen auch Einträge ohne Frist, --all braucht es dort nicht. Nichts "
+                      "gelesen.")
+    for name, wert in (("--liste", a.liste), ("--nach-liste", a.nach_liste)):
+        if wert is not None and not wert.strip():
+            aufruf_falsch(f"{name} braucht einen Listennamen, etwa {name} 'Aufgaben'. Nichts geändert.")
+    if a.prioritaet is not None and a.prioritaet not in PRIORITAETEN:
+        aufruf_falsch(f"--prioritaet ist {', '.join(PRIORITAETEN)}. Nichts geändert.")
     if a.days is not None and not 0 <= a.days <= DAYS_MAX:
         aufruf_falsch(f"--days braucht 0 bis {DAYS_MAX} Tage, etwa --days 7. Nichts gelesen.")
+    prioritaet = PRIORITAETEN.get(a.prioritaet)
     cfg = load_config()
     block = cfg.get("reminders", {})
     if not isinstance(block, dict):
@@ -504,17 +804,48 @@ def main(argv=None):
         # eine gesperrte Liste meldet ziel_liste wie eine unbekannte, ohne den Ausschluss zu bestätigen (Review
         # 21.10.2026), listen() lässt sie nie durch
         fristen = parse_fristen(a.args[2:])  # alle Fristen geprüft, bevor der Store aufgeht
-        cmd_add(store_with_access("reminders"), exclude, list_name, title, fristen, a.notes)
+        cmd_add(store_with_access("reminders"), exclude, list_name, title, fristen, a.notes, prioritaet)
     elif a.cmd == "lists":
         cmd_lists(store_with_access("reminders"), exclude, geteilte)
+    elif a.cmd == "list" and (a.text is not None or a.erledigt):
+        cmd_suche(store_with_access("reminders"), exclude, a.text, a.days, a.erledigt)
     elif a.cmd == "list":
         cmd_list(store_with_access("reminders"), exclude, a.days, a.all, a.verlauf)
     elif a.cmd == "done":
         if not a.args:
             aufruf_falsch(__doc__)
         cmd_done(store_with_access("reminders"), exclude, " ".join(a.args), a.liste)
+    elif a.cmd == "aendern":
+        neu = aenderung(a, prioritaet)  # alles geprüft, bevor der Store aufgeht
+        cmd_aendern(store_with_access("reminders"), exclude, " ".join(a.args), a.liste, neu)
     else:
         aufruf_falsch(__doc__)
+
+
+def aenderung(a, prioritaet) -> dict:
+    """Was aendern setzen soll, geprüft: ein Titel zum Finden, mindestens eine Änderung, Frist oder ohne Frist, kein
+    leerer neuer Titel und keine leere Notiz (leeren geht nur in der App)."""
+    if not a.args or not " ".join(a.args).strip():
+        aufruf_falsch('Aufruf: reminders.py aendern "<Titel>" mit mindestens einer Änderung (--frist, --ohne-frist, '
+                      '--neuer-titel, --notes, --nach-liste, --wieder-offen, --prioritaet). Nichts geändert.')
+    if a.frist is not None and a.ohne_frist:
+        aufruf_falsch("--frist und --ohne-frist schließen sich aus. Nichts geändert.")
+    if a.neuer_titel is not None and not a.neuer_titel.strip():
+        aufruf_falsch("--neuer-titel ist leer. Nichts geändert.")
+    if a.notes is not None and not a.notes.strip():
+        aufruf_falsch("--notes ist leer. Eine Notiz leert der Nutzer in Erinnerungen selbst. Nichts geändert.")
+    frist = None
+    if a.frist is not None:
+        worte = a.frist.split()
+        if not 1 <= len(worte) <= 2:
+            aufruf_falsch("--frist als 'JJJJ-MM-TT' oder 'JJJJ-MM-TT HH:MM'. Nichts geändert.")
+        frist = parse_faellig(worte[0], worte[1] if len(worte) == 2 else None, "Nichts geändert.")
+    neu = {"frist": frist, "ohne_frist": a.ohne_frist, "neuer_titel": a.neuer_titel, "notes": a.notes,
+           "nach_liste": a.nach_liste, "wieder_offen": a.wieder_offen, "prioritaet": prioritaet}
+    if prioritaet is None and not any(v is not None and v is not False for v in neu.values()):
+        aufruf_falsch("aendern braucht mindestens eine Änderung: --frist, --ohne-frist, --neuer-titel, --notes, "
+                      "--nach-liste, --wieder-offen oder --prioritaet. Nichts geändert.")
+    return neu
 
 
 if __name__ == "__main__":

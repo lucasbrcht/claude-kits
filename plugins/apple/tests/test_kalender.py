@@ -16,7 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ersatz_eventkit import CFG, D, EXCHANGE, ICLOUD, KIT, LOKAL, Kalender, KitTest, Store, Termin
+from ersatz_eventkit import CFG, D, EXCHANGE, ICLOUD, KIT, LOKAL, Kalender, KitTest, NSDate, Store, Termin
 
 import add_event  # noqa: E402
 import eventkit_basis  # noqa: E402
@@ -76,6 +76,18 @@ class AddEvent(KitTest):
 
     def gespeichert(self):
         return [ev for ev, _span in self.s.gespeichert]
+
+    def test_nachkontrolle_nach_dem_anlegen(self):
+        """Etappe 4 von v7.3.0: ganztägig zählt nur der Tag, auch mit Ende 0 Uhr des Folgetags, verloren ist verloren."""
+        self.s.nach_speichern = lambda ev: ev.setEndDate_(NSDate(D("2026-10-17 00:00").timestamp()))
+        out, fehler = self.lauf(add_event.main, "--ausfuehren", "Urlaub", "2026-10-12", "2026-10-16")
+        self.assertIsNone(fehler)
+        self.assertNotIn("Nachkontrolle", out)
+        self.s.nach_speichern = None
+        self.s.eventWithIdentifier_ = lambda ident: None
+        out, _ = self.lauf(add_event.main, "--ausfuehren", "Rad", "2026-10-20 10:00", "2026-10-20 12:00")
+        self.assertIn("Angelegt: Rad", out)
+        self.assertIn("Nachkontrolle: 'Rad' nach dem Speichern nicht wiedergefunden", out)
 
     def test_ganztaegig_inklusiv(self):
         self.assertEqual(add_event.parse_range("2026-10-12", "2026-10-16"),
@@ -400,6 +412,24 @@ class MoveEvent(KitTest):
                                  "2026-10-06 09:30")
         self.assertIn("--ausfuehren steht nur direkt hinter dem Skript", fehler)
         self.assertEqual(self.s.gespeichert, [])
+
+    def test_nachkontrolle_nach_dem_verschieben(self):
+        """Etappe 4 von v7.3.0: nach dem Speichern frisch laden, Abweichung bei Zeit oder Kalender nennen."""
+        t = self.termin()
+        out, fehler = self.lauf(move_event.main, "--ausfuehren", "Zahnarzt", "2026-10-05 09:30", "2026-10-06 11:00")
+        self.assertIsNone(fehler)
+        self.assertNotIn("Nachkontrolle", out)
+        self.assertEqual(self.s.zurueckgesetzt, 1)
+        alt = t.startDate()
+        self.s.nach_speichern = lambda ev: ev.setStartDate_(alt)  # Kalender übernimmt die neue Zeit nicht
+        out, fehler = self.lauf(move_event.main, "--ausfuehren", "Zahnarzt", "2026-10-06 11:00", "2026-10-07 11:00")
+        self.assertIsNone(fehler)
+        self.assertIn("Nachkontrolle: 'Zahnarzt' steht im Kalender von 06.10. 11:00 bis 07.10. 11:45, gewollt "
+                      "07.10. 11:00 bis 07.10. 11:45.", out)
+        self.s.nach_speichern = lambda ev: ev.setCalendar_(self.privat)
+        out, _ = self.lauf(move_event.main, "--ausfuehren", "--nach-kalender", "T&L Kalender", "Zahnarzt",
+                           "2026-10-06 11:00")
+        self.assertIn("Nachkontrolle: 'Zahnarzt' steht in Privat, gewollt T&L Kalender.", out)
 
     def test_ganztaegig_um_ganze_tage(self):
         t = self.termin("Urlaub", "2026-10-12 00:00", "2026-10-16 23:59", ganztaegig=True)

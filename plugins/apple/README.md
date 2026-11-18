@@ -21,7 +21,7 @@ Der lokale MCP-Server `server.py` (über `.mcp.json`, Unterbau `mcp_basis.py`) r
 | Stufe | Werkzeuge |
 |---|---|
 | lesen | `mail_suchen`, `mail_neues`, `mail_lesen`, `mail_entwuerfe`, `mail_stilprofil` (mit `stilprobe` eine neue Stichprobe), `termine_lesen`, `erinnerungen_lesen`, `notizen_suchen`, `notiz_lesen`, `kontakte`, `einstellungen` |
-| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `notiz_anlegen`, `notiz_ersetzen` und `notiz_ergaenzen` (nur außerhalb geteilter Ordner, mit dem Stand aus `notiz_lesen`), `pdf_aus_html` (nur in `pdf.ordner`), `arbeitskopie` (holen, liste, zeigen in der Ablage) |
+| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `erinnerung_aendern`, `notiz_anlegen`, `notiz_ersetzen` und `notiz_ergaenzen` (nur außerhalb geteilter Ordner, mit dem Stand aus `notiz_lesen`), `pdf_aus_html` (nur in `pdf.ordner`), `arbeitskopie` (holen, liste, zeigen in der Ablage) |
 | nachfrage | `mail_senden`, `termin_mit_nachfrage` (Arbeitskalender, Termine mit Teilnehmern), `notiz_geteilt` (geteilte Ordner), `arbeitskopie_uebertragen` (Arbeitskopie ins Original), `einstellungen_schreiben` (config.json und Stilprofile), erst nach Dialog von macOS. Dazu `pdf_aus_html` mit `ersetzen`: Ein fremdes PDF gleichen Namens überschreibt es erst nach demselben Dialog. |
 
 `pdf_aus_html` druckt eine HTML-Datei mit WebKit als PDF neben die Quelle: A4 hoch oder mit `quer` quer, ohne Ränder, mit Hintergründen und den Schriften des Mac, optional mit `name` als Dateiname. Rückgabe Pfad und Seitenzahl, die Seitenzahl ist die schnelle Prüfung auf Überlauf. `pdf.py` übersetzt `html2pdf.swift` beim ersten Aufruf einmal nach `bin/` im Datenordner (etwa 40 Sekunden), danach dauert ein Druck wenige Sekunden. WebKit rundet die Seitenhöhe auf ganze CSS-Pixel ab, deshalb druckt das Programm auf 1,5 pt höheres Papier und schneidet jede Seite oben bündig auf A4 zu: Vorlagen mit Seiten von genau 297 mm bekommen so keine leeren Zwischenseiten. Jedes PDF trägt im Feld Creator die Kennung `Claude Kits html2pdf`: Ein PDF mit dieser Kennung ersetzt der nächste Druck ohne Rückfrage, ein fremdes nur mit `ersetzen` und Dialog (der Server fragt erst, wenn `pdf.py` mit Exit-Code 3 ein fremdes PDF meldet).
@@ -108,6 +108,8 @@ python3 notiz.py append 'Packliste' --file notiz.md --stand '2026-11-18 10:00:00
 python3 reminders.py list --days 7
 python3 reminders.py add 'Aufgaben' 'Reifen bestellen' 2026-09-30 18:00
 python3 reminders.py done 'Reifen bestellen'
+python3 reminders.py aendern 'Reifen bestellen' --frist '2026-10-02 18:00' --prioritaet hoch
+python3 reminders.py list --text 'Reifen'
 python3 kontakte.py search 'Mustermann'
 python3 ablage.py liste
 python3 ablage.py holen --bereich=arbeit --thema='Pitch Q4' -- ~/Documents/Pitch.pptx
@@ -131,7 +133,8 @@ Jeder Befehl kennt `--help`. Exit-Codes: 0 ok (auch Vorschau), 1 Fehler und nich
 - `search` sucht über Betreff und Absender, nicht im Mailtext. Dafür den Connector nehmen und mit `finden` zurück nach Apple Mail.
 - Ganztägig zählt `add_event.py` das Ende inklusiv (letzter Tag). Mehrere Termine zum selben Titel gehen in einen Aufruf, passt einer nicht, ändert sich keiner. Uhrzeiten, die es wegen der Zeitumstellung zweimal oder gar nicht gibt, brechen schon in der Vorschau ab.
 - `notiz.py`: HTML geht unverändert durch, Verweise, die Notes nachladen könnte, lehnt es ab. In einem geteilten Ordner nur Vorschau ohne `--ausfuehren`. `read`, `replace` und `append` nehmen eine Notiz nur bei eindeutigem Titel, `replace` setzt den ganzen Inhalt neu, Grundlage ist `read --html`, `append` setzt unten oder unter dem Titel an. Beide brauchen `--stand` aus `read`, lehnen Notizen mit Anhängen ab und lesen danach den Text zurück (Nachkontrolle), `replace` lehnt eine Fassung ohne die alten Links ab, außer mit `--links-entfernen`. Eine gekürzt gelesene Notiz nie ersetzen. `list`, `search` und die Titelsuche holen je Ordner alle Namen, Daten und Texte in einem Zug, überspringen nicht Lesbares mit Hinweis und hören nach 60 Sekunden auf.
-- `reminders.py add` nimmt mehrere Fristen zum selben Titel, prüft alle vorher und legt keine Dublette an. `done` vergleicht den Titel so, wie `list` ihn zeigt. `list --verlauf` zeigt eine Liste ganz für einen Tagesstart.
+- `reminders.py add` nimmt mehrere Fristen zum selben Titel, prüft alle vorher und legt keine Dublette an. `done` vergleicht den Titel so, wie `list` ihn zeigt. `list --verlauf` zeigt eine Liste ganz für einen Tagesstart. `list --text` sucht in Titel und Notiz aller Listen, offen und erledigt, `list --erledigt` zeigt Geschafftes. `aendern` verschiebt oder entfernt die Frist (der Wecker zur alten Uhrzeit rückt mit), ändert Titel, Notiz, Liste und Priorität, öffnet Erledigtes wieder und lädt danach neu zur Nachkontrolle. Priorität erscheint wie in der App als `!!!`, `!!`, `!`, Heutiges mit Priorität steht vorn.
+- `add_event.py` und `move_event.py` laden die Termine nach dem Speichern frisch und melden Abweichungen bei Zeit oder Kalender als Nachkontrolle.
 - `kontakte.py` liest `AddressBook-v22.abcddb` aller Quellen als Kopie, nur lesend, Ausgabe nur auf stdout.
 - Ausgeschlossene Ordner, Listen und Kalender melden sich überall wie unbekannte.
 

@@ -31,6 +31,41 @@ def dubletten(store, cal, title: str, start: dt.datetime) -> list:
             if (ev.title() or "").strip().casefold() == titel and abs(ts(ev.startDate()) - start.timestamp()) < 60]
 
 
+def gewollt(ev, start: dt.datetime, ende: dt.datetime, ganz: bool, kalender: str) -> tuple:
+    """Was nach dem Speichern im Termin stehen soll, für nachkontrolle. Direkt nach dem Speichern aufrufen, dann trägt
+    der Termin seine ID."""
+    return ev.eventIdentifier(), ev.title() or "", start, ende, ganz, kalender
+
+
+def nachkontrolle(store, liste: list) -> list:
+    """Termine nach dem Speichern frisch laden und mit dem Gewollten vergleichen (Etappe 4 von v7.3.0, wie bei Notizen
+    und Erinnerungen): Start, Ende und Kalender. Ganztägig zählt nur der Tag, sonst eine Minute Spielraum. reset verwirft
+    die Objekte im Speicher des Stores, gespeichert ist da schon alles. Eine Zeile je Abweichung."""
+    if not liste:
+        return []
+    store.reset()
+    zeilen = []
+    for ident, titel, start, ende, ganz, kalender in liste:
+        ev = store.eventWithIdentifier_(ident) if ident else None
+        if ev is None:
+            zeilen.append(f"Nachkontrolle: '{titel}' nach dem Speichern nicht wiedergefunden, bitte im Kalender prüfen.")
+            continue
+        ist_start, ist_ende = (dt.datetime.fromtimestamp(ts(ev.startDate())),
+                               dt.datetime.fromtimestamp(ts(ev.endDate())))
+        if ganz:  # das Ende eines ganztägigen Termins liefert EventKit je nach Konto auch als 0 Uhr des Folgetags
+            folgetag = dt.datetime.combine(ende.date() + dt.timedelta(days=1), dt.time(0, 0))
+            passt = ist_start.date() == start.date() and (ist_ende.date() == ende.date() or ist_ende == folgetag)
+        else:
+            passt = abs(ist_start - start) < EINE_MINUTE and abs(ist_ende - ende) < EINE_MINUTE
+        ist_kal = ev.calendar().title() if ev.calendar() is not None else "?"
+        if not passt:
+            zeilen.append(f"Nachkontrolle: '{titel}' steht im Kalender von {ist_start:%d.%m. %H:%M} bis "
+                          f"{ist_ende:%d.%m. %H:%M}, gewollt {start:%d.%m. %H:%M} bis {ende:%d.%m. %H:%M}.")
+        if ist_kal != kalender:
+            zeilen.append(f"Nachkontrolle: '{titel}' steht in {ist_kal}, gewollt {kalender}.")
+    return zeilen
+
+
 def allowed_calendars(cfg: dict) -> set:
     """Erlaubte Kalender sind allowed_calendars minus private_calendars. Private gewinnen immer."""
     return set(namen(cfg, "allowed_calendars")) - set(namen(cfg, "private_calendars"))

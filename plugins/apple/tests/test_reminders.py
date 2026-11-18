@@ -7,12 +7,14 @@ import datetime as dt
 import io
 import unittest
 
-from ersatz_eventkit import KIT, D, EXCHANGE, Erinnerung, KitTest, Liste, Quelle
+from ersatz_eventkit import KIT, D, EXCHANGE, EKAlarm, Erinnerung, KitTest, Liste, NSDate, Quelle
 
 import reminders  # noqa: E402
 
 
-class Reminders(KitTest):
+class Basis(KitTest):
+    """Listen, Store und Helfer für Reminders und Etappe4, ohne eigene Tests."""
+
     def setUp(self):
         super().setUp()
         self.aufgaben, self.einkauf, self.tagebuch = Liste("Aufgaben"), Liste("Einkaufsliste"), Liste("Tagebuch")
@@ -39,6 +41,8 @@ class Reminders(KitTest):
                 return out.getvalue() + err.getvalue() + str(e.code)
         return out.getvalue() + err.getvalue()
 
+
+class Reminders(Basis):
     def test_sortierung_nach_uhrzeit(self):
         self.erinnerung("Abends", tage=2, uhrzeit=(18, 0))
         self.erinnerung("Morgens", tage=2, uhrzeit=(9, 0))
@@ -591,6 +595,219 @@ class Reminders(KitTest):
         self.assertEqual(f(dt.date(2026, 10, 10), dt.date(2026, 10, 11)), 0)  # Sa auf So
         self.assertEqual(f(dt.date(2026, 10, 9), dt.date(2026, 10, 20)), 7)  # Fr bis Di der übernächsten Woche
         self.assertEqual(f(dt.date(2026, 10, 17), dt.date(2026, 10, 23)), 5)  # Sa bis Fr
+
+
+class Etappe4(Basis):
+    """Etappe 4 von v7.3.0: Priorität, Suche über alle Listen, erinnerung_aendern mit Nachkontrolle."""
+
+    def vor(self, tage):
+        return self.heute - dt.timedelta(days=tage) + dt.timedelta(hours=12)
+
+    def zeilen(self, out):
+        return [z.strip() for z in out.splitlines() if z.strip().startswith("- ")]
+
+    # ---------- Priorität ----------
+    def test_prioritaet_lesen_wie_die_app(self):
+        werte = {0: 0, 1: 3, 2: 3, 4: 3, 5: 2, 6: 1, 9: 1, 10: 0, None: 0}
+        for wert, stufe in werte.items():
+            self.assertEqual(reminders.stufe_von(wert), stufe, wert)
+        self.erinnerung("Hoch", tage=1, prioritaet=1)
+        self.erinnerung("Mittel", tage=1, prioritaet=5)
+        self.erinnerung("Niedrig", tage=1, prioritaet=9)
+        self.erinnerung("Ohne", tage=1)
+        out, _ = self.lauf(reminders.main, "list")
+        for teil in ("!!! Hoch", "!! Mittel", "! Niedrig", "  Ohne"):
+            self.assertIn(teil, out)
+
+    def test_wichtiges_vorn_bei_heute_und_ohne_frist(self):
+        self.erinnerung("Überfällig", tage=-2)
+        self.erinnerung("Heute wichtig", tage=0, prioritaet=1)
+        self.erinnerung("Später", tage=3)
+        self.erinnerung("Später wichtig", tage=5, prioritaet=1)
+        self.erinnerung("Lose", angelegt=self.vor(20))
+        self.erinnerung("Lose wichtig", angelegt=self.vor(2), prioritaet=5)
+        out, _ = self.lauf(reminders.main, "list", "--all")
+        titel = [z.rsplit("  ", 1)[-1].lstrip("! ").strip() if "  " in z else z[2:].lstrip("! ")
+                 for z in self.zeilen(out)]
+        self.assertEqual(titel, ["Heute wichtig", "Überfällig", "Später", "Später wichtig", "Lose wichtig", "Lose"])
+        out, _ = self.lauf(reminders.main, "list", "--verlauf", "Aufgaben")  # so liest der Tagesstart
+        self.assertLess(out.index("!!! Heute wichtig"), out.index("Überfällig"))
+        self.assertLess(out.index("!! Lose wichtig"), out.index("  Lose  "))
+
+    def test_anlegen_mit_prioritaet(self):
+        out, fehler = self.lauf(reminders.main, "add", "--prioritaet", "hoch", "Aufgaben", "Reifen", "2026-12-01")
+        self.assertIsNone(fehler)
+        self.assertIn("Angelegt in Aufgaben: !!! Reifen, fällig", out)
+        self.assertEqual(self.s.erinnerungen[-1].priority(), 1)
+        self.assertEqual(self.lauf_alles("add", "--prioritaet", "dringend", "Aufgaben", "X")[-1], "2")
+        self.assertEqual(self.lauf_alles("done", "--prioritaet", "hoch", "X")[-1], "2")
+
+    # ---------- Suche ----------
+    def test_suche_offen_und_erledigt_in_allen_listen(self):
+        self.erinnerung("Reifen wechseln", tage=30)
+        self.erinnerung("Winterreifen", liste=self.einkauf)
+        self.erinnerung("Reifen bestellt", erledigt=True, erledigt_am=self.vor(3))
+        self.erinnerung("Reifen alt", erledigt=True, erledigt_am=self.vor(40))
+        self.erinnerung("Reifen geheim", liste=self.tagebuch)
+        self.erinnerung("Werkstatt", notiz="Reifen mitnehmen")
+        out, fehler = self.lauf(reminders.main, "list", "--text", "reifen")
+        self.assertIsNone(fehler)
+        self.assertIn("Suche zu 'reifen' in allen Listen: 3 offen, 1 erledigt seit", out)
+        self.assertIn("offen, ", out)
+        self.assertIn("erledigt ", out)
+        self.assertIn("Winterreifen", out)
+        self.assertIn("Werkstatt  (Treffer in der Notiz)", out)
+        self.assertNotIn("mitnehmen", out)  # Notiz ohne Vorsatz bleibt draußen
+        self.assertNotIn("Reifen alt", out)
+        self.assertNotIn("geheim", out)  # ausgeschlossene Liste
+        out, _ = self.lauf(reminders.main, "list", "--text", "reifen", "--days", "60")
+        self.assertIn("Reifen alt", out)
+
+    def test_suche_notiz_mit_vorsatz_maskiert(self):
+        self.erinnerung("Privat: Bank", notiz="Konto DE12500105170648489890 prüfen")
+        out, _ = self.lauf(reminders.main, "list", "--text", "konto")
+        self.assertIn("Treffer in der Notiz", out)
+        self.assertNotIn("0648489890", out)
+
+    def test_hab_ich_das_schon_erledigt(self):
+        self.erinnerung("Reifen bestellen", erledigt=True, erledigt_am=self.vor(2))
+        out, _ = self.lauf(reminders.main, "list", "--text", "Reifen bestellen")
+        self.assertIn("0 offen, 1 erledigt", out)
+        self.assertIn("- erledigt ", out)
+        out, _ = self.lauf(reminders.main, "list", "--text", "Fahrrad")
+        self.assertIn("Nichts gefunden zu 'Fahrrad' in allen Listen, offen und erledigt seit", out)
+
+    def test_was_habe_ich_geschafft(self):
+        self.erinnerung("Heute", erledigt=True, erledigt_am=self.heute + dt.timedelta(hours=9))
+        self.erinnerung("Vorgestern", liste=self.einkauf, erledigt=True, erledigt_am=self.vor(2))
+        self.erinnerung("Vor zehn Tagen", erledigt=True, erledigt_am=self.vor(10))
+        self.erinnerung("Offen", tage=1)
+        out, fehler = self.lauf(reminders.main, "list", "--erledigt", "--days", "3")
+        self.assertIsNone(fehler)
+        self.assertIn("Alle Listen: 2 erledigt seit", out)
+        self.assertLess(out.index("Heute"), out.index("Vorgestern"))
+        self.assertNotIn("Vor zehn Tagen", out)
+        self.assertNotIn("Offen", out)
+        out, _ = self.lauf(reminders.main, "list", "--erledigt", "--days", "0")
+        self.assertIn("1 erledigt seit", out)
+
+    def test_suche_grenzen(self):
+        for i in range(reminders.SUCHE_MAX + 3):
+            self.erinnerung(f"Punkt {i}")
+        out, _ = self.lauf(reminders.main, "list", "--text", "punkt")
+        self.assertEqual(len(self.zeilen(out)), reminders.SUCHE_MAX)
+        self.assertIn("Dazu 3 weitere Treffer", out)
+        for argv in (("list", "--text", " "), ("list", "--text", "x", "--verlauf", "Aufgaben"),
+                     ("list", "--text", "x", "--all"), ("done", "X", "--text", "y"), ("add", "A", "X", "--erledigt")):
+            self.assertEqual(self.lauf_alles(*argv)[-1], "2", argv)
+
+    # ---------- Ändern ----------
+    def test_frist_verschieben_mit_wecker(self):
+        r = self.erinnerung("Reifen", tage=2, uhrzeit=(18, 0))
+        alt = self.heute + dt.timedelta(days=2, hours=18)
+        r.alarme = [EKAlarm.alarmWithAbsoluteDate_(NSDate(alt.timestamp())),
+                    EKAlarm.alarmWithAbsoluteDate_(NSDate((alt - dt.timedelta(days=1)).timestamp()))]
+        out, fehler = self.lauf(reminders.main, "aendern", "Reifen", "--frist", "2026-12-04 9:30")
+        self.assertIsNone(fehler)
+        self.assertIn("Geändert: Reifen (Aufgaben)", out)
+        self.assertIn("- Frist Fr 04.12., 9:30 Uhr statt", out)
+        self.assertNotIn("Nachkontrolle", out)
+        self.assertEqual(reminders.due_of(r), (dt.datetime(2026, 12, 4, 9, 30), True))
+        zeiten = sorted(a.absoluteDate().t for a in r.alarme)
+        self.assertEqual(zeiten, sorted([(alt - dt.timedelta(days=1)).timestamp(),
+                                         dt.datetime(2026, 12, 4, 9, 30).timestamp()]))  # anderer Wecker bleibt
+        self.assertEqual(self.s.zurueckgesetzt, 1)  # Nachkontrolle lädt frisch
+
+    def test_frist_entfernen_und_titel_notiz_prioritaet(self):
+        r = self.erinnerung("Reifen", tage=2)
+        out, fehler = self.lauf(reminders.main, "aendern", "Reifen", "--ohne-frist", "--neuer-titel", "Reifen holen",
+                                "--notes", "privat: Werkstatt", "--prioritaet", "mittel")
+        self.assertIsNone(fehler)
+        self.assertIsNone(reminders.due_of(r))
+        self.assertEqual((r.title(), r.notes(), r.priority()), ("Reifen holen", "privat: Werkstatt", 5))
+        for teil in ("- Titel Reifen holen statt Reifen", "- Frist ohne Frist statt", "- Priorität mittel statt keine",
+                     "- Notiz ersetzt"):
+            self.assertIn(teil, out)
+
+    def test_in_andere_liste_mit_dublettenpruefung(self):
+        r = self.erinnerung("Milch", tage=1)
+        self.erinnerung("Milch", liste=self.einkauf, tage=1)
+        out, fehler = self.lauf(reminders.main, "aendern", "Milch", "--liste", "Aufgaben", "--nach-liste",
+                                "Einkaufsliste")
+        self.assertIn("In Einkaufsliste steht schon offen: Milch", str(fehler))
+        self.assertIs(r.calendar(), self.aufgaben)
+        self.assertEqual(self.s.gespeichert, [])
+        out, fehler = self.lauf(reminders.main, "aendern", "Milch", "--liste", "Aufgaben", "--nach-liste",
+                                "Einkaufsliste", "--frist", "2026-12-05")
+        self.assertIsNone(fehler)
+        self.assertIs(r.calendar(), self.einkauf)
+        self.assertIn("- Liste Einkaufsliste statt Aufgaben", out)
+        self.erinnerung("Brot", liste=self.einkauf)
+        self.assertIn("nicht gefunden oder gesperrt", self.lauf_alles("aendern", "Brot", "--nach-liste", "Tagebuch"))
+
+    def test_wieder_oeffnen(self):
+        self.erinnerung("Milch", liste=self.einkauf, erledigt=True, erledigt_am=self.vor(9))
+        neu = self.erinnerung("Milch", liste=self.einkauf, erledigt=True, erledigt_am=self.vor(1))
+        out, fehler = self.lauf(reminders.main, "aendern", "Milch", "--wieder-offen")
+        self.assertIsNone(fehler)
+        self.assertFalse(neu.isCompleted())  # der zuletzt erledigte
+        self.assertEqual(sum(1 for x in self.s.erinnerungen if x.isCompleted()), 1)
+        self.assertIn("- wieder offen", out)
+        self.assertIn("Nichts Erledigtes", self.lauf_alles("aendern", "Brot", "--wieder-offen"))
+
+    def test_wieder_oeffnen_in_zwei_listen_nennt_kandidaten(self):
+        self.erinnerung("Milch", liste=self.einkauf, erledigt=True, erledigt_am=self.vor(1))
+        self.erinnerung("Milch", erledigt=True, erledigt_am=self.vor(2))
+        out, fehler = self.lauf(reminders.main, "aendern", "Milch", "--wieder-offen")
+        self.assertEqual(fehler, 2)
+        self.assertIn("Einkaufsliste: Milch (erledigt", out)
+        self.assertEqual(self.s.gespeichert, [])
+        _, fehler = self.lauf(reminders.main, "aendern", "Milch", "--wieder-offen", "--liste", "Aufgaben")
+        self.assertIsNone(fehler)
+
+    def test_titel_mit_zeichen_aus_der_ausgabe(self):
+        r = self.erinnerung("Reifen", tage=1, prioritaet=1)
+        _, fehler = self.lauf(reminders.main, "aendern", "!!! Reifen", "--prioritaet", "keine")
+        self.assertIsNone(fehler)
+        self.assertEqual(r.priority(), 0)
+        _, fehler = self.lauf(reminders.main, "done", "!!! Reifen")
+        self.assertIsNone(fehler)
+
+    def test_nachkontrolle_meldet_abweichung(self):
+        r = self.erinnerung("Reifen", tage=2)
+        self.s.nach_speichern = lambda x: x.setPriority_(0)
+        out, fehler = self.lauf(reminders.main, "aendern", "Reifen", "--prioritaet", "hoch")
+        self.assertIsNone(fehler)
+        self.assertIn("Nachkontrolle: Priorität ist keine, gewollt hoch.", out)
+        self.s.nach_speichern = None
+        self.s.calendarItemWithIdentifier_ = lambda ident: None
+        out, _ = self.lauf(reminders.main, "aendern", "Reifen", "--neuer-titel", "Reifen neu")
+        self.assertIn("Nachkontrolle: Erinnerung nach dem Speichern nicht wiedergefunden", out)
+        self.assertEqual(r.title(), "Reifen neu")
+
+    def test_aendern_ohne_wirkung_und_falsche_aufrufe(self):
+        self.erinnerung("Reifen", tage=2, prioritaet=1)
+        out, fehler = self.lauf(reminders.main, "aendern", "Reifen", "--prioritaet", "hoch")
+        self.assertIsNone(fehler)
+        self.assertIn("Nichts geändert: Reifen (Aufgaben) hat diese Werte schon.", out)
+        for argv in (("aendern", "Reifen"), ("aendern", "--frist", "2026-12-01"),
+                     ("aendern", "Reifen", "--frist", "2026-12-01", "--ohne-frist"),
+                     ("aendern", "Reifen", "--neuer-titel", " "), ("aendern", "Reifen", "--notes", ""),
+                     ("aendern", "Reifen", "--frist", "2026-12-01 18:00 x"), ("aendern", "Reifen", "--nach-liste", " "),
+                     ("done", "Reifen", "--frist", "2026-12-01"), ("add", "A", "X", "--wieder-offen")):
+            self.assertEqual(self.lauf_alles(*argv)[-1], "2", argv)
+        self.assertIn("nicht lesbar", self.lauf_alles("aendern", "Reifen", "--frist", "Freitag"))
+        self.assertIn("gibt es nicht", self.lauf_alles("aendern", "Reifen", "--frist", "2026-03-29 02:30"))
+        self.assertEqual(self.s.gespeichert, [])
+
+    def test_aendern_offene_mehrdeutig_und_unbekannt(self):
+        self.erinnerung("Reifen vorn", tage=1)
+        self.erinnerung("Reifen hinten", tage=1)
+        out, fehler = self.lauf(reminders.main, "aendern", "Reifen", "--ohne-frist")
+        self.assertEqual(fehler, 2)
+        self.assertIn("Kandidaten", out)
+        self.assertIn("Nichts gefunden", self.lauf_alles("aendern", "Fahrrad", "--ohne-frist"))
+        self.assertEqual(self.s.gespeichert, [])
 
 
 class Selbststart(unittest.TestCase):
