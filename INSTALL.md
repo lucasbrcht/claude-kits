@@ -111,8 +111,8 @@ Alle anderen Freigaben fragt dein Mac später von selbst, wenn Claude zum ersten
 
    | Plugin | Wofür | Installieren |
    |---|---|---|
-   | `basis` | Einrichtung, Gedächtnis, Feedback | immer |
-   | `apple` | Mail, Kalender, Notizen, Erinnerungen, Kontakte | immer |
+   | `basis` | Einrichtung, Gedächtnis, Arbeitskopien von Dokumenten, Feedback | immer |
+   | `apple` | Mail, Kalender, Notizen, Erinnerungen, Kontakte, PDF | immer |
    | `chat` | WhatsApp und iMessage | wenn du das nutzt |
    | `service` | Roadbook für Rad-Events, Home Assistant | nur nach Absprache mit dem Betreuer, braucht weitere Programme |
    | `pflege` | Werkzeug des Betreuers | nie |
@@ -161,6 +161,8 @@ Pausieren geht jederzeit. Später im Projekt Privat wieder `/basis:einrichten` e
 | Meldung zu Automation bei Mail oder Notizen | Systemeinstellungen > Datenschutz & Sicherheit > Automation: beim gezeigten Eintrag Mail oder Notizen einschalten |
 | Antwort in Mail ohne Text, Meldung zu Bedienungshilfen | Systemeinstellungen > Datenschutz & Sicherheit > Bedienungshilfen: den Eintrag einschalten, den dein Mac dort neu zeigt |
 | Fenster deines Macs nicht gesehen oder Abbrechen geklickt | Claude bitten, es noch einmal zu versuchen, und auf den Mac schauen |
+| Claude fragt vor einem Werkzeug des Pakets nach einer Freigabe | **Immer erlauben** wählen. Was andere sehen, fragt dein Mac zusätzlich mit einem eigenen Fenster |
+| Meldung, dass der Abschnitt `ablage` fehlt | Claude sagen: "Trag den Abschnitt ablage in meine Einstellungen ein." Oder `/basis:einrichten` fortsetzen |
 | Nach einem Update von macOS geht WhatsApp oder Kontakte nicht mehr | Schritt 2 wiederholen. Gibt es den Ordner `3.9` nicht mehr, dem Betreuer Bescheid geben |
 
 ## Im Alltag
@@ -176,6 +178,7 @@ Pausieren geht jederzeit. Später im Projekt Privat wieder `/basis:einrichten` e
 | Customize > Plugins | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
 | `~/Claude Kits/kontext/` | dein Kontext: Profil, Personen, Vorlieben, Prüfliste | nur du, nur auf diesem Mac |
 | `~/Library/Application Support/Claude Kits/<plugin>/` | Einstellungen je Plugin (`apple`, `chat`, `service`): `config.json`, Stilprofile in `style/`, bei `apple` die `.venv` aus Schritt 1 | nur du, nur auf diesem Mac |
+| `Claude Personal` und `Claude Work` im Downloads-Ordner | Arbeitskopien von Dokumenten je Thema, PDFs | nur du, mit iCloud Drive auch auf deinen anderen Geräten |
 | Instructions for Claude, Memory, Projekte | dein Claude-Konto | nur du |
 
 ## Entfernen

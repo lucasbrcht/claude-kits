@@ -17,8 +17,8 @@ Fünf Plugins nach Zielgruppe (seit 7.0):
 
 | Plugin | Skills | Was es kann | Für wen |
 |---|---|---|---|
-| `basis` | `einrichten`, `kontext`, `feedback` | Einrichtung im Gespräch (auch in Cowork), Kontext merken und abgleichen, Rückmeldungen | alle mit eigenem Kontext |
-| `apple` | `mail`, `kalender`, `notizen`, `erinnerungen` | Apple Mail, Kalender, Notizen, Erinnerungen, Kontakte, ein Server, Brücke vom Mail-Connector | alle mit Mac, auch Kollegen |
+| `basis` | `einrichten`, `kontext`, `dateien`, `feedback` | Einrichtung im Gespräch (auch in Cowork), Kontext merken und abgleichen, Arbeitskopien von Dokumenten, Rückmeldungen | alle mit eigenem Kontext |
+| `apple` | `mail`, `kalender`, `notizen`, `erinnerungen` | Apple Mail, Kalender, Notizen, Erinnerungen, Kontakte, PDF aus HTML, Arbeitskopien holen und übertragen, ein Server, Brücke vom Mail-Connector | alle mit Mac, auch Kollegen |
 | `chat` | `whatsapp`, `imessage` | lesen, Entwürfe öffnen, iMessage senden nur auf "senden" | nur Privat, die Arbeit installiert es nicht |
 | `service` | `roadbook`, `homeassistant` | Verpflegungs-Roadbook für Rad-Events, Smart Home | wer es will |
 | `pflege` | `paket`, `rueckmeldungen` | `paket.py` (Einstellungen, Prüfung, ZIPs), Rückmeldungen als Issues, Output-Style Assistent | nur der Betreuer im Code-Tab |
@@ -33,6 +33,6 @@ Drei Teile je Installation: Die Plugins bringen das Können (in Cowork über die
 
 ## Entwicklung
 
-- Tests je Plugin: `python3 -B -m unittest discover tests` im Plugin-Ordner (`service` mit `python3.12`).
-- Vor jedem Tag: `python3 -B plugins/pflege/paket.py --pruefen` ohne FEHLER und ohne Fund zu persönlichen Daten, `claude plugin validate .`, Eintrag in `CHANGELOG.md`.
+- Tests je Plugin: `python3 -B -m unittest discover tests` im Plugin-Ordner (`service` mit `python3.12`, `apple` und `chat` auch mit `/Library/Developer/CommandLineTools/usr/bin/python3`). Die Tests, die AppleScripts kompilieren, überspringt die Sandbox: vor dem Tag einmal im Terminal.
+- Vor jedem Tag: `python3 -B plugins/pflege/paket.py --pruefen` ohne FEHLER und ohne Fund zu persönlichen Daten (prüft auch `SICHERHEIT.md` und die Werkzeugtabellen der Skills), `claude plugin validate .`, Eintrag in `CHANGELOG.md`.
 - Versionen sind Tags `vX.Y.Z`. Ausgeliefert wird über den Marketplace aus GitHub: Push von `main` und dem Tag, nie `--tags`. ZIPs je Plugin (`paket.py --zips`) nur als Notweg.

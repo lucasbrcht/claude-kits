@@ -1,8 +1,8 @@
 {
   "name": "pflege",
   "displayName": "Pflege",
-  "version": "7.0.1",
-  "description": "Nur für den Betreuer im Code-Tab: paket.py für Einstellungen, CLAUDE.md der Instanz, Prüfung und ZIPs, Skills paket und rueckmeldungen, Output-Style Assistent.",
+  "version": "7.1.0",
+  "description": "Nur für den Betreuer im Code-Tab: paket.py für Einstellungen, CLAUDE.md der Instanz, Prüfung (mit SICHERHEIT.md und Doku-Tests) und ZIPs, Skills paket und rueckmeldungen, Output-Style Assistent.",
   "author": {
     "name": "Lucas Bracht"
   }

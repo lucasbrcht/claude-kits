@@ -8,12 +8,12 @@
     {
       "name": "basis",
       "source": "./plugins/basis",
-      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Rückmeldungen"
+      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Arbeitskopien von Dokumenten, Rückmeldungen"
     },
     {
       "name": "apple",
       "source": "./plugins/apple",
-      "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte, ein lokaler Server am Mac"
+      "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte, PDF aus HTML und Arbeitskopien, ein lokaler Server am Mac"
     },
     {
       "name": "chat",

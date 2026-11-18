@@ -1,6 +1,6 @@
 # Plugin apple
 
-Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen, HTML-Dateien als PDF drucken, Arbeitskopien von Dokumenten holen und zurück ins Original übertragen. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy, die Adressbuch-Datenbank (Kontakte) und WebKit (PDF).
+Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen, HTML-Dateien als PDF drucken, Arbeitskopien von Dokumenten holen und zurück ins Original übertragen. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`, für PDF und Arbeitskopien im Skill `dateien` des Plugins `basis`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy, die Adressbuch-Datenbank (Kontakte) und WebKit (PDF).
 
 Neutral und ohne Kontext oder Chat: Das Plugin taugt auch für Kollegen mit Mac, die nur die Apple-Apps wollen.
 
@@ -74,7 +74,7 @@ Eine Datei mit einem Abschnitt je Bereich, Vorlage `config.example.json`. Falsch
 | `kalender.arbeitskalender` | Name des Arbeitskalenders (Exchange). Fehlt er, warnt der Gesamtblick. Einziges Ziel von `termin_mit_nachfrage` mit `arbeitskalender`. |
 | `notizen.ausgeschlossene_ordner` | Ordner, die `notiz.py` nie liest, durchsucht oder beschreibt, mit allen Unterordnern. Der Papierkorb ist immer ausgenommen. |
 | `reminders.excluded_lists` | Erinnerungslisten, die nie gelesen oder beschrieben werden. |
-| `reminders.geteilte_listen` | Listen, die andere sehen. `lists` markiert sie mit `(geteilt)`, `add` und `done` schreiben dort direkt wie überall. |
+| `reminders.geteilte_listen` | Listen, die andere sehen. `lists` markiert sie mit `(geteilt)`, `add`, `done` und `aendern` schreiben dort direkt wie überall. |
 | `kontakte.eigene_mails` | Eigene Mailadressen, an ihnen erkennt `kontakte.py me` die eigene Karte. |
 | `pdf.ordner` | Ordner, unter denen `pdf_aus_html` HTML-Dateien drucken darf, mit allen Unterordnern. Fehlt der Abschnitt, bricht `pdf.py` ab. |
 | `ablage.privat`, `ablage.arbeit` | Ordner der Arbeitskopien, Standard `Claude Personal` und `Claude Work` im Downloads-Ordner von iCloud Drive (ohne iCloud Drive für Downloads in `~/Downloads`). Fehlt der Ordner, legt das erste `holen` ihn an. |
