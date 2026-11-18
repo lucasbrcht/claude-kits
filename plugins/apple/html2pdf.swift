@@ -6,7 +6,8 @@
 // Seiten von genau 297 mm liefe so um einen Hauch über und bekäme nach jeder Seite eine leere. Deshalb druckt das
 // Skript auf Papier mit ZUGABE Punkt mehr Höhe (weniger als etwa 1 pt rundet macOS wieder auf A4) und schneidet danach
 // jede Seite oben bündig auf A4 zu. Weg fällt nur der Streifen unter der eigentlichen Seite.
-// Gedruckt wird erst in eine Temp-Datei, das Ziel entsteht nur fertig und nie halb.
+// Gedruckt wird erst in eine Temp-Datei, das Ziel entsteht nur fertig und nie halb. Das PDF trägt im Feld Creator
+// die KENNUNG: Daran erkennt pdf.py eigene PDFs, die es ohne Rückfrage ersetzen darf.
 import AppKit
 import WebKit
 import PDFKit
@@ -21,6 +22,7 @@ guard args.count >= 3 else { abbruch("Aufruf: html2pdf <quelle.html> <ziel.pdf> 
 let src = URL(fileURLWithPath: args[1])
 let dst = URL(fileURLWithPath: args[2])
 let quer = args.count > 3 && args[3] == "quer"
+let KENNUNG = "Claude Kits html2pdf"  // gleich wie KENNUNG in pdf.py
 let temp = FileManager.default.temporaryDirectory.appendingPathComponent("html2pdf-\(UUID().uuidString).pdf")
 
 // A4 in Punkt (Druck) und in CSS-Pixeln (Layout)
@@ -97,6 +99,10 @@ final class Job: NSObject, WKNavigationDelegate {
             seite.setBounds(a4box, for: .mediaBox)
             seite.setBounds(a4box, for: .cropBox)
         }
+        // Kennung im Feld Creator: pdf.py ersetzt ein PDF mit dieser Kennung ohne Rückfrage, fremde nur mit ersetzen
+        var info = pdf.documentAttributes ?? [:]
+        info[PDFDocumentAttribute.creatorAttribute] = KENNUNG
+        pdf.documentAttributes = info
         let geschrieben = pdf.write(to: dst)
         weg()
         guard geschrieben else { abbruch("PDF nicht schreibbar: \(dst.path)") }

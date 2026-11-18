@@ -1,5 +1,6 @@
 """Tests für pdf.py ohne WebKit: Ein Ersatzprogramm (KITS_HTML2PDF) schreibt ein PDF-Stück und meldet eine Seitenzahl.
-Geprüft werden erlaubte Ordner, Endung, Zielname, kein Überschreiben ohne --ersetzen und der Abschnitt pdf.
+Geprüft werden erlaubte Ordner, Endung, Zielname, die Kennung eigener PDFs (ohne Schalter ersetzt), kein Überschreiben
+fremder PDFs ohne --ersetzen und der Abschnitt pdf.
 
 Aufruf im Kit-Ordner: python3 -B -m unittest discover tests
 """
@@ -21,7 +22,7 @@ import pdf  # noqa: E402
 ERSATZ = """#!/bin/sh
 # Ersatz für html2pdf: argv quelle ziel [quer]
 [ "$ERSATZ_FEHLER" = 1 ] && { echo "Laden fehlgeschlagen" >&2; exit 1; }
-printf '%%PDF-ersatz %s\\n' "$3" > "$2"
+printf '%%PDF-ersatz %s\\n<< /Creator (Claude Kits html2pdf) >>\\n' "$3" > "$2"
 echo "WebKit plaudert" >&2
 echo 3
 """
@@ -52,13 +53,13 @@ class PdfTest(unittest.TestCase):
         (self.daten / "config.json").write_text(json.dumps(inhalt))
 
     def lauf(self, *argv):
-        """(Ausgabe, Exit-Meldung oder None)."""
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+        """(Ausgabe, Exit-Meldung oder None). Bei einem Exit-Code als Zahl steht stderr in der Meldung."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
                 pdf.main(list(argv))
             except SystemExit as e:
-                return out.getvalue(), e.code
+                return out.getvalue(), (f"{e.code} {err.getvalue()}" if isinstance(e.code, int) else e.code)
         return out.getvalue(), None
 
     def test_neu_im_selben_ordner(self):
@@ -73,7 +74,7 @@ class PdfTest(unittest.TestCase):
         out, fehler = self.lauf("--quer", "--name=Pitch-Name", "--", str(self.html))
         self.assertIsNone(fehler)
         ziel = self.html.parent / "Pitch-Name.pdf"
-        self.assertEqual(ziel.read_text().strip(), "%PDF-ersatz quer")
+        self.assertEqual(ziel.read_text().splitlines()[0], "%PDF-ersatz quer")
         self.assertIn("A4 quer", out)
 
     def test_name_nur_dateiname(self):
@@ -82,16 +83,41 @@ class PdfTest(unittest.TestCase):
             self.assertIn("nur ein Dateiname", str(fehler), name)
         self.assertFalse(list(self.html.parent.glob("*.pdf")))
 
-    def test_vorhandenes_pdf_nur_mit_ersetzen(self):
+    def test_fremdes_pdf_nur_mit_ersetzen(self):
         ziel = self.html.with_suffix(".pdf")
-        ziel.write_text("alt")
+        ziel.write_text("%PDF-1.7 fremd /Creator (Word)")
         _out, fehler = self.lauf("--", str(self.html))
-        self.assertIn("gibt es", str(fehler))
-        self.assertEqual(ziel.read_text(), "alt")
+        self.assertTrue(str(fehler).startswith(f"{pdf.EXIT_FREMD} "), fehler)
+        self.assertIn("stammt nicht von pdf_aus_html", str(fehler))
+        self.assertIn("fremd", ziel.read_text())
         out, fehler = self.lauf("--ersetzen", "--", str(self.html))
         self.assertIsNone(fehler)
         self.assertIn("vorhandenes PDF ersetzt", out)
-        self.assertNotEqual(ziel.read_text(), "alt")
+        self.assertNotIn("fremd", ziel.read_text())
+
+    def test_eigenes_pdf_ohne_schalter_ersetzt(self):
+        out, fehler = self.lauf("--", str(self.html))
+        self.assertIsNone(fehler)
+        ziel = self.html.with_suffix(".pdf")
+        self.assertTrue(pdf.eigenes_pdf(ziel))
+        out, fehler = self.lauf("--quer", "--", str(self.html))
+        self.assertIsNone(fehler)
+        self.assertIn("eigenes PDF ersetzt", out)
+        self.assertIn("quer", ziel.read_text())
+
+    def test_kennung_erkennen(self):
+        ordner = self.erlaubt
+        faelle = {"eigen.pdf": (b"%PDF-1.4\n" + b"x" * 2_000_000 + pdf.KENNUNG_MARKE + b"\n", True),
+                  "grenze.pdf": (b"%PDF-1.4\n" + b"x" * (1_000_000 - 15) + pdf.KENNUNG_MARKE, True),  # über die Stückgrenze
+                  "fremd.pdf": (b"%PDF-1.4 /Creator (Word)", False),
+                  "kein_pdf.pdf": (b"/Creator (Claude Kits html2pdf)", False),
+                  "andere_kennung.pdf": (b"%PDF-1.4 /Creator (Claude Kits html2pdfx)", False)}
+        for name, (inhalt, erwartet) in faelle.items():
+            (ordner / name).write_bytes(inhalt)
+            self.assertEqual(pdf.eigenes_pdf(ordner / name), erwartet, name)
+        (ordner / "verweis.pdf").symlink_to(ordner / "eigen.pdf")
+        self.assertFalse(pdf.eigenes_pdf(ordner / "verweis.pdf"))
+        self.assertFalse(pdf.eigenes_pdf(ordner / "fehlt.pdf"))
 
     def test_ersetzen_nur_direkt_hinter_dem_skript(self):
         _out, fehler = self.lauf("--quer", "--ersetzen", "--", str(self.html))
@@ -130,8 +156,8 @@ class PdfTest(unittest.TestCase):
         self.assertIn("pdf.ordner muss eine Liste", str(self.lauf("--", str(self.html))[1]))
 
     def test_aufruf_falsch(self):
-        self.assertEqual(self.lauf()[1], 2)
-        self.assertEqual(self.lauf("--unbekannt", str(self.html))[1], 2)
+        self.assertTrue(self.lauf()[1].startswith("2 "))
+        self.assertTrue(self.lauf("--unbekannt", str(self.html))[1].startswith("2 "))
 
 
 if __name__ == "__main__":

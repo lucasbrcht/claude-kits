@@ -9,12 +9,14 @@ HTML-Datei, Name wie die Quelle mit .pdf oder --name (nur ein Dateiname, .pdf wi
 Seitenzahl, die Seitenzahl ist die schnelle Prüfung auf Überlauf.
 
 Schutz: Quelle nur unterhalb der Ordner in pdf.ordner der config.json, nur .html oder .htm, keine Hilfsdateien neben
-dem Original. Ein vorhandenes PDF ersetzt nur --ersetzen, das der Server erst nach dem Dialog am Mac übergibt
-(kit_basis.schalter_vorn: nur direkt hinter dem Skript). Löschen gibt es nicht.
+dem Original. Ein vorhandenes PDF mit der KENNUNG im Feld Creator stammt von html2pdf und wird ohne Schalter ersetzt
+(rein lokal, der nächste Druck derselben Quelle). Ein fremdes PDF gleichen Namens ersetzt nur --ersetzen, das der
+Server erst nach dem Dialog am Mac übergibt (kit_basis.schalter_vorn: nur direkt hinter dem Skript). Löschen gibt es
+nicht.
 
 Das Swift-Programm übersetzt das Skript beim ersten Aufruf einmal mit swiftc (etwa 40 Sekunden) nach bin/ im
 Datenordner, der Name trägt die Prüfsumme der Quelle: Eine neue Fassung von html2pdf.swift wird so von selbst neu
-übersetzt. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch.
+übersetzt. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch, 3 fremdes PDF am Ziel (nichts geschrieben).
 """
 import argparse
 import hashlib
@@ -37,6 +39,10 @@ NAME_RE = re.compile(r"[^/\\:\x00-\x1f]{1,120}")
 ZEIT_UEBERSETZEN = 150  # Sekunden für swiftc beim ersten Aufruf
 ZEIT_DRUCK = 90  # Sekunden je Druck, das Swift-Programm bricht selbst nach 60 ab
 FOLGE = "Nichts geschrieben."
+KENNUNG = "Claude Kits html2pdf"  # gleich wie KENNUNG in html2pdf.swift, steht im Feld Creator des PDF
+KENNUNG_MARKE = f"/Creator ({KENNUNG})".encode("ascii")
+KENNUNG_MAX = 300_000_000  # Bytes: größere PDFs gelten als fremd, gelesen wird nur bis hier
+EXIT_FREMD = 3  # ein fremdes PDF liegt am Ziel: Der Server fragt dann mit dem Dialog und ruft mit --ersetzen erneut auf
 
 
 def aufruf_falsch(text: str):
@@ -79,6 +85,28 @@ def ziel_bestimmen(quelle: Path, name: str) -> Path:
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
     return quelle.parent / name
+
+
+def eigenes_pdf(pfad) -> bool:
+    """True, wenn pfad ein normales PDF (kein Verweis) mit der KENNUNG im Feld Creator ist, also von html2pdf stammt.
+    Gelesen wird in Stücken mit Überlappung, ohne einem Verweis zu folgen. Jeder Fehler heißt fremd."""
+    pfad = Path(pfad)
+    try:
+        if pfad.is_symlink() or not pfad.is_file() or pfad.stat().st_size > KENNUNG_MAX:
+            return False
+        with open(pfad, "rb") as f:
+            if f.read(5) != b"%PDF-":
+                return False
+            rest = b""
+            while True:
+                stueck = f.read(1_000_000)
+                if not stueck:
+                    return False
+                if KENNUNG_MARKE in rest + stueck:
+                    return True
+                rest = stueck[-len(KENNUNG_MARKE):]
+    except OSError:
+        return False
 
 
 def programm() -> Path:
@@ -142,9 +170,12 @@ def main(argv=None):
     ziel = ziel_bestimmen(quelle, a.name.strip())
     if ziel.is_symlink() or (ziel.exists() and not ziel.is_file()):
         raise kit_basis.abbruch(f"{ziel.name} ist ein Verweis oder keine Datei.", FOLGE)
-    if ziel.exists() and not ersetzen:
-        raise kit_basis.abbruch(f"{ziel.name} gibt es in {ziel.parent} schon. Ersetzen nur auf ausdrücklichen Wunsch "
-                                f"mit ersetzen (Dialog am Mac) oder mit name ein anderer Dateiname.", FOLGE)
+    eigen = ziel.exists() and eigenes_pdf(ziel)
+    if ziel.exists() and not (ersetzen or eigen):
+        print(f"{ziel.name} gibt es in {ziel.parent} schon und stammt nicht von pdf_aus_html. Ersetzen nur auf "
+              f"ausdrücklichen Wunsch mit ersetzen (Dialog am Mac) oder mit name ein anderer Dateiname. {FOLGE}",
+              file=sys.stderr)
+        sys.exit(EXIT_FREMD)
 
     befehl = [str(programm()), str(quelle), str(ziel), *(["quer"] if a.quer else [])]
     try:
@@ -163,7 +194,7 @@ def main(argv=None):
         raise kit_basis.abbruch("PDF-Druck ohne Ergebnis.", "Ein vorhandenes PDF bleibt unverändert.")
     print(f"PDF: {ziel}")
     print(f"Umfang: {seiten_text(int(zahl[0]))}, A4 {'quer' if a.quer else 'hoch'}"
-          + (", vorhandenes PDF ersetzt" if ersetzen else ""))
+          + (", eigenes PDF ersetzt" if eigen else ", vorhandenes PDF ersetzt" if ersetzen else ""))
 
 
 if __name__ == "__main__":

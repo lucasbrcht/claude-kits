@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Lokaler MCP-Server apple: Mail, Kalender, Notizen, Erinnerungen, Kontakte und PDF aus HTML über die Skripte des
-Plugins.
+"""Lokaler MCP-Server apple: Mail, Kalender, Notizen, Erinnerungen, Kontakte, PDF aus HTML und Arbeitskopien von
+Dokumenten über die Skripte des Plugins.
 
 Start über .mcp.json mit python3 ab 3.9, Arbeitsordner egal. Die Werkzeuge rufen mail.py, style_sample.py,
-calendar_today.sh, add_event.py, move_event.py, reminders.py, notiz.py, kontakte.py und pdf.py ohne Shell auf
+calendar_today.sh, add_event.py, move_event.py, reminders.py, notiz.py, kontakte.py, pdf.py und ablage.py ohne Shell auf
 (mcp_basis.Lauf). add_event.py, move_event.py und reminders.py wechseln selbst in die .venv des Datenordners (EventKit).
 
 Stufen: lesen läuft frei. schreiben legt Entwürfe (auch mit Anhang), eigene Termine ohne Teilnehmer, Erinnerungen,
-Notizen in eigenen Ordnern und PDFs aus HTML an, alles bleibt im eigenen Account. nachfrage (senden, Arbeitskalender,
-Termine mit Teilnehmern, geteilte Notizordner: andere sehen es; Einstellungen: ändert den Schutz) zeigt vor jedem Aufruf
-einen Dialog am Mac (mcp_basis.bestaetigen). pdf_aus_html mit ersetzen zeigt denselben Dialog, bevor es ein vorhandenes
-PDF überschreibt. Löschen und Verwerfen gibt es nicht.
+Notizen in eigenen Ordnern, PDFs aus HTML und Arbeitskopien in der Ablage an, alles bleibt im eigenen Account. nachfrage
+(senden, Arbeitskalender, Termine mit Teilnehmern, geteilte Notizordner, Arbeitskopie ins Original übertragen: andere
+sehen es; Einstellungen: ändert den Schutz) zeigt vor jedem Aufruf einen Dialog am Mac (mcp_basis.bestaetigen).
+pdf_aus_html ersetzt eigene PDFs (Kennung von html2pdf) ohne Rückfrage, ein fremdes PDF gleichen Namens nur mit ersetzen
+und demselben Dialog. Löschen und Verwerfen gibt es nicht.
 
-Eine config.json im Datenordner mit Abschnitten mail, kalender, notizen, reminders, kontakte und pdf (Vorlage
+Eine config.json im Datenordner mit Abschnitten mail, kalender, notizen, reminders, kontakte, pdf und ablage (Vorlage
 config.example.json). einstellungen und einstellungen_schreiben lesen und schreiben sie für den Skill einrichten, auch
 die der Plugins chat und service: In Cowork erreicht Claude den Datenordner nur über den Server.
 """
@@ -376,19 +377,27 @@ def kontakte(a: dict) -> tuple:
 
 
 # ---------- PDF ----------
+PDF_FREMD = 3  # Exit-Code von pdf.py: am Ziel liegt ein PDF ohne die Kennung von html2pdf
+
+
 def pdf_aus_html(a: dict) -> tuple:
-    """HTML als PDF im selben Ordner (pdf.py). Neu anlegen ist schreiben. Ein vorhandenes PDF ersetzen lässt sich nicht
-    rückgängig machen: Dann fragt der Server vorher mit dem Dialog am Mac wie bei der Stufe nachfrage. Ein eigenes
-    Werkzeug dafür sprengte die Obergrenze aller Server (test_server.GRENZE_ALLE_SERVER)."""
+    """HTML als PDF im selben Ordner (pdf.py). Neu anlegen und ein eigenes PDF (Kennung von html2pdf) ersetzen ist
+    schreiben, rein lokal. Ein fremdes PDF gleichen Namens ersetzen lässt sich nicht rückgängig machen: Erst meldet
+    pdf.py es mit Exit-Code 3, dann fragt der Server mit dem Dialog am Mac und ruft mit --ersetzen erneut auf. Ein
+    eigenes Werkzeug dafür sprengte die Obergrenze aller Server (test_server.GRENZE_ALLE_SERVER)."""
     pfad, name = text(a, "pfad", True, 1000), text(a, "name", maximal=120)
     argumente = [*opt("--quer", schalter(a, "quer")), *opt("--name", name), "--", pfad]
-    if schalter(a, "ersetzen"):
-        frei, grund = mb.bestaetigen(mb.dialog_text(WERKZEUG_PDF, a, pdf_vorschau(a)))
-        if not frei:
-            return 1, (f"Nicht ausgeführt: {grund}. Ein vorhandenes PDF ersetzen gibt nur der Nutzer selbst im Dialog "
-                       "am Mac frei. Nicht erneut aufrufen, außer er bittet ausdrücklich darum.")
-        argumente.insert(0, "--ersetzen")
-    return lauf("pdf.py", argumente, zeit=170)
+    ersetzen = schalter(a, "ersetzen")
+    code, aus = lauf("pdf.py", argumente, zeit=170)
+    if code != PDF_FREMD:
+        return code, aus
+    if not ersetzen:
+        return 1, aus
+    frei, grund = mb.bestaetigen(mb.dialog_text(WERKZEUG_PDF, a, pdf_vorschau(a)))
+    if not frei:
+        return 1, (f"Nicht ausgeführt: {grund}. Ein fremdes PDF ersetzen gibt nur der Nutzer selbst im Dialog am Mac "
+                   "frei. Nicht erneut aufrufen, außer er bittet ausdrücklich darum.")
+    return lauf("pdf.py", ["--ersetzen", *argumente], zeit=170)
 
 
 def pdf_vorschau(a: dict) -> str:
@@ -398,7 +407,57 @@ def pdf_vorschau(a: dict) -> str:
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
     return mb.angaben(("PDF", name), ("Ordner", mb.ordnername(Path(pfad).parent)), ("Aus", Path(pfad).name),
-                      "Ersetzt das vorhandene PDF")
+                      "Ersetzt ein PDF, das nicht von Claude stammt")
+
+
+# ---------- Arbeitskopien ----------
+def bereich_thema(a: dict) -> list:
+    bereich, thema = text(a, "bereich", maximal=10), text(a, "thema", maximal=80)
+    if bereich not in ("privat", "arbeit"):
+        raise Fehler("bereich ist privat oder arbeit.")
+    if not thema:
+        raise Fehler("thema fehlt (Ordner je Thema, ohne Datum).")
+    return [f"--bereich={bereich}", f"--thema={thema}"]
+
+
+def arbeitskopie(a: dict) -> tuple:
+    """Arbeitskopien in der Ablage (ablage.py): holen, liste, zeigen. Übertragen ins Original nur über
+    arbeitskopie_uebertragen mit Dialog."""
+    aktion = text(a, "aktion", True, 10)
+    if aktion == "liste":
+        return lauf("ablage.py", ["liste", *opt("--bereich", text(a, "bereich", maximal=10))])
+    if aktion == "holen":
+        original = text(a, "pfad", maximal=2000)
+        if not original:
+            raise Fehler("pfad fehlt (das Original, am Mac oder wie Cowork es zeigt).")
+        return lauf("ablage.py", ["holen", *bereich_thema(a), *opt("--neu", schalter(a, "neu")), "--", original],
+                    zeit=170)
+    if aktion == "zeigen":
+        finder = opt("--finder", schalter(a, "finder"))
+        pfad = text(a, "pfad", maximal=2000)
+        if pfad:
+            return lauf("ablage.py", ["zeigen", *finder, "--", pfad])
+        return lauf("ablage.py", ["zeigen", *finder, *bereich_thema(a), "--", text(a, "datei", maximal=255)])
+    raise Fehler("aktion ist holen, liste oder zeigen.")
+
+
+def arbeitskopie_uebertragen(a: dict) -> tuple:
+    return lauf("ablage.py", ["--ausfuehren", "uebertragen", *bereich_thema(a), "--", text(a, "datei", True, 255)],
+                zeit=170)
+
+
+def uebertragen_vorschau(a: dict) -> str:
+    """Für den Dialog vor arbeitskopie_uebertragen: Datei, Ordner des Originals, Thema."""
+    try:
+        code, aus = lauf("ablage.py", ["herkunft", *bereich_thema(a), "--", text(a, "datei", True, 255)], zeit=60)
+    except Fehler:
+        code, aus = 1, ""
+    original = next((z.split(": ", 1)[1] for z in aus.splitlines() if z.startswith("Original: ")), "") if code == 0 \
+        else ""
+    return mb.angaben(("Datei", a.get("datei")), ("Nach", mb.ordnername(Path(original).parent) if original else ""),
+                      ("Thema", a.get("thema")),
+                      "Ersetzt den Inhalt des Originals, andere sehen es" if original
+                      else "Original unbekannt, das Werkzeug bricht dann ab")
 
 
 # ---------- Einrichtung ----------
@@ -413,9 +472,24 @@ def vorlage() -> dict:
     return json.loads((WURZEL / "config.example.json").read_text(encoding="utf-8"))
 
 
+ICLOUD_DOWNLOADS = Path("Library") / "Mobile Documents" / "com~apple~CloudDocs" / "Downloads"
+
+
+def downloads_ordner() -> tuple:
+    """(Ordner mit ~, Art): Downloads in iCloud Drive, wenn es ihn gibt, sonst das klassische ~/Downloads. Für die
+    Einrichtung von pdf.ordner und ablage, in Cowork sieht Claude die Ordner am Mac nicht."""
+    if (mb.HEIM / ICLOUD_DOWNLOADS).is_dir():
+        return f"~/{ICLOUD_DOWNLOADS}", "iCloud Drive"
+    return "~/Downloads", "klassisch, ohne iCloud Drive"
+
+
 def einstellungen(a: dict) -> tuple:
     plugin = plugin_wahl(a)
-    return mb.einstellungen_zeigen(plugin, vorlage() if plugin == NAME else None)
+    code, aus = mb.einstellungen_zeigen(plugin, vorlage() if plugin == NAME else None)
+    if plugin == NAME:
+        ordner, art = downloads_ordner()
+        aus += f"\nDownloads-Ordner für pdf und ablage: {ordner} ({art})"
+    return code, aus
 
 
 def einstellungen_schreiben(a: dict) -> tuple:
@@ -448,6 +522,8 @@ ORDNER_EINGRENZEN = d(S, "Ordnername, grenzt bei gleichem Titel ein")
 SCHREIBEN = {"titel": TITEL_NOTIZ, "inhalt": d(S, "vollständiger Inhalt, die erste Zeile ist der Titel"),
              "ordner": d(S, "Ordnername, ohne Angabe der Standardordner"), "format": FORMAT}
 PLUGIN = {"type": "string", "enum": list(PLUGINS_DATEN), "description": "Datenordner dieses Plugins, Standard apple"}
+BEREICH = {"type": "string", "enum": ["privat", "arbeit"],
+           "description": "Ablage aus der config.json: privat (Claude Personal) oder arbeit (Claude Work)"}
 
 ANLEGEN = {"titel": d(S, "Titel des Termins"),
            "termine": {"type": "array", "description": "je Termin start und ende, JJJJ-MM-TT HH:MM oder "
@@ -470,7 +546,8 @@ WERKZEUG_PDF = Werkzeug(
     {"pfad": d(S, "absoluter Pfad der HTML-Datei, nur aus den Ordnern in pdf.ordner der config.json"),
      "quer": d(B, "A4 quer statt hoch"),
      "name": d(S, "Dateiname des PDF im selben Ordner, Standard wie die HTML-Datei"),
-     "ersetzen": d(B, "vorhandenes PDF ersetzen, nur auf ausdrücklichen Wunsch, mit Dialog am Mac")},
+     "ersetzen": d(B, "fremdes PDF gleichen Namens ersetzen, nur auf ausdrücklichen Wunsch, mit Dialog am Mac. "
+                      "Eigene PDFs aus diesem Werkzeug ersetzt es ohne")},
     pdf_aus_html, pflicht=("pfad",), zeit=170)
 
 WERKZEUGE = [
@@ -597,6 +674,22 @@ WERKZEUGE = [
              {"suche": d(S, "Name, Firma oder Teil davon"), "id": d(S, "ID aus der Suche"),
               "ich": d(B, "die eigene Karte")}, kontakte),
     WERKZEUG_PDF,
+    Werkzeug("arbeitskopie", "Arbeitskopie",
+             "Dokumente in der Ablage bearbeiten statt am Original: holen kopiert das Original in einen Themen-Ordner, "
+             "liste zeigt Themen und Stand, zeigen öffnet eine Datei oder zeigt sie im Finder.", "schreiben",
+             {"aktion": {"type": "string", "enum": ["holen", "liste", "zeigen"]}, "bereich": BEREICH,
+              "thema": d(S, "Ordner je Thema ohne Datum, ein vorhandenes Thema wiederverwenden"),
+              "pfad": d(S, "holen: das Original. zeigen: Datei aus Ablage oder pdf.ordner. Mac-Pfad oder wie in Cowork"),
+              "datei": d(S, "zeigen: Dateiname im Thema, leer zeigt den Ordner"),
+              "neu": d(B, "holen: Arbeitskopie frisch vom Original, nur ohne offene Änderungen"),
+              "finder": d(B, "zeigen: im Finder zeigen statt öffnen")},
+             arbeitskopie, pflicht=("aktion",), zeit=170),
+    Werkzeug("arbeitskopie_uebertragen", "Arbeitskopie übertragen",
+             "Inhalt der Arbeitskopie in die Originaldatei am selben Ort schreiben, Links und Versionen bleiben. Nur "
+             "wenn der Nutzer übertragen sagt. Bricht ab, wenn sich das Original geändert hat.", "nachfrage",
+             {"bereich": BEREICH, "thema": d(S, "Themen-Ordner der Arbeitskopie"),
+              "datei": d(S, "Dateiname der Arbeitskopie")},
+             arbeitskopie_uebertragen, pflicht=("bereich", "thema", "datei"), zeit=170, vorschau=uebertragen_vorschau),
     Werkzeug("einstellungen", "Einstellungen lesen",
              "config.json und Stilprofile im Datenordner eines Plugins zeigen, mit offenen Werten. Für die Einrichtung "
              "und um Vorgaben nachzusehen.", "lesen", {"plugin": PLUGIN}, einstellungen),

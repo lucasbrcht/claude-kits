@@ -1,6 +1,6 @@
 # Plugin apple
 
-Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen, HTML-Dateien als PDF drucken. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy, die Adressbuch-Datenbank (Kontakte) und WebKit (PDF).
+Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte für Cowork und den Code-Tab, ein lokaler MCP-Server (bis 6.3 die Plugins `mail` und `apple`). Mails lesen, durchsuchen, Entwürfe anlegen und auf Ansage senden, Stilprofile aus eigenen gesendeten Mails, der Gesamtblick über alle Kalender und Termine, Notizen und Erinnerungen lesen und schreiben, Kontakte lesen, HTML-Dateien als PDF drucken, Arbeitskopien von Dokumenten holen und zurück ins Original übertragen. Ein verbundener Mail-Connector (Gmail, Microsoft 365) darf suchen und lesen, geschrieben wird in Apple Mail. Die Regeln stehen in den Skills `mail`, `kalender`, `notizen` und `erinnerungen`. Nichts verlässt das Gerät über das Plugin: keine Cloud-API, nur AppleScript (Mail, Notizen), EventKit (Kalender, Erinnerungen), icalBuddy, die Adressbuch-Datenbank (Kontakte) und WebKit (PDF).
 
 Neutral und ohne Kontext oder Chat: Das Plugin taugt auch für Kollegen mit Mac, die nur die Apple-Apps wollen.
 
@@ -21,10 +21,12 @@ Der lokale MCP-Server `server.py` (über `.mcp.json`, Unterbau `mcp_basis.py`) r
 | Stufe | Werkzeuge |
 |---|---|
 | lesen | `mail_suchen`, `mail_neues`, `mail_lesen`, `mail_entwuerfe`, `mail_stilprofil` (mit `stilprobe` eine neue Stichprobe), `termine_lesen`, `erinnerungen_lesen`, `notizen_suchen`, `notiz_lesen`, `kontakte`, `einstellungen` |
-| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `notiz_anlegen`, `notiz_ersetzen` (nur außerhalb geteilter Ordner), `pdf_aus_html` (nur in `pdf.ordner`) |
-| nachfrage | `mail_senden`, `termin_mit_nachfrage` (Arbeitskalender, Termine mit Teilnehmern), `notiz_geteilt` (geteilte Ordner), `einstellungen_schreiben` (config.json und Stilprofile), erst nach Dialog von macOS. Dazu `pdf_aus_html` mit `ersetzen`: Ein vorhandenes PDF überschreibt es erst nach demselben Dialog. |
+| schreiben | `mail_entwurf`, `mail_entwurf_anhang`, `termin_anlegen`, `termin_verschieben` (nur in `allowed_calendars`), `erinnerung_anlegen`, `erinnerung_abhaken`, `notiz_anlegen`, `notiz_ersetzen` (nur außerhalb geteilter Ordner), `pdf_aus_html` (nur in `pdf.ordner`), `arbeitskopie` (holen, liste, zeigen in der Ablage) |
+| nachfrage | `mail_senden`, `termin_mit_nachfrage` (Arbeitskalender, Termine mit Teilnehmern), `notiz_geteilt` (geteilte Ordner), `arbeitskopie_uebertragen` (Arbeitskopie ins Original), `einstellungen_schreiben` (config.json und Stilprofile), erst nach Dialog von macOS. Dazu `pdf_aus_html` mit `ersetzen`: Ein fremdes PDF gleichen Namens überschreibt es erst nach demselben Dialog. |
 
-`pdf_aus_html` druckt eine HTML-Datei mit WebKit als PDF neben die Quelle: A4 hoch oder mit `quer` quer, ohne Ränder, mit Hintergründen und den Schriften des Mac, optional mit `name` als Dateiname. Rückgabe Pfad und Seitenzahl, die Seitenzahl ist die schnelle Prüfung auf Überlauf. `pdf.py` übersetzt `html2pdf.swift` beim ersten Aufruf einmal nach `bin/` im Datenordner (etwa 40 Sekunden), danach dauert ein Druck wenige Sekunden. WebKit rundet die Seitenhöhe auf ganze CSS-Pixel ab, deshalb druckt das Programm auf 1,5 pt höheres Papier und schneidet jede Seite oben bündig auf A4 zu: Vorlagen mit Seiten von genau 297 mm bekommen so keine leeren Zwischenseiten. Ein eigenes Werkzeug für das Überschreiben gibt es nicht, es sprengte die Obergrenze aller Server.
+`pdf_aus_html` druckt eine HTML-Datei mit WebKit als PDF neben die Quelle: A4 hoch oder mit `quer` quer, ohne Ränder, mit Hintergründen und den Schriften des Mac, optional mit `name` als Dateiname. Rückgabe Pfad und Seitenzahl, die Seitenzahl ist die schnelle Prüfung auf Überlauf. `pdf.py` übersetzt `html2pdf.swift` beim ersten Aufruf einmal nach `bin/` im Datenordner (etwa 40 Sekunden), danach dauert ein Druck wenige Sekunden. WebKit rundet die Seitenhöhe auf ganze CSS-Pixel ab, deshalb druckt das Programm auf 1,5 pt höheres Papier und schneidet jede Seite oben bündig auf A4 zu: Vorlagen mit Seiten von genau 297 mm bekommen so keine leeren Zwischenseiten. Jedes PDF trägt im Feld Creator die Kennung `Claude Kits html2pdf`: Ein PDF mit dieser Kennung ersetzt der nächste Druck ohne Rückfrage, ein fremdes nur mit `ersetzen` und Dialog (der Server fragt erst, wenn `pdf.py` mit Exit-Code 3 ein fremdes PDF meldet).
+
+`arbeitskopie` und `arbeitskopie_uebertragen` (Skript `ablage.py`, Regeln im Skill `dateien` des Plugins `basis`): `holen` kopiert ein Dokument in `<ablage.privat oder ablage.arbeit>/<Thema>/` mit dem Namen des Originals, `liste` zeigt Themen mit Stand, `zeigen` öffnet eine Datei aus der Ablage oder `pdf.ordner` oder zeigt sie im Finder. `arbeitskopie_uebertragen` schreibt die Arbeitskopie nach dem Dialog in die Originaldatei am selben Ort (dieselbe Datei, kein Löschen und Neuanlegen), nur wenn sich das Original seit dem Holen nicht geändert hat (Prüfsumme) und Office es nicht offen hat. Herkunft und Stand stehen in `ablage.json` im Datenordner, der alte Stand vor dem letzten Übertragen in `ablage-sicherung/`. Pfade aus der VM von Cowork (`/sessions/<id>/mnt/<Ordner>/...`) sucht `ablage.py` am Mac über den Ordnernamen, nur ein eindeutiger Treffer zählt.
 
 `einstellungen` und `einstellungen_schreiben` lesen und schreiben den Datenordner von `apple`, `chat` und `service`: für den Skill `einrichten`, weil Claude in Cowork den Ordner nur über den Server erreicht. Geschrieben werden ganze Abschnitte, für `apple` nur die aus `config.example.json` mit gleichem Typ, dazu `mcp_nur_lesen`, oder ein Stilprofil.
 
@@ -41,6 +43,7 @@ Der lokale MCP-Server `server.py` (über `.mcp.json`, Unterbau `mcp_basis.py`) r
 | Notizen | `notiz.py` |
 | Kontakte | `kontakte.py` (nur lesen) |
 | PDF aus HTML | `pdf.py` mit `html2pdf.swift` (WebKit) |
+| Arbeitskopien von Dokumenten | `ablage.py` |
 
 ## Voraussetzungen
 
@@ -74,6 +77,7 @@ Eine Datei mit einem Abschnitt je Bereich, Vorlage `config.example.json`. Falsch
 | `reminders.geteilte_listen` | Listen, die andere sehen. `lists` markiert sie mit `(geteilt)`, `add` und `done` schreiben dort direkt wie überall. |
 | `kontakte.eigene_mails` | Eigene Mailadressen, an ihnen erkennt `kontakte.py me` die eigene Karte. |
 | `pdf.ordner` | Ordner, unter denen `pdf_aus_html` HTML-Dateien drucken darf, mit allen Unterordnern. Fehlt der Abschnitt, bricht `pdf.py` ab. |
+| `ablage.privat`, `ablage.arbeit` | Ordner der Arbeitskopien, Standard `Claude Personal` und `Claude Work` im Downloads-Ordner von iCloud Drive (ohne iCloud Drive für Downloads in `~/Downloads`). Fehlt der Ordner, legt das erste `holen` ihn an. |
 
 ## Aufruf von Hand
 
@@ -103,6 +107,9 @@ python3 reminders.py list --days 7
 python3 reminders.py add 'Aufgaben' 'Reifen bestellen' 2026-09-30 18:00
 python3 reminders.py done 'Reifen bestellen'
 python3 kontakte.py search 'Mustermann'
+python3 ablage.py liste
+python3 ablage.py holen --bereich=arbeit --thema='Pitch Q4' -- ~/Documents/Pitch.pptx
+python3 ablage.py --ausfuehren uebertragen --bereich=arbeit --thema='Pitch Q4' -- Pitch.pptx
 ```
 
 Jeder Befehl kennt `--help`. Exit-Codes: 0 ok (auch Vorschau), 1 Fehler und nichts geändert, 2 Aufruf falsch oder mehrdeutig, bei `mail.py` dazu 3 Antwort offen, aber Text nicht eingefügt, 4 neuer Entwurf leer, 5 neuer Entwurf mit anderem Absender als in `config.json`. Jeder Abbruch landet ohne Inhalt im Fehlerprotokoll des Pakets (`kit_basis.starten`).

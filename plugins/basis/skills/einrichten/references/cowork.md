@@ -30,7 +30,7 @@ Das Projekt für den Grundbereich (meist Privat) besteht schon, die Einrichtung 
 
 In Alltagssprache, ohne Tabelle je Werkzeug: "Stell bei jedem Connector alles auf Immer erlauben, außer diese auf Fragen:" und eine kurze Liste der Werkzeuge, die senden, antworten, weiterleiten, einladen, zusagen, teilen oder veröffentlichen, mit ihrem Namen in der App. Löschen auf Blockiert, wenn der Connector es anbietet. Nichts sonst auf Blockiert.
 
-Für die Plugins des Pakets gibt es in Cowork keine Schalter je Werkzeug. Dafür ein Satz: Was andere sehen (Senden, Arbeitskalender, Termine mit Teilnehmern, geteilte Notizordner) und Änderungen der Einstellungen fragen mit einem Dialog am Mac, alles andere bleibt im eigenen Account.
+Für die Plugins des Pakets gibt es in Cowork keine Schalter je Werkzeug. Dafür ein Satz: Was andere sehen (Senden, Arbeitskalender, Termine mit Teilnehmern, geteilte Notizordner, Übertragen ins Original) und Änderungen der Einstellungen fragen mit einem Dialog am Mac, alles andere bleibt im eigenen Account. Fragt Cowork beim ersten Aufruf eines Werkzeugs aus dem Paket selbst nach einer Freigabe, dort Immer erlauben wählen: Den Schutz vor Wirkung auf andere hält der Dialog am Mac.
 
 ## Geplante Aufgaben
 
