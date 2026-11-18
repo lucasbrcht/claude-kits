@@ -288,6 +288,23 @@ class Argumente(unittest.TestCase):
             text = server.uebertragen_vorschau({"bereich": "arbeit", "thema": "T", "datei": "a.pptx"})
         self.assertEqual(text, "Datei: a.pptx\nNach: Vertrieb\nThema: T\nErsetzt den Inhalt des Originals, andere sehen es")
 
+    def test_uebertragen_vorschau_geteilter_ordner(self):
+        args = {"bereich": "arbeit", "thema": "T", "datei": "a.pptx"}
+        for original in ("/Users/x/Library/CloudStorage/OneDrive-Firma/Team/a.pptx",
+                         "/Users/x/Library/CloudStorage/SharePoint-Bibliothek/Team/a.pptx",
+                         "/Users/x/OneDrive - Firma/Team/a.pptx"):
+            with self.subTest(original=original), mock.patch.object(
+                    server, "lauf", lambda *a, o=original, **k: (0, f"Arbeitskopie: /a/T/a.pptx\nOriginal: {o}")):
+                text = server.uebertragen_vorschau(args)
+            self.assertEqual(text.splitlines()[-1], "Achtung: Shared Folder")
+            self.assertIn("Nach: Team", text)
+        for original in ("/Users/x/Library/Mobile Documents/com~apple~CloudDocs/Team/a.pptx", "/Users/x/Dokumente/a.pptx"):
+            with self.subTest(original=original), mock.patch.object(
+                    server, "lauf", lambda *a, o=original, **k: (0, f"Arbeitskopie: /a/T/a.pptx\nOriginal: {o}")):
+                self.assertNotIn("Shared Folder", server.uebertragen_vorschau(args))
+        with mock.patch.object(server, "lauf", lambda *a, **k: (1, "")):
+            self.assertNotIn("Shared Folder", server.uebertragen_vorschau(args))
+
     def fremdes_pdf(self, dialog: str, args: dict) -> tuple:
         """pdf.py meldet beim ersten Lauf ein fremdes PDF am Ziel (Exit-Code 3)."""
         aufrufe = []

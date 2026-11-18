@@ -515,8 +515,17 @@ def arbeitskopie_uebertragen(a: dict) -> tuple:
                 zeit=170)
 
 
+SYNC_HINWEIS = "Achtung: Shared Folder"  # wie office_ablage im Plugin arbeit, Lehre aus einem freigegebenen Dialog
+
+
+def synchronisiert(pfad: str) -> bool:
+    """Original in einem Ordner, den OneDrive oder SharePoint mit anderen teilt."""
+    return "/Library/CloudStorage/" in pfad or "OneDrive" in pfad
+
+
 def uebertragen_vorschau(a: dict) -> str:
-    """Für den Dialog vor arbeitskopie_uebertragen: Datei, Ordner des Originals, Thema."""
+    """Für den Dialog vor arbeitskopie_uebertragen: Datei, Ordner des Originals, Thema, Hinweis auf einen geteilten
+    Ordner."""
     try:
         code, aus = lauf("ablage.py", ["herkunft", *bereich_thema(a), "--", text(a, "datei", True, 255)], zeit=60)
     except Fehler:
@@ -526,7 +535,8 @@ def uebertragen_vorschau(a: dict) -> str:
     return mb.angaben(("Datei", a.get("datei")), ("Nach", mb.ordnername(Path(original).parent) if original else ""),
                       ("Thema", a.get("thema")),
                       "Ersetzt den Inhalt des Originals, andere sehen es" if original
-                      else "Original unbekannt, das Werkzeug bricht dann ab")
+                      else "Original unbekannt, das Werkzeug bricht dann ab",
+                      SYNC_HINWEIS if synchronisiert(original) else "")
 
 
 # ---------- Einrichtung ----------
