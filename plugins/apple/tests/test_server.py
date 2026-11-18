@@ -17,8 +17,9 @@ import mcp_basis as mb  # noqa: E402
 import server  # noqa: E402
 
 # Werkzeuge aller Server des Pakets zusammen (Tokenlast). 7.0: 31 mit einstellungen und einstellungen_schreiben,
-# 7.3: 34 mit arbeitskopie und arbeitskopie_uebertragen (Entscheidung des Betreuers vom 18.11.2026)
-GRENZE_ALLE_SERVER = 34
+# 7.3: 34 mit arbeitskopie und arbeitskopie_uebertragen (Entscheidung des Betreuers vom 18.11.2026),
+# 7.3 36 mit notiz_ergaenzen und erinnerung_aendern, Entscheidung des Betreuers vom 18.11.2026
+GRENZE_ALLE_SERVER = 36
 # Je Skript, was nur ein Werkzeug der Stufe nachfrage übergeben darf: senden, Arbeitskalender, Termine mit Teilnehmern,
 # geteilte Notizordner. Verwerfen gibt es gar nicht. Eigene Termine, Entwürfe auch mit Anhang und eigene Notizen
 # bleiben im eigenen Account und brauchen keine (Zusatzrunde V6 Phase 6)
@@ -108,6 +109,8 @@ class Argumente(unittest.TestCase):
 
     def test_notizen(self):
         self.assertEqual(self.rufe("notizen_suchen", {"text": "Rad"})[2][1], ["search", "--", "Rad"])
+        self.assertEqual(self.rufe("notizen_suchen", {"text": "Rad", "ordner": "Sport"})[2][1],
+                         ["search", "--folder=Sport", "--", "Rad"])  # Etappe 3 von v7.3.0: auch mit text
         self.assertEqual(self.rufe("notizen_suchen", {"ordner": "Privat", "limit": 5})[2][1],
                          ["list", "--folder=Privat", "--limit=5"])
         self.assertEqual(self.rufe("notizen_suchen", {"nur_ordner": True})[2][1], ["folders"])
@@ -120,16 +123,62 @@ class Argumente(unittest.TestCase):
                                                                "ordner": "Familie", "format": "html"})
         self.assertEqual(argv, ["--ausfuehren", "add", "--title=T", "--file=notiz.html", "--folder=Familie"])
         self.assertTrue(self.rufe("notiz_geteilt", {"titel": "T", "inhalt": "x"})[0])  # anlegen nur mit ordner
-        self.assertEqual(self.rufe("notiz_geteilt", {"titel": "T", "inhalt": "neu", "ersetzen": True})[2][1],
-                         ["--ausfuehren", "replace", "--file=notiz.md", "--", "T"])
-        self.assertEqual(self.rufe("notiz_ersetzen", {"titel": "T", "inhalt": "neu"})[2][1],
-                         ["replace", "--file=notiz.md", "--", "T"])
+        stand = "2026-11-18 10:00:00"
+        self.assertEqual(self.rufe("notiz_geteilt", {"titel": "T", "inhalt": "neu", "ersetzen": True,
+                                                     "stand": stand})[2][1],
+                         ["--ausfuehren", "replace", "--file=notiz.md", f"--stand={stand}", "--", "T"])
+        self.assertEqual(self.rufe("notiz_ersetzen", {"titel": "T", "inhalt": "neu", "stand": stand})[2][1],
+                         ["replace", "--file=notiz.md", f"--stand={stand}", "--", "T"])
+        self.assertEqual(self.rufe("notiz_ersetzen", {"titel": "T", "inhalt": "neu", "stand": stand, "ordner": "A",
+                                                      "links_entfernen": True})[2][1],
+                         ["replace", "--file=notiz.md", f"--stand={stand}", "--folder=A", "--links-entfernen", "--",
+                          "T"])
         self.assertEqual(server.notiz_vorschau({"titel": "Einkauf", "inhalt": "langer Inhalt", "ordner": "Familie"}),
                          "Notiz: Einkauf\nOrdner: Familie")  # Dialog in Stichworten, ohne Inhalt
         self.assertEqual(server.notiz_vorschau({"titel": "Einkauf", "inhalt": "x", "ersetzen": True}),
                          "Notiz: Einkauf\nErsetzt den Inhalt")
         fehler, aus, _ = self.rufe("notiz_anlegen", {"titel": "T", "inhalt": "x", "format": "pdf"})
         self.assertTrue(fehler)
+
+    def test_notiz_ergaenzen_und_stand(self):
+        """Etappe 3 von v7.3.0: notiz_ergaenzen (append) und der Stand als Pflicht beim Ersetzen und Ergänzen, auch in
+        notiz_geteilt. Zwei AppleScripts je Änderung, deshalb mehr Zeit."""
+        stand = "2026-11-18 10:00:00"
+        _, _, (skript, argv, dateien) = self.rufe("notiz_ergaenzen", {"titel": "Plan", "inhalt": "- Zelt",
+                                                                      "stand": stand})
+        self.assertEqual((skript, argv), ("notiz.py", ["append", "--file=notiz.md", f"--stand={stand}", "--wo=unten",
+                                                       "--", "Plan"]))
+        self.assertEqual(dateien, {"notiz.md": "- Zelt"})
+        self.assertEqual(self.rufe("notiz_ergaenzen", {"titel": "Plan", "inhalt": "<div>x</div>", "format": "html",
+                                                       "stand": stand, "wo": "oben", "ordner": "Reisen"})[2][1],
+                         ["append", "--file=notiz.html", f"--stand={stand}", "--wo=oben", "--folder=Reisen", "--",
+                          "Plan"])
+        self.assertEqual(self.rufe("notiz_geteilt", {"titel": "Plan", "inhalt": "x", "ergaenzen": "oben",
+                                                     "stand": stand})[2][1],
+                         ["--ausfuehren", "append", "--file=notiz.md", f"--stand={stand}", "--wo=oben", "--", "Plan"])
+        for name, args in (("notiz_ergaenzen", {"titel": "P", "inhalt": "x"}),
+                           ("notiz_ersetzen", {"titel": "P", "inhalt": "x"}),
+                           ("notiz_geteilt", {"titel": "P", "inhalt": "x", "ersetzen": True}),
+                           ("notiz_geteilt", {"titel": "P", "inhalt": "x", "ergaenzen": "unten"}),
+                           ("notiz_geteilt", {"titel": "P", "inhalt": "x", "ersetzen": True, "ergaenzen": "unten",
+                                              "stand": stand}),
+                           ("notiz_ergaenzen", {"titel": "P", "inhalt": "x", "stand": stand, "wo": "mitte"})):
+            fehler, _aus, aufruf = self.rufe(name, args)
+            self.assertTrue(fehler, (name, args))
+            self.assertIsNone(aufruf, (name, args))
+        self.assertEqual(server.notiz_vorschau({"titel": "Plan", "inhalt": "x", "ergaenzen": "oben"}),
+                         "Notiz: Plan\nErgänzt unter dem Titel")
+        werkzeuge = {w.name: w for w in server.WERKZEUGE}
+        self.assertEqual(werkzeuge["notiz_ergaenzen"].stufe, "schreiben")
+        for name in ("notiz_ersetzen", "notiz_ergaenzen"):
+            self.assertIn("stand", werkzeuge[name].liste()["inputSchema"]["required"], name)
+        zeiten = []
+        with mock.patch.object(server, "lauf", lambda s, a, zeit=mb.ZEIT_STANDARD, textdateien=None:
+                               zeiten.append(zeit) or (0, "ok")):
+            server.notiz_ergaenzen({"titel": "P", "inhalt": "x", "stand": stand})
+            server.notiz_ersetzen({"titel": "P", "inhalt": "x", "stand": stand})
+        self.assertEqual(zeiten, [server.ZEIT_NOTIZ_AENDERN] * 2)
+        self.assertGreater(server.ZEIT_NOTIZ_AENDERN, 2 * 90)  # zwei Läufe mit OSA_SEKUNDEN aus notiz.py
 
     def test_kontakte(self):
         self.assertEqual(self.rufe("kontakte", {"ich": True})[2][1], ["me"])
@@ -151,7 +200,9 @@ class Argumente(unittest.TestCase):
             "erinnerungen_lesen": {"liste": "x"}, "erinnerung_anlegen": {"liste": "x", "titel": "y"},
             "erinnerung_abhaken": {"titel": "y"}, "notizen_suchen": {"text": "x"}, "notiz_lesen": {"titel": "x"},
             "notiz_anlegen": {"titel": "x", "inhalt": "y", "ordner": "z"},
-            "notiz_ersetzen": {"titel": "x", "inhalt": "y", "ordner": "z"}, "kontakte": {"suche": "x"},
+            "notiz_ersetzen": {"titel": "x", "inhalt": "y", "ordner": "z", "stand": "--ausfuehren"},
+            "notiz_ergaenzen": {"titel": "x", "inhalt": "y", "ordner": "--ausfuehren", "stand": "2026-11-18 10:00:00"},
+            "kontakte": {"suche": "x"},
             "pdf_aus_html": {"pfad": "--ersetzen", "name": "--ersetzen", "quer": True}, "einstellungen": {},
             "arbeitskopie": {"aktion": "holen", "bereich": "arbeit", "thema": "--ausfuehren", "pfad": "--ausfuehren",
                              "neu": True}}

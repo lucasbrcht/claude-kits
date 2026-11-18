@@ -314,14 +314,18 @@ def erinnerung_abhaken(a: dict) -> tuple:
 
 
 # ---------- Notizen ----------
+ZEIT_NOTIZ_AENDERN = 190  # zwei AppleScripts (prüfen, schreiben) mit je OSA_SEKUNDEN 90 in notiz.py
+
+
 def notizen_suchen(a: dict) -> tuple:
     if schalter(a, "nur_ordner"):
         return lauf("notiz.py", ["folders"])
     limit = opt("--limit", zahl(a, "limit", 1, 200))
+    ordner = opt("--folder", text(a, "ordner", maximal=200))
     suche = text(a, "text", maximal=200)
     if suche:
-        return lauf("notiz.py", ["search", *limit, "--", suche])
-    return lauf("notiz.py", ["list", *opt("--folder", text(a, "ordner", maximal=200)), *limit])
+        return lauf("notiz.py", ["search", *ordner, *limit, "--", suche])
+    return lauf("notiz.py", ["list", *ordner, *limit])
 
 
 def notiz_lesen(a: dict) -> tuple:
@@ -345,26 +349,60 @@ def notiz_anlegen(a: dict, geteilt: bool = False) -> tuple:
                              *opt("--folder", text(a, "ordner", maximal=200))], textdateien=dateien)
 
 
+def stand(a: dict) -> str:
+    """Pflicht beim Ersetzen und Ergänzen (Etappe 3 von v7.3.0): die Zeile Stand aus notiz_lesen. notiz.py bricht ab,
+    wenn die Notiz inzwischen einen anderen Stand hat."""
+    wert = text(a, "stand", maximal=40)
+    if not wert:
+        raise Fehler("stand fehlt: die Zeile Stand aus notiz_lesen, etwa 2026-11-18 14:03:22.")
+    return wert
+
+
 def notiz_ersetzen(a: dict, geteilt: bool = False) -> tuple:
     name, dateien = notiz_datei(a)
     vorn_ = ["--ausfuehren"] if geteilt else []
-    return lauf("notiz.py", [*vorn_, "replace", f"--file={name}", *opt("--folder", text(a, "ordner", maximal=200)),
-                             "--", text(a, "titel", True, 300)], textdateien=dateien)
+    return lauf("notiz.py", [*vorn_, "replace", f"--file={name}", f"--stand={stand(a)}",
+                             *opt("--folder", text(a, "ordner", maximal=200)),
+                             *opt("--links-entfernen", schalter(a, "links_entfernen")), "--",
+                             text(a, "titel", True, 300)], zeit=ZEIT_NOTIZ_AENDERN, textdateien=dateien)
+
+
+def wo_wert(a: dict, name: str) -> str:
+    wert = text(a, name, maximal=10) or "unten"
+    if wert not in ("unten", "oben"):
+        raise Fehler(f"{name} ist unten oder oben.")
+    return wert
+
+
+def notiz_ergaenzen(a: dict, geteilt: bool = False, wo: str = "wo") -> tuple:
+    """Text an eine bestehende Notiz anfügen, unten oder direkt unter dem Titel. notiz.py liest das HTML selbst, die
+    Notiz bleibt sonst unverändert."""
+    name, dateien = notiz_datei(a)
+    vorn_ = ["--ausfuehren"] if geteilt else []
+    return lauf("notiz.py", [*vorn_, "append", f"--file={name}", f"--stand={stand(a)}", f"--wo={wo_wert(a, wo)}",
+                             *opt("--folder", text(a, "ordner", maximal=200)), "--", text(a, "titel", True, 300)],
+                zeit=ZEIT_NOTIZ_AENDERN, textdateien=dateien)
 
 
 def notiz_geteilt(a: dict) -> tuple:
-    """Anlegen oder mit ersetzen den Inhalt ersetzen in einem geteilten Ordner: nur hier wirkt eine Notiz auf andere."""
+    """Anlegen, mit ersetzen den Inhalt ersetzen oder mit ergaenzen anfügen in einem geteilten Ordner: nur hier wirkt
+    eine Notiz auf andere."""
+    if schalter(a, "ersetzen") and text(a, "ergaenzen", maximal=10):
+        raise Fehler("ersetzen und ergaenzen schließen sich aus.")
     if schalter(a, "ersetzen"):
         return notiz_ersetzen(a, geteilt=True)
+    if text(a, "ergaenzen", maximal=10):
+        return notiz_ergaenzen(a, geteilt=True, wo="ergaenzen")
     if not text(a, "ordner", maximal=200):
         raise Fehler("ordner fehlt (der geteilte Ordner für die neue Notiz).")
     return notiz_anlegen(a, geteilt=True)
 
 
 def notiz_vorschau(a: dict) -> str:
-    """Für den Dialog vor notiz_geteilt: Titel, Ordner und ob der Inhalt ersetzt wird, ohne Inhalt."""
+    """Für den Dialog vor notiz_geteilt: Titel, Ordner und ob der Inhalt ersetzt oder ergänzt wird, ohne Inhalt."""
+    ergaenzen = {"unten": "Ergänzt unten", "oben": "Ergänzt unter dem Titel"}.get(str(a.get("ergaenzen") or ""), "")
     return mb.angaben(("Notiz", a.get("titel")), ("Ordner", a.get("ordner")),
-                      "Ersetzt den Inhalt" if a.get("ersetzen") else "")
+                      "Ersetzt den Inhalt" if a.get("ersetzen") else ergaenzen)
 
 
 # ---------- Kontakte ----------
@@ -525,6 +563,11 @@ TITEL_NOTIZ = d(S, "Titel der Notiz")
 ORDNER_EINGRENZEN = d(S, "Ordnername, grenzt bei gleichem Titel ein")
 SCHREIBEN = {"titel": TITEL_NOTIZ, "inhalt": d(S, "vollständiger Inhalt, die erste Zeile ist der Titel"),
              "ordner": d(S, "Ordnername, ohne Angabe der Standardordner"), "format": FORMAT}
+STAND_NOTIZ = d(S, "Zeile Stand aus notiz_lesen, etwa 2026-11-18 14:03:22. Hat sich die Notiz seitdem geändert, "
+                   "ändert sich nichts")
+LINKS_ENTFERNEN = d(B, "nur auf Wunsch des Nutzers: Links der alten Fassung dürfen fehlen")
+WO_NOTIZ = {"type": "string", "enum": ["unten", "oben"], "description": "unten (Standard) oder oben direkt unter dem "
+                                                                        "Titel"}
 PLUGIN = {"type": "string", "enum": list(PLUGINS_DATEN), "description": "Datenordner dieses Plugins, Standard apple"}
 BEREICH = {"type": "string", "enum": ["privat", "arbeit"],
            "description": "Ablage aus der config.json: privat (Claude Personal) oder arbeit (Claude Work)"}
@@ -653,11 +696,12 @@ WERKZEUGE = [
     Werkzeug("notizen_suchen", "Notizen suchen",
              "Apple Notizen: mit text Titel und Inhalt durchsuchen, ohne text die neuesten (optional in ordner), "
              "nur_ordner listet die Ordner.", "lesen",
-             {"text": d(S, "Suchtext für Titel und Inhalt"), "ordner": d(S, "Ordnername, nur ohne text"),
+             {"text": d(S, "Suchtext für Titel und Inhalt"), "ordner": d(S, "Ordnername, grenzt ein"),
               "limit": d(I, "höchstens so viele, Standard 25"),
               "nur_ordner": d(B, "nur die Ordner mit Anzahl der Notizen")}, notizen_suchen),
     Werkzeug("notiz_lesen", "Notiz lesen",
-             "Inhalt einer Notiz als Text, mit html als HTML (Grundlage für notiz_ersetzen).", "lesen",
+             "Inhalt einer Notiz als Text, mit html als HTML (Grundlage für notiz_ersetzen). Die Zeile Stand brauchen "
+             "notiz_ersetzen und notiz_ergaenzen.", "lesen",
              {"titel": TITEL_NOTIZ, "ordner": ORDNER_EINGRENZEN,
               "max_zeichen": d(I, "kürzen, 0 zeigt alles, Standard 20000"), "html": d(B, "HTML statt Klartext")},
              notiz_lesen, pflicht=("titel",)),
@@ -665,15 +709,27 @@ WERKZEUGE = [
              "Neue Notiz aus Markdown oder HTML anlegen. In einem geteilten Ordner nur Vorschau, dann notiz_geteilt.",
              "schreiben", SCHREIBEN, notiz_anlegen, pflicht=("titel", "inhalt")),
     Werkzeug("notiz_ersetzen", "Notiz ersetzen",
-             "Inhalt einer bestehenden Notiz vollständig ersetzen, vorher mit notiz_lesen und html den Stand holen. "
-             "In einem geteilten Ordner nur Vorschau, dann notiz_geteilt mit ersetzen.", "schreiben",
-             {**SCHREIBEN, "ordner": ORDNER_EINGRENZEN}, notiz_ersetzen, pflicht=("titel", "inhalt")),
+             "Inhalt einer bestehenden Notiz vollständig ersetzen, vorher mit notiz_lesen und html Inhalt und Stand "
+             "holen. In einem geteilten Ordner nur Vorschau, dann notiz_geteilt mit ersetzen.", "schreiben",
+             {**SCHREIBEN, "ordner": ORDNER_EINGRENZEN, "stand": STAND_NOTIZ, "links_entfernen": LINKS_ENTFERNEN},
+             notiz_ersetzen, pflicht=("titel", "inhalt", "stand"), zeit=ZEIT_NOTIZ_AENDERN),
+    Werkzeug("notiz_ergaenzen", "Notiz ergänzen",
+             "Text an eine bestehende Notiz anfügen, unten oder direkt unter dem Titel, der Rest bleibt. Vorher "
+             "notiz_lesen für den Stand. In einem geteilten Ordner nur Vorschau, dann notiz_geteilt mit ergaenzen.",
+             "schreiben",
+             {"titel": TITEL_NOTIZ, "inhalt": d(S, "nur der neue Teil, ohne Titel"), "ordner": ORDNER_EINGRENZEN,
+              "format": FORMAT, "stand": STAND_NOTIZ, "wo": WO_NOTIZ},
+             notiz_ergaenzen, pflicht=("titel", "inhalt", "stand"), zeit=ZEIT_NOTIZ_AENDERN),
     Werkzeug("notiz_geteilt", "Notiz in geteiltem Ordner",
-             "In einem geteilten Ordner eine Notiz anlegen oder mit ersetzen ihren Inhalt ersetzen, andere sehen es "
-             "sofort. Nur auf ausdrücklichen Auftrag für diesen Ordner.", "nachfrage",
-             {**SCHREIBEN, "ordner": d(S, "geteilter Ordner, zum Anlegen Pflicht, beim Ersetzen grenzt er ein"),
-              "ersetzen": d(B, "Inhalt einer bestehenden Notiz ersetzen statt neu anlegen")},
-             notiz_geteilt, pflicht=("titel", "inhalt"), vorschau=notiz_vorschau),
+             "In einem geteilten Ordner eine Notiz anlegen, mit ersetzen ihren Inhalt ersetzen oder mit ergaenzen "
+             "Text anfügen, andere sehen es sofort. Nur auf ausdrücklichen Auftrag für diesen Ordner.", "nachfrage",
+             {**SCHREIBEN, "ordner": d(S, "geteilter Ordner, zum Anlegen Pflicht, sonst grenzt er ein"),
+              "ersetzen": d(B, "Inhalt einer bestehenden Notiz ersetzen statt neu anlegen"),
+              "ergaenzen": {**WO_NOTIZ, "description": "an eine bestehende Notiz anfügen, unten oder oben unter "
+                                                       "dem Titel"},
+              "stand": d(S, "beim Ersetzen und Ergänzen Pflicht: Zeile Stand aus notiz_lesen"),
+              "links_entfernen": LINKS_ENTFERNEN},
+             notiz_geteilt, pflicht=("titel", "inhalt"), zeit=ZEIT_NOTIZ_AENDERN, vorschau=notiz_vorschau),
     Werkzeug("kontakte", "Kontakte",
              "Apple Kontakte lesen: suche findet Personen und Firmen, id zeigt einen Eintrag ganz, ich die eigene "
              "Karte. Adressen, Nummern, Geburtstage.", "lesen",
