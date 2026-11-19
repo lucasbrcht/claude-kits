@@ -1,6 +1,6 @@
 ---
 name: imessage
-description: iMessage und SMS der Nachrichten-App lesen, suchen, Neues sichten, Entwurf öffnen, senden nur auf ausdrückliches senden. Für Personen mit Kanal iMessage, auch "schreib X" bei diesem Kanal. Nicht für WhatsApp (Skill whatsapp) und Arbeit (Skill mail).
+description: iMessage und SMS der Nachrichten-App lesen, suchen, Neues sichten, Entwurf öffnen, senden nur auf ausdrückliches senden. Für Personen mit Kanal iMessage, auch "schreib X" bei diesem Kanal. Nicht für WhatsApp (Skill whatsapp), Arbeit (Skill mail) und den Überblick über alle Kanäle (Skill tagesstart).
 ---
 
 # imessage

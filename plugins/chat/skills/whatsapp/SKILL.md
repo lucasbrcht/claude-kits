@@ -1,6 +1,6 @@
 ---
 name: whatsapp
-description: WhatsApp der Mac-App lesen, durchsuchen, Neues sichten, Antworten als Entwurf öffnen, der Nutzer sendet selbst. Standardkanal für Familie und Freunde, privat auch "was hat X geschrieben" und "schreib X". Nicht für Arbeit (Skill mail) und Personen mit Kanal iMessage (Skill imessage).
+description: WhatsApp der Mac-App lesen, durchsuchen, Neues sichten, Antworten als Entwurf öffnen, der Nutzer sendet selbst. Standardkanal für Familie und Freunde, privat auch "was hat X geschrieben" und "schreib X". Nicht für Arbeit (Skill mail), Personen mit Kanal iMessage (Skill imessage) und den Überblick über alle Kanäle (Skill tagesstart).
 ---
 
 # whatsapp

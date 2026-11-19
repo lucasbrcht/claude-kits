@@ -1,6 +1,6 @@
 ---
 name: mail
-description: Mails in Apple Mail sichten, suchen und lesen, Entwürfe und Antworten anlegen, senden nur auf ausdrückliches senden. Alle Konten, ein verbundener Mail-Connector hilft beim Suchen. Nicht für WhatsApp, iMessage und Einladungen (Skill kalender).
+description: Mails in Apple Mail sichten, suchen und lesen, Entwürfe und Antworten anlegen, senden nur auf ausdrückliches senden. Alle Konten, ein verbundener Mail-Connector hilft beim Suchen. Nicht für WhatsApp, iMessage, Einladungen (Skill kalender) und den Überblick über alle Kanäle (Skill tagesstart).
 ---
 
 # mail
