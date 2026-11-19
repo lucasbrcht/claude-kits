@@ -1,11 +1,11 @@
 ---
 name: dateien
-description: Office-Dateien und andere Dokumente bearbeiten, ohne das Original anzufassen, privat und für die Arbeit. Arbeitskopie je Thema in Claude Personal oder Claude Work im Downloads-Ordner, alle Runden darin, auf "übertragen" zurück ins Original (auch SharePoint). Dazu Sprache von Folien und Word prüfen und PDF aus HTML. Nicht für Notizen, Mails und Anhänge (Skills notizen und mail).
+description: Office-Dateien und andere Dokumente bearbeiten, ohne das Original anzufassen, privat und für die Arbeit. Arbeitskopie je Thema in Claude Personal oder Claude Work im Downloads-Ordner, alle Runden darin, auf "übertragen" zurück ins Original (auch SharePoint). Dazu Sprache von Folien und Word prüfen und PDF aus HTML. Inhalt bestehender Decks und Mappen: Skills folien und excel. Nicht für Notizen, Mails und Anhänge (Skills notizen und mail).
 ---
 
 # dateien
 
-Dokumente (PowerPoint, Word, Excel, PDF und andere) bearbeitest du nie am Original, sondern in einer Arbeitskopie im Ablage-Ordner. Die Werkzeuge kommen vom MCP-Server `office` und laufen am Mac, in Cowork wie im Code-Tab. Ohne Plugin `office` gibt es sie nicht: dann nichts holen und nichts übertragen, das macht der Nutzer selbst. Den Inhalt bearbeiten die Skills `pptx`, `xlsx` und `docx` von Anthropic, wo und wie abgelegt wird, sagt dieser Skill.
+Dokumente (PowerPoint, Word, Excel, PDF und andere) bearbeitest du nie am Original, sondern in einer Arbeitskopie im Ablage-Ordner. Die Werkzeuge kommen vom MCP-Server `office` und laufen am Mac, in Cowork wie im Code-Tab. Ohne Plugin `office` gibt es sie nicht: dann nichts holen und nichts übertragen, das macht der Nutzer selbst. Den Inhalt bestehender Decks und Mappen ändern die Skills `folien` und `excel` (mit dem Motor von `office`), neue Dateien und Word die Skills `pptx`, `xlsx` und `docx` von Anthropic. Wo und wie abgelegt wird, sagt dieser Skill.
 
 | Werkzeug | Zweck | Stufe |
 |---|---|---|
