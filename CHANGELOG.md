@@ -2,6 +2,14 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.0.2 (19.11.2026)
+
+`pflege` 7.1.2, die anderen Plugins bleiben wie in 8.0.1. Nur für den Betreuer im Code-Tab.
+
+- **Vorlage `einrichtung.example.json`:** nennt `office` in der Liste der Plugins.
+- **Skill `paket` (pflege):** `--pruefen` vergleicht die gleichen Dateien, `SICHERHEIT.md` und die Doku-Tests auch für `office`. Der Hinweis auf das zurückgebaute Plugin `arbeit` entfällt.
+- **Für den Betreuer:** Docstrings von `kit_basis.py` und `mcp_basis.py` und Hinweise in `paket.py` ohne das Plugin `arbeit`, Testdaten in `pflege` neutral.
+
 ## v8.0.1 (19.11.2026)
 
 `basis` 8.0.1, die anderen Plugins bleiben wie in 8.0.0.

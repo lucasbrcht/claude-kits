@@ -86,7 +86,7 @@ def arbeitskopie_uebertragen(a: dict) -> tuple:
                 zeit=170)
 
 
-SYNC_HINWEIS = "Achtung: Shared Folder"  # wie office_ablage im Plugin arbeit, Lehre aus einem freigegebenen Dialog
+SYNC_HINWEIS = "Achtung: Shared Folder"  # Lehre aus einem freigegebenen Dialog: andere sehen die Änderung dort sofort
 
 
 def synchronisiert(pfad: str) -> bool:

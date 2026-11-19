@@ -153,11 +153,11 @@ class Einstellungen(PaketTest):
         eigen = self.tmp / "eigen"
         (eigen / ".claude-plugin").mkdir(parents=True)
         (eigen / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
-            {"name": "eigen", "plugins": [{"name": "arbeit", "source": "./"}]}), encoding="utf-8")
+            {"name": "eigen", "plugins": [{"name": "extra", "source": "./"}]}), encoding="utf-8")
         (eigen / "kit.json").write_text(json.dumps({"verbote": ["Read(~/Eigen/**)"]}), encoding="utf-8")
         self.einrichtung({"eigene_plugins": {"eigen": str(eigen)}})
         _code, out = self.lauf(paket.cmd_einrichten, True)
-        self.assertIn("Plugin eingeschaltet: arbeit@eigen", out)
+        self.assertIn("Plugin eingeschaltet: extra@eigen", out)
         s = self.settings_json()
         self.assertEqual(s["extraKnownMarketplaces"]["eigen"], {"source": {"source": "directory", "path": str(eigen)}})
         self.assertIn("Read(~/Eigen/**)", s["permissions"]["deny"])
@@ -166,7 +166,7 @@ class Einstellungen(PaketTest):
         self.einrichtung({})
         self.lauf(paket.cmd_einrichten, True)
         s = self.settings_json()
-        self.assertNotIn("arbeit@eigen", s["enabledPlugins"])
+        self.assertNotIn("extra@eigen", s["enabledPlugins"])
         self.assertNotIn("eigen", s["extraKnownMarketplaces"])
         self.assertNotIn("Read(~/Eigen/**)", s["permissions"]["deny"])
         for falsch in ({"claude-kits": str(eigen)}, {"Eigen": str(eigen)}, ["x"]):
@@ -239,23 +239,23 @@ class Pruefungen(PaketTest):
         self.assertIn("mcp_basis.py", " ".join(t for s, t in paket.gleichstand_pruefung({}) if s == "FEHLER"))
 
     def test_gleiche_dateien_auch_im_eigenen_plugin(self):
-        """7.0: Die Kopie im Plugin arbeit des work-kit zählt mit, über den Pfad aus eigene_plugins der Einrichtung."""
+        """7.0: Eine Kopie im Plugin eines eigenen Marketplaces zählt mit, über den Pfad aus eigene_plugins der Einrichtung."""
         for pl in ("chat", "apple"):
             (self.paket / "plugins" / pl).mkdir(parents=True)
             (self.paket / "plugins" / pl / "mcp_basis.py").write_text("a", encoding="utf-8")
-        werk = self.tmp / "work-kit"
+        werk = self.tmp / "team-kit"
         (werk / ".claude-plugin").mkdir(parents=True)
         (werk / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
-            {"name": "work-kit", "plugins": [{"name": "arbeit", "source": "./plugin"}]}), encoding="utf-8")
+            {"name": "team-kit", "plugins": [{"name": "extra", "source": "./plugin"}]}), encoding="utf-8")
         (werk / "plugin").mkdir()
         (werk / "plugin" / "mcp_basis.py").write_text("a", encoding="utf-8")
-        cfg = {"eigene_plugins": {"work-kit": str(werk)}}
+        cfg = {"eigene_plugins": {"team-kit": str(werk)}}
         msgs = paket.gleichstand_pruefung(cfg)
         self.assertEqual([s for s, _t in msgs], ["OK"])
-        self.assertIn("apple, chat, work-kit/arbeit", msgs[0][1])
+        self.assertIn("apple, chat, team-kit/extra", msgs[0][1])
         (werk / "plugin" / "mcp_basis.py").write_text("alt", encoding="utf-8")
-        self.assertIn("work-kit/arbeit", " ".join(t for s, t in paket.gleichstand_pruefung(cfg) if s == "FEHLER"))
-        msgs = paket.gleichstand_pruefung({"eigene_plugins": {"work-kit": str(self.tmp / "gesperrt")}})
+        self.assertIn("team-kit/extra", " ".join(t for s, t in paket.gleichstand_pruefung(cfg) if s == "FEHLER"))
+        msgs = paket.gleichstand_pruefung({"eigene_plugins": {"team-kit": str(self.tmp / "gesperrt")}})
         self.assertEqual([s for s, _t in msgs], ["OK", "INFO"])  # nicht lesbar: kein Abbruch, die andere Instanz prüft
         self.assertIn("nicht verglichen", msgs[1][1])
 

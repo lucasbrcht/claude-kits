@@ -19,11 +19,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/paket.py" --zips "<Ordner>"    # ZIP je Plugin au
 python3 "${CLAUDE_PLUGIN_ROOT}/paket.py" --instructions       # Text für Instructions for Claude nach einrichtung/
 ```
 
-`--pruefen` vergleicht `kit_basis.py` und `mcp_basis.py` samt Tests in `apple` und `chat` und in den Plugins der eigenen Marketplaces aus `eigene_plugins` der Einrichtung (etwa `arbeit` im work-kit). Kann diese Instanz einen eigenen Marketplace nicht lesen, steht dort eine INFO: Den Vergleich macht dann die Instanz, die ihn lesen darf.
+`--pruefen` vergleicht `kit_basis.py` und `mcp_basis.py` samt Tests in `apple`, `chat` und `office` und in den Plugins der eigenen Marketplaces aus `eigene_plugins` der Einrichtung. Kann diese Instanz einen eigenen Marketplace nicht lesen, steht dort eine INFO: Den Vergleich macht dann die Instanz, die ihn lesen darf.
 
 Dazu prüft `--pruefen`:
-- **`SICHERHEIT.md`** im Hauptordner: FEHLER, wenn die Datei fehlt oder ein Werkzeug der Stufe nachfrage aus `apple` oder `chat` dort nicht in Backticks steht. Neues Werkzeug mit Dialog: eine Zeile mit Gefahr, Gegenmaßnahme und Stelle ergänzen, `Stand` auf heute.
-- **Doku-Tests** `tests/test_doku.py` von `apple` und `chat` als eigener Lauf: Jedes Werkzeug aus `WERKZEUGE` in `server.py` steht in genau einer Tabelle `| Werkzeug | Zweck | Stufe |` eines Skills im Paket, mit der Stufe aus dem Server (nachfrage heißt dort `fragt`). Fehlt der Test oder schlägt er fehl, ein FEHLER mit dem Grund. Neues Werkzeug: Zeile in der Tabelle des passenden Skills.
+- **`SICHERHEIT.md`** im Hauptordner: FEHLER, wenn die Datei fehlt oder ein Werkzeug der Stufe nachfrage aus `apple`, `chat` oder `office` dort nicht in Backticks steht. Neues Werkzeug mit Dialog: eine Zeile mit Gefahr, Gegenmaßnahme und Stelle ergänzen, `Stand` auf heute.
+- **Doku-Tests** `tests/test_doku.py` von `apple`, `chat` und `office` als eigener Lauf: Jedes Werkzeug aus `WERKZEUGE` in `server.py` steht in genau einer Tabelle `| Werkzeug | Zweck | Stufe |` eines Skills im Paket, mit der Stufe aus dem Server (nachfrage heißt dort `fragt`). Fehlt der Test oder schlägt er fehl, ein FEHLER mit dem Grund. Neues Werkzeug: Zeile in der Tabelle des passenden Skills.
 
 ## Einstellungen oder CLAUDE.md neu schreiben
 
