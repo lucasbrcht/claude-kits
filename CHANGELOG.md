@@ -2,6 +2,14 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v7.3.1 (19.11.2026)
+
+`apple` 7.2.1, die anderen Plugins bleiben wie in 7.3.0.
+
+Ein Patch statt Warten auf das nächste Release: Der Hinweis soll schon vor dem ersten Übertragen in einen geteilten Ordner da sein.
+
+- **Hinweis auf geteilte Ordner beim Übertragen (apple):** Liegt das Original unter `Library/CloudStorage` oder in einem OneDrive-Ordner, zeigt der Dialog vor `arbeitskopie_uebertragen` die Zeile `Achtung: Shared Folder`. Andere sehen die Änderung dort sofort.
+
 ## v7.3.0 (18.11.2026)
 
 `apple` 7.2.0, `basis` 7.1.0, `pflege` 7.1.0, `chat` 7.0.1 (nur Werkzeugtabellen in den Skills), `service` bleibt 7.1.0.
@@ -29,7 +37,6 @@ Sicherer:
 - **Kein Verlust beim Ändern von Notizen (apple):** Mit Anhängen lehnen Ersetzen und Ergänzen ab, Notes würde sie verlieren. Fehlt in der neuen Fassung ein Link der alten, lehnt `notiz_ersetzen` ab, außer mit `links_entfernen`.
 - **Antwort nur auf die erwartete Mail (apple):** `mail_entwurf` mit `antwort_auf` und `betreff_erwartet` vergleicht den Betreff vor der Antwort, ohne Re:, AW:, WG:, Fwd:, Groß und Klein. Passt er nicht, öffnet sich nichts, die Meldung nennt beide Betreffs.
 - **Nachkontrolle (apple):** Nach Anlegen, Ersetzen und Ergänzen von Notizen, nach `erinnerung_aendern` und nach `termin_anlegen`, `termin_verschieben` und `termin_mit_nachfrage` lesen die Skripte frisch zurück und nennen Abweichungen.
-- **Hinweis auf geteilte Ordner beim Übertragen (apple):** Liegt das Original unter `Library/CloudStorage` oder in einem OneDrive-Ordner, zeigt der Dialog vor `arbeitskopie_uebertragen` die Zeile `Achtung: Shared Folder`. Andere sehen die Änderung dort sofort.
 - **Nicht durchsucht ist nicht leer (apple):** Ein Konto aus `accounts`, das Mail nicht findet, fiel bisher still weg. Jetzt nennen `mail_neues`, `mail_suchen` und die Stilprobe es als nicht durchsucht. `erinnerungen_lesen` meldet, wenn keine Liste lesbar ist. `notizen_suchen` mit `ordner` sagt ohne Treffer, ob der Ordner leer, unbekannt oder ausgeschlossen ist.
 
 Schneller:

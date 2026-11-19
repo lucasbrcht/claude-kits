@@ -1,7 +1,7 @@
 {
   "name": "apple",
   "displayName": "Apple",
-  "version": "7.2.0",
+  "version": "7.2.1",
   "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte: lesen, suchen, Entwürfe, Termine anlegen und verschieben, Notizen anlegen, ergänzen und ersetzen, Erinnerungen anlegen, ändern und abhaken, senden nur auf ausdrückliches senden. HTML als PDF drucken mit WebKit, Arbeitskopien von Dokumenten holen und ins Original übertragen. Nie löschen. Ein lokaler MCP-Server am Mac, in Cowork und im Code-Tab. Senden, Arbeitskalender, Termine mit Teilnehmern, geteilte Notizordner, Übertragen ins Original und Einstellungen fragen mit einem Dialog am Mac.",
   "author": {
     "name": "Lucas Bracht"
