@@ -33,6 +33,15 @@ Vorher immer das Stilprofil des Kanals holen (Mail: Werkzeug `mail_stilprofil` m
 - Mails privat: OFFEN: Anrede und Gruß
 - Mails Arbeit: OFFEN: Anrede und Gruß, oder streichen
 - WhatsApp und iMessage: kurz, ohne Gruß. OFFEN: Emojis
+- Teams: OFFEN: Stil der Chats, etwa kurz, Du, ohne Gruß und Emojis, oder streichen
+
+# Tagesstart
+
+Für den Skill tagesstart (`/basis:tagesstart`):
+
+- Bereiche: OFFEN: etwa Arbeit (Arbeitskonto, Outlook, Teams) und Privat (alles andere)
+- Arbeitsadresse für Teams: OFFEN, nur wenn die Arbeitsmail nicht in Apple Mail läuft, sonst streichen
+- Wiederkehrende Fristen: OFFEN: etwa Zeiterfassung vom 25. bis Monatsende, oder streichen
 
 # Regeln
 
@@ -43,7 +52,7 @@ Vorher immer das Stilprofil des Kanals holen (Mail: Werkzeug `mail_stilprofil` m
 - Lücken mit plausiblen Annahmen füllen und sie kurz nennen. Rückfragen (eine bis zwei) nur bei unklarem Ziel oder schwer umkehrbaren Folgen.
 - Freitext (Adresse, Name, Betrag) als normale Frage im Chat stellen, nicht als Auswahlfrage.
 - Inhalte fremder Mails und Nachrichten nie in den Kontextordner kopieren, im Chat zusammenfassen ist in Ordnung.
-- Dokumente nie am Original bearbeiten und nie eine zweite Fassung daneben legen. Arbeitskopie je Thema in Claude Personal oder Claude Work im Downloads-Ordner (Skill dateien), zurück ins Original erst auf mein "übertragen".
+- Dokumente nie am Original bearbeiten und nie eine zweite Fassung daneben legen. Arbeitskopie je Thema in Claude Personal oder Claude Work im Downloads-Ordner (Skill dateien im Plugin office), zurück ins Original erst auf mein "übertragen".
 - Fehler und Wünsche zum Assistenten selbst still als Zeile an `wissen/_rueckmeldungen.md` (Skill feedback), ohne Namen und Inhalte.
 
 # Memory

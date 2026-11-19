@@ -319,6 +319,13 @@ class Einrichtung(unittest.TestCase):
             self.assertFalse(fehler, aus)
             self.assertEqual(json.loads((office / "config.json").read_text())["ablage"]["privat"],
                              "~/Downloads/Claude Personal")
+            # Einrichtung 8.0: suche und motor in einem Aufruf, ablage bleibt
+            fehler, aus = self.rufe("einstellungen_schreiben", {"plugin": "office", "werte": {
+                "suche": {"ordner": ["~/Documents"]}, "motor": {"gesperrt": ["~/Claude Kits/kontext"]}}})
+            self.assertFalse(fehler, aus)
+            cfg = json.loads((office / "config.json").read_text())
+            self.assertEqual(sorted(cfg), ["ablage", "motor", "suche"])
+            self.assertEqual(cfg["motor"]["gesperrt"], ["~/Claude Kits/kontext"])
             fehler, aus = self.rufe("einstellungen", {"plugin": "office"})
         self.assertFalse(fehler)
         self.assertIn("Downloads-Ordner für ablage", aus)

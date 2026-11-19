@@ -1,7 +1,7 @@
 {
   "name": "chat",
   "displayName": "Chat",
-  "version": "7.0.1",
+  "version": "7.0.2",
   "description": "WhatsApp der Mac-App (lesen, suchen, Entwürfe öffnen, senden nie) und iMessage und SMS der Nachrichten-App (lesen, suchen, senden nur auf ausdrückliches senden mit Rückfrage). Lokaler MCP-Server chat am Mac, in Cowork und im Code-Tab. Nur für Privat, die Arbeit installiert es nicht.",
   "author": {
     "name": "Lucas Bracht"

@@ -27,7 +27,7 @@ import mcp_basis as mb
 from mcp_basis import Fehler, Werkzeug, langtext, opt, schalter, text, textliste, zahl
 
 NAME = "apple"
-VERSION = "7.1.0"
+VERSION = "8.0.0"
 WURZEL = Path(__file__).resolve().parent
 lauf = mb.Lauf(WURZEL, NAME)
 PLUGINS_DATEN = ("apple", "chat", "service", "office")  # Datenordner, die einstellungen lesen und schreiben darf

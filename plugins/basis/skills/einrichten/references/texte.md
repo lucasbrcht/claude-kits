@@ -32,7 +32,7 @@ Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen M
 
 ## Plugins (Werkzeuge von apple fehlen)
 
-> Mir fehlen die Werkzeuge für Mail, Kalender und Notizen. Bitte in Claude unter **Customize > Plugins** prüfen, ob die Plugins **apple** und **basis** (und für WhatsApp **chat**) installiert und eingeschaltet sind. Danach Claude mit Cmd+Q beenden, neu öffnen und mich erneut aufrufen.
+> Mir fehlen die Werkzeuge für Mail, Kalender und Notizen. Bitte in Claude unter **Customize > Plugins** prüfen, ob die Plugins **apple** und **basis** (für WhatsApp **chat**, für Dokumente **office**) installiert und eingeschaltet sind. Danach Claude mit Cmd+Q beenden, neu öffnen und mich erneut aufrufen.
 
 ## Freigaben in macOS (Schritt 10, nur was fehlt)
 
@@ -65,6 +65,8 @@ Erst die Zahlen einsetzen, dann den Text zeigen. Ist nichts offen, die Zeile Noc
 > | Notizen | finden, anlegen, Übersichten für unterwegs | "Leg eine Packliste für den Urlaub an." |
 > | Erinnerungen | anlegen, abhaken, offene Aufgaben | "Erinnere mich Freitag an die Steuer." |
 > | Kontakte | Adresse, Telefon, Geburtstag nachsehen | "Wann hat Anna Geburtstag?" |
+> | Tagesstart | Termine, Neues aus allen Kanälen und Aufgaben in einem Überblick, mit Vorschlägen | "Tagesstart" oder "Wochenstart" |
+> | Dokumente | an einer Arbeitskopie bearbeiten, ins Original erst auf dein Wort übertragen | "Kürz Folie 3 in meiner Präsentation." |
 > | Kontext | Neues merken, monatlich abgleichen | "Merk dir: Ben ist jetzt bei der Feuerwehr." |
 > | Feedback | Fehler und Wünsche sammeln, als Mail-Entwurf an den Betreuer | "Feedback: Die Erinnerung kam ohne Uhrzeit." |
 >

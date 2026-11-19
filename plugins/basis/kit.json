@@ -1,8 +1,12 @@
 {
-  "_hinweis": "Steckbrief des Plugins basis, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab), abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "_hinweis": "Steckbrief des Plugins basis, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab), abhaengigkeiten nennt, was das Plugin am Mac braucht. plugins: pflicht ohne die Einrichtung nicht möglich, empfohlen erweitert Einrichtung und Tagesstart, fehlt es, fällt der Teil still weg. connectoren sind optional für den Tagesstart.",
   "verbote": [],
   "abhaengigkeiten": {
-    "connectoren": [],
+    "plugins": {
+      "pflicht": ["apple"],
+      "empfohlen": ["office", "chat"]
+    },
+    "connectoren": ["Microsoft 365 (optional, Outlook und Teams im Tagesstart)", "Gmail (optional, Konten außerhalb von Apple Mail)"],
     "macos": [],
     "programme": ["git"],
     "python": {}

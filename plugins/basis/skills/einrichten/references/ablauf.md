@@ -55,8 +55,17 @@ Personen gehören ins Wissen des Projekts, nie in `profil.md` oder die Instructi
 - `apple`, Abschnitt `kalender`: `default_calendar`, `allowed_calendars` (private und gemeinsame Kalender, die der Nutzer beschreiben lassen will), `arbeitskalender` (Exchange, sonst leer), Rest wie in der Vorlage ohne Platzhalter.
 - `apple`, Abschnitte `kontakte` (`eigene_mails`), `notizen` und `reminders` (Ausschlüsse und geteilte Listen nur auf Nennung, sonst leere Listen).
 - `apple`, Abschnitt `pdf`: `ordner` mit dem Downloads-Ordner, den `einstellungen` in der letzten Zeile nennt (iCloud Drive, wenn vorhanden, sonst `~/Downloads`), weitere Ordner nur auf Nennung.
-- `apple`, Abschnitt `ablage`: `privat` ist `<Downloads-Ordner>/Claude Personal`, `arbeit` ist `<Downloads-Ordner>/Claude Work`, mit demselben Downloads-Ordner wie `pdf`. Ohne Arbeit `arbeit` leer. Liegt der Downloads-Ordner in iCloud Drive, kurz fragen, ob Dokumente des Arbeitgebers dort liegen dürfen, sonst `arbeit` als `~/Downloads/Claude Work`. Die Ordner legt das erste Holen einer Arbeitskopie an. Wo der Nutzer schon eigene Ordner für Arbeitskopien hat, diese auf Nennung.
 - `chat` mit `plugin` chat, nur diese Abschnitte, alles andere hat Standardwerte: `me` (Vorname), `me_names` (Vorname und Spitzname), `forbidden_chars` aus Runde 3 des Interviews (leere Liste, wenn der Nutzer nichts ausschließt, sonst zum Beispiel Gedankenstriche, Auslassungspunkte, Semikolon), `excluded_chats` nur, wenn der Nutzer welche nennt.
+
+## Dokumente mit Plugin office (Schritt 4)
+
+Nur, wenn die Werkzeuge von `office` da sind (`arbeitskopie`). Erst fragen, als Auswahl: "Soll ich auch Office-Dateien und andere Dokumente für dich bearbeiten? Ich arbeite dann immer an einer Kopie, das Original ändere ich erst auf dein Wort übertragen." Bei Nein weiter mit Schritt 5. Bei Ja `einstellungen` mit `plugin` office (zeigt den Downloads-Ordner), dann ein Aufruf `einstellungen_schreiben` mit `plugin` office und diesen Abschnitten:
+
+- `ablage`: `privat` ist `<Downloads-Ordner>/Claude Personal`, `arbeit` ist `<Downloads-Ordner>/Claude Work`. Ohne Arbeit `arbeit` leer. Liegt der Downloads-Ordner in iCloud Drive, kurz fragen, ob Dokumente des Arbeitgebers dort liegen dürfen, sonst `arbeit` als `~/Downloads/Claude Work`. Die Ordner legt das erste Holen einer Arbeitskopie an. Eigene Ordner für Arbeitskopien nur auf Nennung. Gibt es `ablage` schon (Umzug aus `apple`), übernehmen.
+- `suche`: `ordner` als Liste, in der `folien_finden` nach Decks sucht. Als Freitext fragen: "Wo liegen deine Präsentationen und Tabellen meistens? Etwa ein Projektordner, der Ordner von OneDrive oder SharePoint, Downloads." Ohne Antwort `~/Documents` und den Downloads-Ordner.
+- `motor`: `gesperrt` mit dem Kontextordner (absolut oder mit `~`), dazu Ordner, die der Nutzer schützen will. `umgebung` mit `FONTCONFIG_FILE` wie in der Vorlage, auf einem Mac mit Intel `/usr/local` statt `/opt/homebrew`. `pptx_validate` leer.
+
+**Motor anbieten.** Ein Satz, was er bringt: bestehende PowerPoint-Decks und Excel-Mappen finden, lesen, ändern, prüfen und als Vorschau zeigen. Er braucht rund 2 GB und 15 Minuten im Terminal (Homebrew, `python@3.12`, `poppler`, LibreOffice, eine `.venv` mit python-pptx, openpyxl und lxml). Bei Ja in die Prüfliste: im Terminal den Abschnitt Motor für Office aus `INSTALL.md` des Pakets. Danach zur Probe `folien_finden` mit einem Suchwort: Meldet es `Motor nicht eingerichtet`, fehlt noch ein Befehl. Bei Nein bleibt die Grundstufe (Arbeitskopien, übertragen, `sprache`), der Motor lässt sich später mit "Dokumente einrichten" nachholen.
 
 ## Personen (Schritt 5)
 
@@ -77,10 +86,10 @@ Vorschläge in Auswahlfragen nach `../../kontext/references/fragen.md`, jede Per
 | Runde | Fragen |
 |---|---|
 | 1 Anrede | Anrede privat (meist Du, Vorname), Gruß privat, Emojis privat (nie, sparsam, eins am Ende) |
-| 2 Arbeit | nur mit Arbeitskonto: Arbeitgeber, Rolle, Anrede und Gruß in Arbeitsmails, Du oder Sie intern und extern |
+| 2 Arbeit | nur mit Arbeitskonto: Arbeitgeber, Rolle, Anrede und Gruß in Arbeitsmails, Du oder Sie intern und extern, mit Microsoft 365 der Stil für Teams-Chats und die Arbeitsadresse, wenn die Arbeitsmail nicht in Apple Mail läuft |
 | 3 Schreiben | Zeichen oder Wörter, die nie vorkommen sollen, Datum und Uhrzeit, Länge von Nachrichten |
 | 4 Alltag | Interessen, wofür der Assistent am meisten helfen soll |
-| 5 Bereiche | angestellt, selbständig oder ohne Beruf, Account der Firma ja oder nein, dauerhafte Bereiche mit eigenen Unterlagen (Verein, Studium, Verwaltung), was vertraulich bleiben muss. Dann die Empfehlung nach `projektschnitt.md` zeigen und den Schnitt bestätigen lassen |
+| 5 Bereiche | angestellt, selbständig oder ohne Beruf, Account der Firma ja oder nein, dauerhafte Bereiche mit eigenen Unterlagen (Verein, Studium, Verwaltung), was vertraulich bleiben muss, wiederkehrende Fristen mit Zeitraum (etwa Zeiterfassung in den letzten Tagen des Monats) für den Tagesstart. Dann die Empfehlung nach `projektschnitt.md` zeigen und den Schnitt bestätigen lassen |
 
 Je Frage zwei bis drei konkrete Optionen mit fertigem Text, "Empfohlen" für die naheliegende, Freitext über die eingebaute Option Sonstiges. Was der Assistent aus den Quellen schon weiß (Gruß in gesendeten Mails, Emojis in WhatsApp), als Empfehlung vorschlagen statt offen zu fragen.
 
@@ -90,7 +99,7 @@ Je Mailprofil `mail_stilprofil` mit `profil` und `stilprobe` 40. Daraus das Prof
 
 ## Profil und Index (Schritt 8)
 
-`profil.md` hat feste Abschnitte. `OFFEN:`-Zeilen ersetzen, nichts Neues erfinden, höchstens 120 Zeilen. Der Abschnitt Nur im Code-Tab bleibt in `<!-- nur-code -->` und fällt aus den Instructions. Im Index `<Bereich>` ersetzen und Zeilen ohne Datei streichen. Beides zeigen, auf Ja speichern.
+`profil.md` hat feste Abschnitte. `OFFEN:`-Zeilen ersetzen, nichts Neues erfinden, höchstens 120 Zeilen. Der Abschnitt Nur im Code-Tab bleibt in `<!-- nur-code -->` und fällt aus den Instructions. Der Abschnitt Tagesstart trägt Bereiche mit ihren Quellen, Fristen und Arbeitsadresse aus Runde 2 und 5, der Stil für Teams steht unter Texte in meinem Namen. So liest der Skill `tagesstart` sie aus den Instructions, ohne eine Datei zu laden. Was nicht passt, streichen statt `OFFEN` lassen (ohne Arbeit, ohne Microsoft 365). Im Index `<Bereich>` ersetzen und Zeilen ohne Datei streichen. Beides zeigen, auf Ja speichern.
 
 ## Abschluss (Schritt 12)
 

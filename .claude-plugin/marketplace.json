@@ -1,6 +1,6 @@
 {
   "name": "claude-kits",
-  "description": "Paket Mac: persönlicher Assistent mit Apple Mail, Kalender, Notizen, Erinnerungen, Kontakten, WhatsApp und iMessage, Plugins nach Zielgruppe.",
+  "description": "Paket Mac: persönlicher Assistent mit Apple Mail, Kalender, Notizen, Erinnerungen, Kontakten, WhatsApp, iMessage und Office-Dokumenten, Plugins nach Thema und Zielgruppe.",
   "owner": {
     "name": "Lucas Bracht"
   },
@@ -8,7 +8,7 @@
     {
       "name": "basis",
       "source": "./plugins/basis",
-      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Rückmeldungen"
+      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Tagesstart, Rückmeldungen"
     },
     {
       "name": "apple",
@@ -18,7 +18,7 @@
     {
       "name": "office",
       "source": "./plugins/office",
-      "description": "Dokumente in Arbeitskopien bearbeiten, zurück ins Original auf ausdrückliches übertragen, Sprache von Folien prüfen, ein lokaler Server am Mac"
+      "description": "Dokumente in Arbeitskopien bearbeiten, zurück ins Original auf ausdrückliches übertragen, Sprache von Folien prüfen, mit Motor PowerPoint und Excel ändern, ein lokaler Server am Mac"
     },
     {
       "name": "chat",

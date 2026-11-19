@@ -1,6 +1,6 @@
 # Installation
 
-Für deinen Mac mit der Claude-App. Du richtest einmal ein, danach hilft dir dein Assistent in Cowork bei Mail, Kalender, Nachrichten, Notizen und Erinnerungen.
+Für deinen Mac mit der Claude-App. Du richtest einmal ein, danach hilft dir dein Assistent in Cowork bei Mail, Kalender, Nachrichten, Notizen, Erinnerungen und auf Wunsch bei Office-Dokumenten.
 
 - **Dauer:** etwa 25 Minuten für die Installation (Schritte 1 bis 5), danach 30 bis 45 Minuten Einrichtung im Gespräch (Schritt 6). Beides geht an einem Termin oder an zwei.
 - **Am einfachsten** lässt du dich von Claude durchführen (nächster Abschnitt). Die Schritte darunter sind zum Nachlesen oder für den Weg von Hand.
@@ -111,8 +111,9 @@ Alle anderen Freigaben fragt dein Mac später von selbst, wenn Claude zum ersten
 
    | Plugin | Wofür | Installieren |
    |---|---|---|
-   | `basis` | Einrichtung, Gedächtnis, Arbeitskopien von Dokumenten, Feedback | immer |
+   | `basis` | Einrichtung, Gedächtnis, Tagesstart, Feedback | immer |
    | `apple` | Mail, Kalender, Notizen, Erinnerungen, Kontakte, PDF | immer |
+   | `office` | Office-Dateien und andere Dokumente als Arbeitskopie bearbeiten, mit Motor auch PowerPoint und Excel ändern | wenn Claude Dokumente bearbeiten soll |
    | `chat` | WhatsApp und iMessage | wenn du das nutzt |
    | `service` | Roadbook für Rad-Events, Home Assistant | nur nach Absprache mit dem Betreuer, braucht weitere Programme |
    | `pflege` | Werkzeug des Betreuers | nie |
@@ -150,6 +151,33 @@ Nutzt du Claude auch für die Arbeit, leg trotzdem erst nur Privat an. In Schrit
 
 Pausieren geht jederzeit. Später im Projekt Privat wieder `/basis:einrichten` eingeben, Claude macht dort weiter.
 
+## Motor für Office (nach Wunsch, Terminal, etwa 15 Minuten)
+
+Nur mit dem Plugin `office`. Ohne Motor holt Claude Arbeitskopien, überträgt sie zurück und prüft die Sprache von Folien. Mit Motor findet, liest, ändert und prüft Claude auch bestehende PowerPoint-Decks und Excel-Mappen und zeigt sie dir als Vorschau. Dafür braucht dein Mac Python, LibreOffice und ein Programm für Bilder aus PDFs, zusammen rund 2 GB. Homebrew aus Schritt 1 muss da sein.
+
+1. **Programme.** Einfügen, Enter (5 bis 10 Minuten, LibreOffice fragt eventuell nach deinem Mac-Passwort):
+
+   ```bash
+   /opt/homebrew/bin/brew install python@3.12 poppler && /opt/homebrew/bin/brew install --cask libreoffice
+   ```
+
+2. **Python für den Motor.** Beide Zeilen zusammen einfügen, Enter (etwa 1 Minute):
+
+   ```bash
+   /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv "$HOME/Library/Application Support/Claude Kits/office/.venv"
+   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/pip" install python-pptx openpyxl lxml
+   ```
+
+3. **Prüfen.** Einfügen, Enter:
+
+   ```bash
+   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/python3" -c "import pptx, openpyxl, lxml" && ls /Applications/LibreOffice.app >/dev/null && echo "Motor ok"
+   ```
+
+   Steht da `Motor ok`, Claude mit **Cmd+Q** beenden und neu öffnen.
+
+Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ordner Claude nach Präsentationen durchsucht und welche er nie anfassen darf, fragt die Einrichtung (`/basis:einrichten`, Teil Dokumente).
+
 ## Wenn etwas hakt
 
 | Was passiert | Was hilft |
@@ -162,7 +190,8 @@ Pausieren geht jederzeit. Später im Projekt Privat wieder `/basis:einrichten` e
 | Antwort in Mail ohne Text, Meldung zu Bedienungshilfen | Systemeinstellungen > Datenschutz & Sicherheit > Bedienungshilfen: den Eintrag einschalten, den dein Mac dort neu zeigt |
 | Fenster deines Macs nicht gesehen oder Abbrechen geklickt | Claude bitten, es noch einmal zu versuchen, und auf den Mac schauen |
 | Claude fragt vor einem Werkzeug des Pakets nach einer Freigabe | **Immer erlauben** wählen. Was andere sehen, fragt dein Mac zusätzlich mit einem eigenen Fenster |
-| Meldung, dass der Abschnitt `ablage` fehlt | Claude sagen: "Trag den Abschnitt ablage in meine Einstellungen ein." Oder `/basis:einrichten` fortsetzen |
+| Meldung, dass der Abschnitt `ablage` fehlt | Claude sagen: "Richte Dokumente ein." Oder `/basis:einrichten` fortsetzen |
+| Meldung `Motor nicht eingerichtet` | Abschnitt Motor für Office oben, danach Claude mit Cmd+Q neu starten |
 | Nach einem Update von macOS geht WhatsApp oder Kontakte nicht mehr | Schritt 2 wiederholen. Gibt es den Ordner `3.9` nicht mehr, dem Betreuer Bescheid geben |
 
 ## Im Alltag
@@ -177,7 +206,7 @@ Pausieren geht jederzeit. Später im Projekt Privat wieder `/basis:einrichten` e
 |---|---|---|
 | Customize > Plugins | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
 | `~/Claude Kits/kontext/` | dein Kontext: Profil, Personen, Vorlieben, Prüfliste | nur du, nur auf diesem Mac |
-| `~/Library/Application Support/Claude Kits/<plugin>/` | Einstellungen je Plugin (`apple`, `chat`, `service`): `config.json`, Stilprofile in `style/`, bei `apple` die `.venv` aus Schritt 1 | nur du, nur auf diesem Mac |
+| `~/Library/Application Support/Claude Kits/<plugin>/` | Einstellungen je Plugin (`apple`, `chat`, `office`, `service`): `config.json`, Stilprofile in `style/`, bei `apple` die `.venv` aus Schritt 1, bei `office` die `.venv` des Motors und die Herkunft der Arbeitskopien | nur du, nur auf diesem Mac |
 | `Claude Personal` und `Claude Work` im Downloads-Ordner | Arbeitskopien von Dokumenten je Thema, PDFs | nur du, mit iCloud Drive auch auf deinen anderen Geräten |
 | Instructions for Claude, Memory, Projekte | dein Claude-Konto | nur du |
 

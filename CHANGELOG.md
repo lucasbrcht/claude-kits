@@ -2,6 +2,43 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.0.0 (noch nicht getaggt)
+
+`office` 8.0.0 (neu), `apple` 8.0.0, `basis` 8.0.0, `chat` 7.0.2 (Beschreibungen der Skills), `pflege` 7.1.1 (`paket.py` kennt `office`), `service` bleibt 7.1.0.
+
+Ein Thema, ein Plugin: Alles rund um Dokumente liegt jetzt im neuen Plugin `office`. `basis` ist der Kern mit Einrichtung, Kontext, Tagesstart und Feedback, `apple` bleibt bei den Apple-Apps.
+
+Für bestehende Nutzer:
+
+- **Plugin `office` installieren:** Customize > Plugins, `office` aus dem Marketplace `claude-kits`, danach Claude mit Cmd+Q neu starten. Ohne `office` gibt es keine Arbeitskopien mehr, `apple` hat die Werkzeuge abgegeben.
+- **`/basis:dateien` heißt jetzt `/office:dateien`.** Eigene Abläufe, geplante Aufgaben und Instructions, die den alten Namen nennen, anpassen.
+- **Umzug läuft von selbst:** Beim ersten Start übernimmt `office` den Abschnitt `ablage` aus der `config.json` von `apple`, dazu die Herkunft der Arbeitskopien und die Sicherungen. Laufende Themen in `Claude Personal` und `Claude Work` gehen weiter, nichts wird gelöscht.
+- **Neu `/basis:tagesstart`:** Überblick zum Start des Tages oder der Woche. Eine geplante Aufgabe Tagesstart mit freiem Text kann auf `/basis:tagesstart` umgestellt werden (montags `/basis:tagesstart Wochenstart`). Bereiche, Arbeitsadresse für Teams und wiederkehrende Fristen stehen am besten als Abschnitt Tagesstart in den Instructions (Vorlage `profil.md` in `einrichten`), ohne ihn nimmt der Skill einen Standard.
+- **Motor für PowerPoint und Excel (nach Wunsch):** Abschnitt Motor für Office in `INSTALL.md` im Terminal, oder `/basis:einrichten` mit "Dokumente einrichten".
+
+Neu:
+
+- **Plugin `office` (Grundstufe):** `arbeitskopie` (holen, liste, zeigen) und `arbeitskopie_uebertragen` mit Dialog am Mac wie bisher, dazu das Werkzeug `sprache` (prüfen oder setzen für .pptx und .docx). Es ersetzt das Skript `sprache.py` und läuft so auch in Cowork am Mac. Nur in der Ablage, keine Verweise.
+- **Motor für PowerPoint und Excel (office):** `folien_finden`, `folien_lesen`, `folien_pruefen` (lesen), `folien_aendern`, `excel_skript`, `excel_fertig`, `office_vorschau` (schreiben). Bestehende Decks finden (Suchordner aus `suche.ordner`), lesen, mit einer Änderungsliste ändern, auf PowerPoint-Fallen prüfen, Mappen per Skript ändern und mit LibreOffice nachrechnen, Vorschau als PDF und Bild. Geändert wird nur die Arbeitskopie im Thema, ohne Rahmen und ohne Vorsatz im Namen, ein Vergleich liegt auf Wunsch daneben.
+- **Skills `folien` und `excel` (office):** Regeln für bestehende Decks und Mappen. Ablage und Rückweg stehen im Skill `dateien`. Regeln von Kunden oder Arbeitgebern gehören in den Kontextordner.
+- **Skill `tagesstart` (basis):** Termine, Mail, WhatsApp, iMessage, Erinnerungen und, wenn verbunden, Outlook, Teams und Gmail in einem Überblick fürs Handy, mit nummerierten Vorschlägen. Ausgeführt wird erst nach Wahl der Nummern, gesendet nur auf "senden". Varianten Tagesstart, Wochenstart und was gibt's Neues. Was nicht installiert ist, fällt still weg.
+- **Einrichtung (basis):** fragt nach Dokumenten, schreibt `ablage`, `suche` und `motor` in die `config.json` von `office` und bietet den Motor an. Neuer Abschnitt Tagesstart in der Vorlage `profil.md` (Bereiche, Arbeitsadresse, Fristen), Stil für Teams unter Texte in meinem Namen. Die geplante Aufgabe Tagesstart startet `/basis:tagesstart`.
+
+Sicherer:
+
+- **Motor in der Sandbox (office):** Jedes Skript des Motors und jeder Code für Excel läuft unter `sandbox-exec` ohne Netz, schreibt nur in Ablage, Zwischenordner und Temp und liest weder die Datenordner von Mail, Nachrichten, Kalender, Notizen, Erinnerungen, Kontakten, WhatsApp und der anderen Plugins noch den Schlüsselbund oder Ordner aus `motor.gesperrt`. LibreOffice und pdftoppm ebenso, Eingaben nur aus der Ablage.
+
+Entfallen:
+
+- **`apple`:** `arbeitskopie`, `arbeitskopie_uebertragen` und `ablage.py` (jetzt in `office`), der Abschnitt `ablage` der `config.json` von `apple` wird nicht mehr gelesen. `arbeitskopie zeigen` öffnet nur noch Dateien aus der Ablage, nicht mehr aus `pdf.ordner`.
+- **`basis`:** Skill `dateien` und `sprache.py` (jetzt in `office`).
+
+Für den Betreuer:
+
+- **Sechs Plugins:** `marketplace.json`, `paket.py` (`GLEICHE_PLUGINS`, `SERVER_PLUGINS`), `CLAUDE.md`, README, `INSTALL.md` und neue README von `office`. `kit_basis.py`, `mcp_basis.py` und `test_doku.py` liegen gleich in `apple`, `chat` und `office`.
+- **Tests:** `office` mit `python3`, dem Python der Command Line Tools und `python3.12` (Folien-Tests mit python-pptx und lxml). Obergrenze der Werkzeuge in `apple` und `chat` von 36 auf 34, `office` hat eine eigene Grenze von 10. `basis` testet die Skills, `apple` die Einstellungen für `office`.
+- **`SICHERHEIT.md`:** Zeilen der Arbeitskopien unter `office`, neu `sprache` außerhalb der Ablage und Code im Motor.
+
 ## v7.3.1 (19.11.2026)
 
 `apple` 7.2.1, die anderen Plugins bleiben wie in 7.3.0.

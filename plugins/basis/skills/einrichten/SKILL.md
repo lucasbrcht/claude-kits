@@ -5,7 +5,7 @@ description: Den persönlichen Assistenten zum ersten Mal einrichten oder die Ei
 
 # einrichten
 
-> **Datenordner: `~/Library/Application Support/Claude Kits/<plugin>/`** mit `config.json` und `style/` je Plugin (`apple`, `chat`, `service`). Die Server lesen nur dort. Gelesen und geschrieben wird er nur über die Werkzeuge `einstellungen` und `einstellungen_schreiben` des Plugins `apple`, nie mit Read, Write oder Bash: In Cowork erreicht Claude den Ordner nur über den Server.
+> **Datenordner: `~/Library/Application Support/Claude Kits/<plugin>/`** mit `config.json` und `style/` je Plugin (`apple`, `chat`, `office`, `service`). Die Server lesen nur dort. Gelesen und geschrieben wird er nur über die Werkzeuge `einstellungen` und `einstellungen_schreiben` des Plugins `apple`, nie mit Read, Write oder Bash: In Cowork erreicht Claude den Ordner nur über den Server.
 
 | Werkzeug | Zweck | Stufe |
 |---|---|---|
@@ -32,12 +32,12 @@ Die festen Texte stehen in `references/texte.md`. Zuerst die **Einleitung** zeig
 
 Vor dem ersten Schritt `references/ablauf.md` lesen: Formate, Fragen je Runde, was in welche Datei gehört. Für Projekte, Instructions, Aufgaben und Proben `references/cowork.md`. Kurz:
 
-1. **Stand prüfen.** Wo läuft die Session (Cowork mit Projektordner oder Code-Tab), welche Plugins sind da (Werkzeuge von `apple` und `chat`), `einstellungen` für `apple` und `chat`, Kontextordner mit `profil.md`, `CLAUDE.md` und `wissen/`. Was fertig ist, überspringen und sagen, wo es weitergeht. Fehlt eine Voraussetzung, die nur der Nutzer schaffen kann (Projekt Privat mit Ordner, Plugin `apple`), Abschnitt Voraussetzungen in `references/ablauf.md`, dann anhalten.
+1. **Stand prüfen.** Wo läuft die Session (Cowork mit Projektordner oder Code-Tab), welche Plugins sind da (Werkzeuge von `apple`, `chat` und `office`), `einstellungen` für `apple`, `chat` und `office`, Kontextordner mit `profil.md`, `CLAUDE.md` und `wissen/`. Was fertig ist, überspringen und sagen, wo es weitergeht. Fehlt eine Voraussetzung, die nur der Nutzer schaffen kann (Projekt Privat mit Ordner, Plugin `apple`), Abschnitt Voraussetzungen in `references/ablauf.md`, dann anhalten.
 2. **Kontextordner** aus `vorlagen/` anlegen (Write, nur was fehlt). Erreicht Bash den Ordner, `git -C "<Kontextordner>" init -q`, sonst überspringen und in der Prüfliste nennen.
 3. **Person:** Vorname, Nachname und die eigenen Mailadressen als Freitext fragen, dann `kontakte` mit `ich` zur Probe. Adressen und Nummern der Karte nicht übernehmen.
-4. **Konten und Kalender.** Kontonamen in Apple Mail als Freitext erfragen (so, wie sie in der Seitenleiste stehen), die Kalender mit `termine_lesen` und `kalenderliste` holen. Dann ein Aufruf `einstellungen_schreiben` mit den Abschnitten `mail`, `kalender`, `kontakte`, `notizen`, `reminders`, `pdf` und `ablage` nach der Vorlage aus `einstellungen` (Downloads-Ordner aus dessen letzter Zeile). Mit Plugin `chat` danach ein Aufruf mit `plugin` chat. Arbeitskonto nur, wenn es eins gibt.
+4. **Konten und Kalender.** Kontonamen in Apple Mail als Freitext erfragen (so, wie sie in der Seitenleiste stehen), die Kalender mit `termine_lesen` und `kalenderliste` holen. Dann ein Aufruf `einstellungen_schreiben` mit den Abschnitten `mail`, `kalender`, `kontakte`, `notizen`, `reminders` und `pdf` nach der Vorlage aus `einstellungen` (Downloads-Ordner aus dessen letzter Zeile). Mit Plugin `chat` danach ein Aufruf mit `plugin` chat. Arbeitskonto nur, wenn es eins gibt. **Dokumente,** nur mit Plugin `office`: fragen, ob der Assistent Office-Dateien bearbeiten soll. Bei Ja ein Aufruf `einstellungen_schreiben` mit `plugin` office (`ablage`, `suche`, `motor`) und den Motor für PowerPoint und Excel anbieten, beides nach `references/ablauf.md`. Ohne Motor bleiben Arbeitskopien und Sprache.
 5. **Personen** nach `references/quellen-apple.md`: Vorschläge aus gesendeten Mails, WhatsApp, iMessage und Kalender, je Person mit Bereich und Kanal. Nur, wer über mindestens zwei Monate vorkommt, Neue höchstens als "neu, später prüfen". Jede Person einzeln bestätigen lassen, nie ohne Ja. Danach offen fragen, wer sonst noch wichtig ist (Text in `references/ablauf.md`), erst privat, dann bei der Arbeit.
-6. **Interview** in Runden nach `references/ablauf.md`: Anrede und Gruß je Bereich, Du oder Sie, Emojis, Zeichen und Wörter, die nie vorkommen sollen, Interessen, Arbeitgeber und Rolle (nur mit Arbeitskonto). Zum Schluss die Bereiche: einen Schnitt der Cowork-Projekte nach `references/projektschnitt.md` empfehlen, der Nutzer entscheidet, der Schnitt kommt nach `wissen/privat-profil.md` unter Bereiche und Projekte.
+6. **Interview** in Runden nach `references/ablauf.md`: Anrede und Gruß je Bereich, Du oder Sie, Emojis, Zeichen und Wörter, die nie vorkommen sollen, Interessen, Arbeitgeber und Rolle (nur mit Arbeitskonto), für den Tagesstart wiederkehrende Fristen und der Stil für Teams. Zum Schluss die Bereiche: einen Schnitt der Cowork-Projekte nach `references/projektschnitt.md` empfehlen, der Nutzer entscheidet, der Schnitt kommt nach `wissen/privat-profil.md` unter Bereiche und Projekte.
 7. **Stil:** Mail mit `mail_stilprofil` und `stilprobe` je Profil nach `references/ablauf.md`, WhatsApp mit `chat_stilprofil` und `stilprobe`. Profil zeigen, Korrekturen übernehmen, speichern mit `einstellungen_schreiben` und `stilprofil`.
 8. **Profil und Index:** `profil.md` und `CLAUDE.md` (Index des Projekts) im Kontextordner mit den Antworten füllen, ganz zeigen, auf Ja speichern.
 9. **Cowork vorbereiten** nach `references/cowork.md`: Text für Instructions for Claude, Projekte, Rechte der Connectoren in Alltagssprache, geplante Aufgaben (je Vorschlag ein Ja, Claude legt sie selbst an, wenn ein Werkzeug dafür da ist). Alles in `einrichtung/` im Kontextordner, dazu die Prüfliste.
@@ -48,6 +48,7 @@ Vor dem ersten Schritt `references/ablauf.md` lesen: Formate, Fragen je Runde, w
 ## Später
 
 - "Neues Konto" oder "neuer Kalender": nur Schritt 3 und 4.
+- "Dokumente einrichten" oder ein Werkzeug von `office` meldet, dass der Motor fehlt: nur der Teil Dokumente aus Schritt 4.
 - "Personen ergänzen": nur Schritt 5, danach Skill `kontext`.
 - "Stilprofil neu": nur Schritt 7.
 - Im Code-Tab mit Plugin `pflege`: nach Schritt 8 `paket.py` Trockenlauf und `--apply` im Terminal (Skill `paket`), dann gilt die `CLAUDE.md` der Instanz.

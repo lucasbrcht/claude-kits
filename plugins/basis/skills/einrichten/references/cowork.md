@@ -38,10 +38,10 @@ Ein eigener Schritt, keine Frage am Rand. Erst erklären: Eine geplante Aufgabe 
 
 | Aufgabe | Projekt | Wann | Text |
 |---|---|---|---|
-| Tagesstart | Grundbereich | werktags 7:30 Uhr | `Was steht heute an? Termine heute, neue Mails und Nachrichten, die eine Antwort brauchen, fällige Erinnerungen. Kurz, nach Dringlichkeit, nichts senden.` |
+| Tagesstart | Grundbereich | werktags 7:30 Uhr, auf Wunsch montags als eigene Aufgabe mit Wochenstart | `/basis:tagesstart` (montags `/basis:tagesstart Wochenstart`) und darunter: `Lauf ohne Aufsicht, nichts senden.` |
 | Kontext abgleichen | Projekt des Kontextordners | monatlich am ersten Freitag 10 Uhr, sonst wöchentlich freitags | `/basis:kontext aktualisieren` und darunter: `Lauf ohne Aufsicht. Nur am ersten Freitag im Monat (Tag 1 bis 7): an anderen Tagen nur "Kein Abgleich heute." antworten und enden. Fragen bleiben in wissen/_interview.md, nichts senden.` |
 
-Gibt es in der Session ein Werkzeug für geplante Aufgaben, legt Claude die bestätigten selbst an und nennt Name und Zeit. Sonst stehen sie mit Text und Zeitplan in der Prüfliste. Startet der Befehl in einer Aufgabe den Skill nicht, ersetzt ihn die Zeile `Lies den Skill kontext im Plugin basis und führe den Modus aktualisieren aus.`
+Gibt es in der Session ein Werkzeug für geplante Aufgaben, legt Claude die bestätigten selbst an und nennt Name und Zeit. Sonst stehen sie mit Text und Zeitplan in der Prüfliste. Startet der Befehl in einer Aufgabe den Skill nicht, ersetzt ihn die Zeile `Lies den Skill kontext im Plugin basis und führe den Modus aktualisieren aus.`, beim Tagesstart `Lies den Skill tagesstart im Plugin basis und führe ihn aus.`
 
 ## Prüfliste (`einrichtung/pruefliste.md`)
 
@@ -53,7 +53,8 @@ Erste Zeile `Erzeugt von /basis:einrichten am JJJJ-MM-TT`. Was der Nutzer selbst
 5. Geplante Aufgaben, die Claude nicht selbst anlegen konnte.
 6. Freigaben in macOS, die noch fehlen.
 7. Zusatzprogramme für Kalender und Erinnerungen, wenn `termine_lesen`, `termin_anlegen` oder `erinnerungen_lesen` `EventKit fehlt` oder `icalBuddy fehlt` melden: im Terminal Schritt 1 von `INSTALL.md` des Pakets ab Befehl 3 (Homebrew mit `ical-buddy` und `python@3.12`, dann die `.venv`).
-8. Kontextordner ohne Git: im Terminal `git -C "<Kontextordner>" init -q`, wenn gewünscht.
+8. Motor für Office, wenn der Nutzer ihn in Schritt 4 wollte: im Terminal den Abschnitt Motor für Office aus `INSTALL.md` des Pakets, danach Claude mit Cmd+Q neu starten.
+9. Kontextordner ohne Git: im Terminal `git -C "<Kontextordner>" init -q`, wenn gewünscht.
 
 ## Proben (Schritt 11)
 

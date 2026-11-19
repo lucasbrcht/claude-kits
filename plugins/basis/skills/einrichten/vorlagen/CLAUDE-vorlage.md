@@ -15,6 +15,8 @@ Mein Wissen für den <Bereich>-Alltag liegt in `wissen/`. Vor Aufgaben mit Perso
 
 - Mail, Kalender, Erinnerungen, WhatsApp, iMessage und Notizen laufen über ihre Skills und deren Werkzeuge. Apple-Apps nie per `osascript` oder Skript direkt.
 - "Was hat X geschrieben": im Kanal der Person zuerst (Kanal in der Personendatei), dann Mail.
+- Überblick über alle Kanäle: Skill `/basis:tagesstart`, Bereiche und Fristen dafür im Abschnitt Tagesstart der Instructions.
+- Dokumente nur als Arbeitskopie bearbeiten: Skill `/office:dateien`, Folien und Excel mit `/office:folien` und `/office:excel`.
 
 ## Pflege von `wissen/`
 
@@ -22,4 +24,4 @@ Mein Wissen für den <Bereich>-Alltag liegt in `wissen/`. Vor Aufgaben mit Perso
 - Format: Zeile 2 ist `Stand: JJJJ-MM-TT · Vertraulichkeit: neutral|intern|privat · Pflege: N Tage`. Neue Datei: Zeile im Index oben. Arbeitslisten mit `_` davor stehen nicht im Index.
 - Nie hierher: Zugangsdaten, Kontonummern, Ausweisdaten, Telefonnummern, Adressen, Inhalte fremder Mails und Chats.
 
-<!-- Vorlage des Skills einrichten für die CLAUDE.md im Kontextordner (lädt in Cowork aus dem Projektordner): Zeilen ohne passende Datei streichen (ohne Arbeitskonto arbeit-personen.md, ohne Plugin chat chat_stilprofil), <Bereich> ersetzen, keine absoluten Pfade, keine nur-code-Blöcke. Diesen Kommentar beim Schreiben entfernen. -->
+<!-- Vorlage des Skills einrichten für die CLAUDE.md im Kontextordner (lädt in Cowork aus dem Projektordner): Zeilen ohne passende Datei streichen (ohne Arbeitskonto arbeit-personen.md, ohne Plugin chat chat_stilprofil, ohne Plugin office die Zeile Dokumente), <Bereich> ersetzen, keine absoluten Pfade, keine nur-code-Blöcke. Diesen Kommentar beim Schreiben entfernen. -->
