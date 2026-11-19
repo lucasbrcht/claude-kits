@@ -1,10 +1,10 @@
 {
-  "_hinweis": "Steckbrief des Plugins office, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab). Die Grundstufe (Arbeitskopien, sprache) braucht nur macOS. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "_hinweis": "Steckbrief des Plugins office, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab). Die Grundstufe (Arbeitskopien, sprache) braucht nur macOS. Der Motor (folien_*, excel_*, office_vorschau) braucht python3.12 mit den Paketen in der .venv im Datenordner, LibreOffice (soffice), pdftoppm aus poppler und sandbox-exec. Ohne Motor melden dessen Werkzeuge das, die Grundstufe läuft weiter. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
   "verbote": [],
   "abhaengigkeiten": {
     "connectoren": [],
     "macos": [],
-    "programme": ["open"],
-    "python": {}
+    "programme": ["open", "sandbox-exec", "soffice", "pdftoppm", "fc-list"],
+    "python": {".venv/bin/python3": ["pptx", "openpyxl", "lxml"]}
   }
 }

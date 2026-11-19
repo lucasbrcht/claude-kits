@@ -4,5 +4,20 @@
     "_hinweis": "ablage.py für arbeitskopie, arbeitskopie_uebertragen und sprache. Arbeitskopien von Dokumenten liegen hier je Thema in einem Ordner, nie neben dem Original. privat und arbeit sind je ein Ordner (absolut oder mit ~), fehlt er, legt das erste holen ihn an. Standard im Downloads-Ordner von iCloud Drive, ohne iCloud Drive für Downloads in ~/Downloads (die Einrichtung prüft das). Ohne Arbeit arbeit leer lassen.",
     "privat": "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Claude Personal",
     "arbeit": "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Claude Work"
+  },
+  "motor": {
+    "_hinweis": "Motor für folien_*, excel_* und office_vorschau: Skripte mit python3.12 aus .venv im Datenordner (python-pptx, openpyxl, lxml), LibreOffice und pdftoppm. Alle laufen unter sandbox-exec ohne Netz und schreiben nur in der Ablage, im Zwischenordner (Datenordner/zwischen) und in Temp. gesperrt: weitere Ordner, die der Motor weder lesen noch schreiben darf, absolut oder mit ~, etwa der Kontextordner. Die Datenordner von Mail, Nachrichten, Kalender, Notizen, Erinnerungen, Kontakten, WhatsApp, Schlüsselbund und der anderen Plugins sind immer gesperrt. umgebung ergänzt LibreOffice um FONTCONFIG_FILE (sonst Ersatzschriften). pptx_validate: optional der Pfad zu validate.py aus dem Skill pptx von Anthropic für die XSD-Prüfung, leer lässt sie weg.",
+    "gesperrt": [],
+    "umgebung": {
+      "FONTCONFIG_FILE": "/opt/homebrew/etc/fonts/fonts.conf"
+    },
+    "pptx_validate": ""
+  },
+  "suche": {
+    "_hinweis": "folien_finden sucht ohne ordner in diesen Ordnern nach Decks, absolut oder mit ~, nur vorhandene zählen. Etwa der Ordner mit den Projektunterlagen, der von OneDrive oder SharePoint synchronisierte Ordner und Downloads.",
+    "ordner": [
+      "~/Documents",
+      "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads"
+    ]
   }
 }
