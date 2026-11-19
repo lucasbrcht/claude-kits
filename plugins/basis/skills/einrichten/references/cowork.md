@@ -53,7 +53,7 @@ Erste Zeile `Erzeugt von /basis:einrichten am JJJJ-MM-TT`. Was der Nutzer selbst
 5. Geplante Aufgaben, die Claude nicht selbst anlegen konnte.
 6. Freigaben in macOS, die noch fehlen.
 7. Zusatzprogramme für Kalender und Erinnerungen, wenn `termine_lesen`, `termin_anlegen` oder `erinnerungen_lesen` `EventKit fehlt` oder `icalBuddy fehlt` melden: im Terminal Schritt 1 von `INSTALL.md` des Pakets ab Befehl 3 (Homebrew mit `ical-buddy` und `python@3.12`, dann die `.venv`).
-8. Motor für Office, wenn der Nutzer ihn in Schritt 4 wollte: im Terminal den Abschnitt Motor für Office aus `INSTALL.md` des Pakets, danach Claude mit Cmd+Q neu starten.
+8. Motor für Office, nur wenn er in Schritt 4 fehlte und der Nutzer ihn wollte: im Terminal die drei Befehle aus `ablauf.md` (Abschnitt Dokumente) wörtlich in die Prüfliste, danach Claude mit Cmd+Q neu starten.
 9. Kontextordner ohne Git: im Terminal `git -C "<Kontextordner>" init -q`, wenn gewünscht.
 
 ## Proben (Schritt 11)

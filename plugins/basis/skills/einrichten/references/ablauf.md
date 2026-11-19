@@ -65,7 +65,15 @@ Nur, wenn die Werkzeuge von `office` da sind (`arbeitskopie`). Erst fragen, als 
 - `suche`: `ordner` als Liste, in der `folien_finden` nach Decks sucht. Als Freitext fragen: "Wo liegen deine Präsentationen und Tabellen meistens? Etwa ein Projektordner, der Ordner von OneDrive oder SharePoint, Downloads." Ohne Antwort `~/Documents` und den Downloads-Ordner.
 - `motor`: `gesperrt` mit dem Kontextordner (absolut oder mit `~`), dazu Ordner, die der Nutzer schützen will. `umgebung` mit `FONTCONFIG_FILE` wie in der Vorlage, auf einem Mac mit Intel `/usr/local` statt `/opt/homebrew`. `pptx_validate` leer.
 
-**Motor anbieten.** Ein Satz, was er bringt: bestehende PowerPoint-Decks und Excel-Mappen finden, lesen, ändern, prüfen und als Vorschau zeigen. Er braucht rund 2 GB und 15 Minuten im Terminal (Homebrew, `python@3.12`, `poppler`, LibreOffice, eine `.venv` mit python-pptx, openpyxl und lxml). Bei Ja in die Prüfliste: im Terminal den Abschnitt Motor für Office aus `INSTALL.md` des Pakets. Danach zur Probe `folien_finden` mit einem Suchwort: Meldet es `Motor nicht eingerichtet`, fehlt noch ein Befehl. Bei Nein bleibt die Grundstufe (Arbeitskopien, übertragen, `sprache`), der Motor lässt sich später mit "Dokumente einrichten" nachholen.
+**Motor prüfen, dann anbieten.** Nach dem Schreiben erst `folien_finden` mit einem Suchwort aus dem Gespräch aufrufen. Kommt eine Trefferliste oder "keine Treffer", läuft der Motor schon: das in einem Satz sagen, nichts anbieten, weiter. Nur bei `Motor nicht eingerichtet` anbieten, mit einem Satz, was er bringt: bestehende PowerPoint-Decks und Excel-Mappen finden, lesen, ändern, prüfen und als Vorschau zeigen. Rund 2 GB, etwa 15 Minuten im Terminal. Bei Ja die Befehle unten im Chat als Blöcke zum Kopieren zeigen und in die Prüfliste schreiben, auf einem Mac mit Intel `/usr/local` statt `/opt/homebrew`. Fehlt Homebrew, zuerst dessen Befehl von brew.sh. Danach Claude mit Cmd+Q neu starten und `folien_finden` erneut aufrufen. Bei Nein bleibt die Grundstufe (Arbeitskopien, übertragen, `sprache`), der Motor lässt sich später mit "Dokumente einrichten" nachholen.
+
+```
+/opt/homebrew/bin/brew install python@3.12 poppler && /opt/homebrew/bin/brew install --cask libreoffice
+/opt/homebrew/opt/python@3.12/bin/python3.12 -m venv "$HOME/Library/Application Support/Claude Kits/office/.venv"
+"$HOME/Library/Application Support/Claude Kits/office/.venv/bin/pip" install python-pptx openpyxl lxml
+```
+
+Schon vorhandene Programme überspringt `brew` von selbst. Meldet `folien_finden` danach weiter `Motor nicht eingerichtet`, nennt die Meldung den Pfad, der fehlt.
 
 ## Personen (Schritt 5)
 
