@@ -2,7 +2,7 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
-## v8.0.0 (noch nicht getaggt)
+## v8.0.0 (19.11.2026)
 
 `office` 8.0.0 (neu), `apple` 8.0.0, `basis` 8.0.0, `chat` 7.0.2 (Beschreibungen der Skills), `pflege` 7.1.1 (`paket.py` kennt `office`), `service` bleibt 7.1.0.
 
