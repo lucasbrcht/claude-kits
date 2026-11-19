@@ -1,7 +1,7 @@
 """Gemeinsame Bausteine der Skripte: config.json laden, Steuerzeichen entfernen, Nummern maskieren,
 Datenhinweis, feste Textdatei im Plugin, schreibende Schalter nur direkt hinter dem Skript, Fehlerprotokoll.
 
-Die Datei liegt gleich in den Plugins apple und chat (und im Plugin arbeit des work-kit): Plugins rufen einander nie
+Die Datei liegt gleich in den Plugins apple, chat und office: Plugins rufen einander nie
 über Python-Importe auf, deshalb eine Kopie je Plugin, und paket.py --pruefen prüft den Gleichstand. Ändern nur
 zusammen, die Tests in tests/test_kit_basis.py ebenso. Nur Standardbibliothek, läuft auch mit dem System-Python 3.9.
 """

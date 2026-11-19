@@ -71,7 +71,7 @@ PLATZHALTER_RE = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
 PERSOENLICH_ENDUNGEN = (".md", ".json", ".txt", ".py", ".sh", ".html")
 SKILL_KB = 8
 # Liegen gleich in apple, chat und office und als Kopie in Plugins eigener Marketplaces (eigene_plugins der
-# Einrichtung, etwa arbeit im work-kit), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz
+# Einrichtung), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz
 # lesen kann.
 GLEICHE_PLUGINS = ("apple", "chat", "office")
 GLEICHE_DATEIEN = ("kit_basis.py", "mcp_basis.py", "tests/test_kit_basis.py", "tests/test_mcp_basis.py")
@@ -434,8 +434,8 @@ def skill_pruefung() -> list:
 
 def kopien_eigener_plugins(cfg: dict) -> tuple:
     """([(Name, Ordner)], [Meldungen]): Plugins der eigenen Marketplaces aus der Einrichtung mit einer Kopie von
-    kit_basis.py oder mcp_basis.py (etwa arbeit im work-kit). Ist ein Marketplace nicht lesbar (in der Privat-Instanz
-    ist das work-kit gesperrt), eine INFO statt eines Abbruchs."""
+    kit_basis.py oder mcp_basis.py. Ist ein Marketplace nicht lesbar (etwa für die andere Instanz gesperrt), eine
+    INFO statt eines Abbruchs."""
     orte, msgs = [], []
     for markt, ordner in (cfg.get("eigene_plugins") or {}).items() if isinstance(cfg.get("eigene_plugins"), dict) else []:
         try:
@@ -465,8 +465,7 @@ def gleichstand_pruefung(cfg: dict = None) -> list:
         if len(set(stand.values())) > 1:
             fehler.append(("FEHLER", f"{datei} ist nicht überall gleich ({', '.join(stand)}), nur zusammen ändern"))
     if not fremd and not msgs:
-        msgs.append(("INFO", "Gleiche Dateien nur im Paket verglichen: keine eigenen Plugins in dieser Einrichtung "
-                             "(die Kopie in arbeit vergleicht die Arbeits-Instanz)"))
+        msgs.append(("INFO", "Gleiche Dateien nur im Paket verglichen: keine eigenen Plugins in dieser Einrichtung"))
     stellen = ", ".join(name for name, _o in orte)
     return fehler + msgs if fehler else [("OK", f"Gleiche Dateien (kit_basis.py, mcp_basis.py samt Tests) sind gleich in "
                                                 f"{stellen}")] + msgs
