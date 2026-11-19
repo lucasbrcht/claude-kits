@@ -1,6 +1,6 @@
-"""Doku-Test: Jedes Werkzeug der Server apple und chat steht in genau einer Werkzeugtabelle eines Skills im Paket, mit
-der Stufe aus server.py. Tabellen haben die Kopfzeile | Werkzeug | Zweck | Stufe |, die Stufe nachfrage heißt dort
-fragt. Liegt gleich in apple und chat, jedes Plugin prüft seine eigenen Werkzeuge und alle Tabellen.
+"""Doku-Test: Jedes Werkzeug der Server apple, chat und office steht in genau einer Werkzeugtabelle eines Skills im
+Paket, mit der Stufe aus server.py. Tabellen haben die Kopfzeile | Werkzeug | Zweck | Stufe |, die Stufe nachfrage heißt
+dort fragt. Liegt gleich in apple, chat und office, jedes Plugin prüft seine eigenen Werkzeuge und alle Tabellen.
 
 Aufruf im Plugin-Ordner: python3 -B -m unittest discover tests
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 PLUGIN = Path(__file__).resolve().parent.parent
 PLUGINS = PLUGIN.parent
-SERVER_PLUGINS = ("apple", "chat")
+SERVER_PLUGINS = ("apple", "chat", "office")
 KOPF = ("werkzeug", "zweck", "stufe")
 STUFE_IN_TABELLE = {"lesen": "lesen", "schreiben": "schreiben", "fragt": "nachfrage"}
 NAME_RE = re.compile(r"^`([a-z][a-z0-9_]*)`$")

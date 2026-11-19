@@ -1,0 +1,10 @@
+{
+  "_hinweis": "Steckbrief des Plugins office, nicht im ZIP. paket.py liest nur verbote (Sperren im Code-Tab). Die Grundstufe (Arbeitskopien, sprache) braucht nur macOS. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [],
+  "abhaengigkeiten": {
+    "connectoren": [],
+    "macos": [],
+    "programme": ["open"],
+    "python": {}
+  }
+}

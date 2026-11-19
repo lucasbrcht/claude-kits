@@ -1,0 +1,9 @@
+{
+  "name": "office",
+  "displayName": "Office",
+  "version": "8.0.0",
+  "description": "Dokumente bearbeiten, ohne das Original anzufassen: Arbeitskopie je Thema in der Ablage holen, zeigen und auf ausdrückliches übertragen zurück ins Original schreiben (auch SharePoint und OneDrive), Sprache von PowerPoint und Word prüfen und setzen. Nie löschen. Ein lokaler MCP-Server am Mac, in Cowork und im Code-Tab. Übertragen ins Original fragt mit einem Dialog am Mac.",
+  "author": {
+    "name": "Lucas Bracht"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_hinweis": "Vorlage für config.json im Datenordner ~/Library/Application Support/Claude Kits/office/: kopieren nach config.json und die Werte prüfen. config.json ist persönlich und steht nicht im Git. Ein Abschnitt je Bereich, die Skripte lesen nur ihren. Optional ganz oben mcp_nur_lesen: true oder eine Liste von Instanzen wie [\"arbeit\"], dann bietet der Server dort nur Werkzeuge zum Lesen an. In Cowork schreibt die Einrichtung die Abschnitte mit dem Werkzeug einstellungen_schreiben des Plugins apple (plugin office). Fehlt ablage beim ersten Start, übernimmt der Server den Abschnitt aus der config.json von apple (Umzug aus 7.3).",
+  "ablage": {
+    "_hinweis": "ablage.py für arbeitskopie, arbeitskopie_uebertragen und sprache. Arbeitskopien von Dokumenten liegen hier je Thema in einem Ordner, nie neben dem Original. privat und arbeit sind je ein Ordner (absolut oder mit ~), fehlt er, legt das erste holen ihn an. Standard im Downloads-Ordner von iCloud Drive, ohne iCloud Drive für Downloads in ~/Downloads (die Einrichtung prüft das). Ohne Arbeit arbeit leer lassen.",
+    "privat": "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Claude Personal",
+    "arbeit": "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Claude Work"
+  }
+}

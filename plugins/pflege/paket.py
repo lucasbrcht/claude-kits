@@ -8,8 +8,8 @@ für den Upload.
 
   python3 paket.py                 Trockenlauf: was sich in settings.json und CLAUDE.md der Instanz ändert
   python3 paket.py --apply         schreibt beides (im Terminal, der Auto-Modus lässt es aus der Session nicht zu)
-  python3 paket.py --pruefen       Skills, gleiche Dateien in den Plugins, SICHERHEIT.md, Doku-Tests von apple und
-                                   chat, Persönliches in versionierten Dateien
+  python3 paket.py --pruefen       Skills, gleiche Dateien in den Plugins, SICHERHEIT.md, Doku-Tests von apple, chat
+                                   und office, Persönliches in versionierten Dateien
   python3 paket.py --zips ORDNER   je Plugin <name>-<version>.zip aus dem letzten Commit, ohne tests/, kit.json und
                                    was .gitattributes des Plugins mit export-ignore ausnimmt (eigene Plugins dazu)
   python3 paket.py --instructions  Text für Instructions for Claude: Profil ohne nur-code-Teile nach
@@ -70,14 +70,15 @@ MAIL_BEISPIEL = ("example.org", "example.com", "example.net", "example.invalid",
 PLATZHALTER_RE = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
 PERSOENLICH_ENDUNGEN = (".md", ".json", ".txt", ".py", ".sh", ".html")
 SKILL_KB = 8
-# Liegen gleich in apple und chat und als Kopie in Plugins eigener Marketplaces (eigene_plugins der Einrichtung, etwa
-# arbeit im work-kit), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz lesen kann.
-GLEICHE_PLUGINS = ("apple", "chat")
+# Liegen gleich in apple, chat und office und als Kopie in Plugins eigener Marketplaces (eigene_plugins der
+# Einrichtung, etwa arbeit im work-kit), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz
+# lesen kann.
+GLEICHE_PLUGINS = ("apple", "chat", "office")
 GLEICHE_DATEIEN = ("kit_basis.py", "mcp_basis.py", "tests/test_kit_basis.py", "tests/test_mcp_basis.py")
 # Gefahren und Gegenmaßnahmen im Hauptordner. Jedes Werkzeug der Stufe nachfrage aus den Plugins mit Server steht dort,
 # deren Doku-Test (tests/test_doku.py: jedes Werkzeug in genau einer Werkzeugtabelle) läuft bei --pruefen mit.
 SICHERHEIT = "SICHERHEIT.md"
-SERVER_PLUGINS = ("apple", "chat")
+SERVER_PLUGINS = ("apple", "chat", "office")
 DOKU_TEST = "tests/test_doku.py"
 DOKU_ZEIT = 120
 
@@ -448,7 +449,8 @@ def kopien_eigener_plugins(cfg: dict) -> tuple:
 
 
 def gleichstand_pruefung(cfg: dict = None) -> list:
-    """Gleiche Dateien in apple und chat und in den Kopien eigener Plugins (Pfad aus eigene_plugins der Einrichtung).
+    """Gleiche Dateien in apple, chat und office und in den Kopien eigener Plugins (Pfad aus eigene_plugins der
+    Einrichtung).
     Eine Datei, die eine Kopie nicht hat, zählt dort nicht, eine abweichende ist ein FEHLER."""
     if cfg is None:
         try:
@@ -456,7 +458,7 @@ def gleichstand_pruefung(cfg: dict = None) -> list:
         except KitFehler:
             cfg = {}
     fremd, msgs = kopien_eigener_plugins(cfg if isinstance(cfg, dict) else {})
-    orte = [(pl, PLUGINS / pl) for pl in GLEICHE_PLUGINS] + fremd
+    orte = [(pl, PLUGINS / pl) for pl in GLEICHE_PLUGINS if (PLUGINS / pl).is_dir()] + fremd
     fehler = []
     for datei in GLEICHE_DATEIEN:
         stand = {name: (ort / datei).read_bytes() for name, ort in orte if (ort / datei).is_file()}
@@ -482,8 +484,8 @@ def werkzeuge_mit_stufe(server_py: Path) -> dict:
 
 
 def sicherheit_pruefung() -> list:
-    """SICHERHEIT.md im Hauptordner vorhanden und jedes Werkzeug der Stufe nachfrage aus apple und chat darin genannt
-    (in Backticks)."""
+    """SICHERHEIT.md im Hauptordner vorhanden und jedes Werkzeug der Stufe nachfrage aus apple, chat und office darin
+    genannt (in Backticks)."""
     datei = PAKET / SICHERHEIT
     if not datei.is_file():
         return [("FEHLER", f"{SICHERHEIT} fehlt im Hauptordner (Gefahren und Gegenmaßnahmen je Werkzeug)")]

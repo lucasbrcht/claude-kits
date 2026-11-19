@@ -16,8 +16,9 @@ Apple Notizen und Kontakte über die Werkzeuge des MCP-Servers `apple`. Sie lauf
 | `notiz_ergaenzen` | Text an eine eigene Notiz anfügen, unten oder unter dem Titel | schreiben |
 | `notiz_geteilt` | in einem geteilten Ordner anlegen, ersetzen oder ergänzen | fragt |
 | `kontakte` | Apple Kontakte: suchen, Eintrag ganz, eigene Karte | lesen |
+| `pdf_aus_html` | HTML-Datei aus `pdf.ordner` als PDF drucken, A4 hoch oder `quer`, fremdes PDF nur mit `ersetzen` | schreiben |
 
-Dokumente, Arbeitskopien und PDF aus HTML (`pdf_aus_html`) stehen im Skill `dateien` des Plugins `basis`.
+Dokumente, Arbeitskopien und die Regeln für PDF aus HTML stehen im Skill `dateien` des Plugins `office`.
 
 ## Grundregeln
 

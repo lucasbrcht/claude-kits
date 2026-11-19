@@ -8,12 +8,17 @@
     {
       "name": "basis",
       "source": "./plugins/basis",
-      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Arbeitskopien von Dokumenten, Rückmeldungen"
+      "description": "Für alle: Einrichtung im Gespräch, Kontext merken und abgleichen, Rückmeldungen"
     },
     {
       "name": "apple",
       "source": "./plugins/apple",
-      "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte, PDF aus HTML und Arbeitskopien, ein lokaler Server am Mac"
+      "description": "Apple Mail, Kalender, Notizen, Erinnerungen und Kontakte, PDF aus HTML, ein lokaler Server am Mac"
+    },
+    {
+      "name": "office",
+      "source": "./plugins/office",
+      "description": "Dokumente in Arbeitskopien bearbeiten, zurück ins Original auf ausdrückliches übertragen, Sprache von Folien prüfen, ein lokaler Server am Mac"
     },
     {
       "name": "chat",

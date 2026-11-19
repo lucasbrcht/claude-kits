@@ -1,8 +1,8 @@
-"""Tests für ablage.py: Arbeitskopie holen, Themen wiederverwenden, Herkunft im Datenordner, Übertragen in dieselbe
-Originaldatei mit Stand-Schutz, Pfade aus Cowork und die Grenzen von zeigen. Alles in einem Temp-Ordner, der Heimordner
-ist dort ersetzt.
+"""Tests für ablage.py (bis 7.3 in apple): Arbeitskopie holen, Themen wiederverwenden, Herkunft im Datenordner,
+Übertragen in dieselbe Originaldatei mit Stand-Schutz, Pfade aus Cowork, die Grenzen von zeigen und ablage_datei für
+sprache.py. Alles in einem Temp-Ordner, der Heimordner ist dort ersetzt.
 
-Aufruf im Kit-Ordner: python3 -B -m unittest discover tests
+Aufruf im Plugin-Ordner: python3 -B -m unittest discover tests
 """
 import contextlib
 import io
@@ -33,8 +33,7 @@ class AblageTest(unittest.TestCase):
         self.original = self.sharepoint / "Pitch.pptx"
         self.original.write_bytes(b"PK original")
         self.cfg = {"ablage": {"privat": str(self.downloads / "Claude Personal"),
-                               "arbeit": str(self.downloads / "Claude Work")},
-                    "pdf": {"ordner": [str(self.downloads)]}}
+                               "arbeit": str(self.downloads / "Claude Work")}}
         (self.daten / "config.json").write_text(json.dumps(self.cfg))
         self.geoeffnet = self.daten / "geoeffnet.txt"
         programm = Path(tmp.name) / "oeffnen.sh"
@@ -217,26 +216,39 @@ class AblageTest(unittest.TestCase):
         out, _ = self.lauf("herkunft", "--bereich=arbeit", "--thema=Pitch Q4", "--", "Pitch.pptx")
         self.assertIn(f"Original: {self.original}", out)
 
-    def test_zeigen_nur_in_ablage_und_pdf_ordner(self):
+    def test_zeigen_nur_in_ablage(self):
         self.holen()
         out, fehler = self.lauf("zeigen", "--bereich=arbeit", "--thema=Pitch Q4", "--", "Pitch.pptx")
         self.assertIsNone(fehler)
         self.assertEqual(self.geoeffnet.read_text().strip().split("|"), [str(self.kopie)])
-        pdf = self.downloads / "Bericht.pdf"
+        pdf = self.kopie.parent / "Bericht.pdf"
         pdf.write_bytes(b"%PDF-")
         self.assertIsNone(self.lauf("zeigen", "--finder", "--", str(pdf))[1])
         self.assertEqual(self.geoeffnet.read_text().splitlines()[-1].split("|"), ["-R", str(pdf)])
-        html = self.downloads / "seite.html"
+        html = self.kopie.parent / "seite.html"
         html.write_text("<script></script>")
         self.lauf("zeigen", "--", str(html))
         self.assertEqual(self.geoeffnet.read_text().splitlines()[-1].split("|"), ["-R", str(html)])  # nur im Finder
         self.assertIn("Zeigen nur", str(self.lauf("zeigen", "--", str(self.original))[1]))
-        verweis = self.downloads / "v.pdf"
+        neben = self.downloads / "Bericht.pdf"  # 8.0: pdf.ordner von apple zählt nicht mehr, nur die Ablage
+        neben.write_bytes(b"%PDF-")
+        self.assertIn("Zeigen nur in der Ablage", str(self.lauf("zeigen", "--", str(neben))[1]))
+        verweis = self.kopie.parent / "v.pdf"
         verweis.symlink_to(self.original)
         self.assertIn("Verweis", str(self.lauf("zeigen", "--", str(verweis))[1]))
 
+    def test_ablage_datei_fuer_andere_skripte(self):
+        self.holen()
+        cfg = ablage.config()
+        self.assertEqual(ablage.ablage_datei(cfg, "arbeit", "Pitch Q4", "Pitch.pptx"), self.kopie)
+        self.assertEqual(ablage.ablage_datei(cfg, "", "", str(self.kopie)), self.kopie.resolve())
+        with self.assertRaisesRegex(SystemExit, "Nur Arbeitskopien in der Ablage"):
+            ablage.ablage_datei(cfg, "", "", str(self.original))
+        with self.assertRaisesRegex(SystemExit, "keine Datei"):
+            ablage.ablage_datei(cfg, "", "", str(self.kopie.parent))
+
     def test_ohne_abschnitt_ablage(self):
-        (self.daten / "config.json").write_text(json.dumps({"pdf": self.cfg["pdf"]}))
+        (self.daten / "config.json").write_text(json.dumps({"motor": {}}))
         self.assertIn("Abschnitt ablage", str(self.holen()[1]))
 
 

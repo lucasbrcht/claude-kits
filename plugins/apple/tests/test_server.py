@@ -18,16 +18,16 @@ import server  # noqa: E402
 
 # Werkzeuge aller Server des Pakets zusammen (Tokenlast). 7.0: 31 mit einstellungen und einstellungen_schreiben,
 # 7.3: 34 mit arbeitskopie und arbeitskopie_uebertragen (Entscheidung des Betreuers vom 18.11.2026),
-# 7.3 36 mit notiz_ergaenzen und erinnerung_aendern, Entscheidung des Betreuers vom 18.11.2026
-GRENZE_ALLE_SERVER = 36
+# 7.3 36 mit notiz_ergaenzen und erinnerung_aendern, Entscheidung des Betreuers vom 18.11.2026,
+# 8.0: 34, die Arbeitskopien ziehen ins Plugin office mit eigener Grenze (Plan 8.0)
+GRENZE_ALLE_SERVER = 34
 # Je Skript, was nur ein Werkzeug der Stufe nachfrage übergeben darf: senden, Arbeitskalender, Termine mit Teilnehmern,
 # geteilte Notizordner. Verwerfen gibt es gar nicht. Eigene Termine, Entwürfe auch mit Anhang und eigene Notizen
 # bleiben im eigenen Account und brauchen keine (Zusatzrunde V6 Phase 6)
 VERBOTEN_OHNE_NACHFRAGE = {"mail.py": ("send", "--yes", "discard"), "add_event.py": ("--exchange",),
                            "move_event.py": ("--exchange", "--mit-teilnehmern"), "notiz.py": ("--ausfuehren",),
-                           "pdf.py": ("--ersetzen",), "ablage.py": ("--ausfuehren",)}
-NACHFRAGE = {"mail_senden", "termin_mit_nachfrage", "notiz_geteilt", "einstellungen_schreiben",
-             "arbeitskopie_uebertragen"}
+                           "pdf.py": ("--ersetzen",)}
+NACHFRAGE = {"mail_senden", "termin_mit_nachfrage", "notiz_geteilt", "einstellungen_schreiben"}
 
 
 class Aufnahme:
@@ -225,9 +225,7 @@ class Argumente(unittest.TestCase):
             "notiz_ersetzen": {"titel": "x", "inhalt": "y", "ordner": "z", "stand": "--ausfuehren"},
             "notiz_ergaenzen": {"titel": "x", "inhalt": "y", "ordner": "--ausfuehren", "stand": "2026-11-18 10:00:00"},
             "kontakte": {"suche": "x"},
-            "pdf_aus_html": {"pfad": "--ersetzen", "name": "--ersetzen", "quer": True}, "einstellungen": {},
-            "arbeitskopie": {"aktion": "holen", "bereich": "arbeit", "thema": "--ausfuehren", "pfad": "--ausfuehren",
-                             "neu": True}}
+            "pdf_aus_html": {"pfad": "--ersetzen", "name": "--ersetzen", "quer": True}, "einstellungen": {}}
         with tempfile.TemporaryDirectory() as t, mock.patch.dict(os.environ, {mb.UMGEBUNG: t}):
             for w in server.WERKZEUGE:
                 if w.stufe == "nachfrage":
@@ -256,54 +254,12 @@ class Argumente(unittest.TestCase):
         self.assertEqual(server.pdf_vorschau({"pfad": "/x/Ordner/a.html", "name": "B"}),
                          "PDF: B.pdf\nOrdner: Ordner\nAus: a.html\nErsetzt ein PDF, das nicht von Claude stammt")
 
-    def test_arbeitskopie(self):
-        self.assertEqual(self.rufe("arbeitskopie", {"aktion": "liste"})[2][:2], ("ablage.py", ["liste"]))
-        self.assertEqual(self.rufe("arbeitskopie", {"aktion": "holen", "bereich": "privat", "thema": "Reise",
-                                                    "pfad": "/sessions/a/mnt/Docs/x.docx"})[2][1],
-                         ["holen", "--bereich=privat", "--thema=Reise", "--", "/sessions/a/mnt/Docs/x.docx"])
-        self.assertEqual(self.rufe("arbeitskopie", {"aktion": "zeigen", "bereich": "arbeit", "thema": "T",
-                                                    "datei": "a.pptx", "finder": True})[2][1],
-                         ["zeigen", "--finder", "--bereich=arbeit", "--thema=T", "--", "a.pptx"])
-        self.assertEqual(self.rufe("arbeitskopie", {"aktion": "zeigen", "pfad": "/x/a.pdf"})[2][1],
-                         ["zeigen", "--", "/x/a.pdf"])
-        for falsch in ({"aktion": "holen", "bereich": "arbeit", "thema": "T"},
-                       {"aktion": "holen", "bereich": "firma", "thema": "T", "pfad": "/x"},
-                       {"aktion": "uebertragen"}):
-            self.assertTrue(self.rufe("arbeitskopie", falsch)[0], falsch)
-        _f, _a, (skript, argv, _) = self.rufe("arbeitskopie_uebertragen",
-                                              {"bereich": "arbeit", "thema": "T", "datei": "a.pptx"})
-        self.assertEqual(argv, ["--ausfuehren", "uebertragen", "--bereich=arbeit", "--thema=T", "--", "a.pptx"])
-
-    def test_uebertragen_ohne_dialog_nie(self):
-        with mock.patch.dict(os.environ, {"KITS_DIALOG": "nein"}):
-            fehler, aus, aufruf = self.rufe("arbeitskopie_uebertragen",
-                                            {"bereich": "arbeit", "thema": "T", "datei": "a.pptx"})
-        self.assertTrue(fehler)
-        self.assertNotIn("--ausfuehren", [a for _s, argv, _t in self.auf.aufrufe for a in argv])
-        self.assertIn("Nicht ausgeführt", aus)
-
-    def test_uebertragen_vorschau(self):
-        with mock.patch.object(server, "lauf", lambda *a, **k: (0, "Arbeitskopie: /a/T/a.pptx\n"
-                                                                     "Original: /cloud/Team/Vertrieb/a.pptx")):
-            text = server.uebertragen_vorschau({"bereich": "arbeit", "thema": "T", "datei": "a.pptx"})
-        self.assertEqual(text, "Datei: a.pptx\nNach: Vertrieb\nThema: T\nErsetzt den Inhalt des Originals, andere sehen es")
-
-    def test_uebertragen_vorschau_geteilter_ordner(self):
-        args = {"bereich": "arbeit", "thema": "T", "datei": "a.pptx"}
-        for original in ("/Users/x/Library/CloudStorage/OneDrive-Firma/Team/a.pptx",
-                         "/Users/x/Library/CloudStorage/SharePoint-Bibliothek/Team/a.pptx",
-                         "/Users/x/OneDrive - Firma/Team/a.pptx"):
-            with self.subTest(original=original), mock.patch.object(
-                    server, "lauf", lambda *a, o=original, **k: (0, f"Arbeitskopie: /a/T/a.pptx\nOriginal: {o}")):
-                text = server.uebertragen_vorschau(args)
-            self.assertEqual(text.splitlines()[-1], "Achtung: Shared Folder")
-            self.assertIn("Nach: Team", text)
-        for original in ("/Users/x/Library/Mobile Documents/com~apple~CloudDocs/Team/a.pptx", "/Users/x/Dokumente/a.pptx"):
-            with self.subTest(original=original), mock.patch.object(
-                    server, "lauf", lambda *a, o=original, **k: (0, f"Arbeitskopie: /a/T/a.pptx\nOriginal: {o}")):
-                self.assertNotIn("Shared Folder", server.uebertragen_vorschau(args))
-        with mock.patch.object(server, "lauf", lambda *a, **k: (1, "")):
-            self.assertNotIn("Shared Folder", server.uebertragen_vorschau(args))
+    def test_arbeitskopien_im_plugin_office(self):
+        """8.0: arbeitskopie und arbeitskopie_uebertragen samt ablage.py liegen im Plugin office."""
+        namen = {w.name for w in server.WERKZEUGE}
+        self.assertFalse({"arbeitskopie", "arbeitskopie_uebertragen"} & namen)
+        self.assertFalse((PLUGIN / "ablage.py").exists())
+        self.assertTrue(self.rufe("arbeitskopie", {"aktion": "liste"})[0])
 
     def fremdes_pdf(self, dialog: str, args: dict) -> tuple:
         """pdf.py meldet beim ersten Lauf ein fremdes PDF am Ziel (Exit-Code 3)."""
@@ -352,7 +308,22 @@ class Einrichtung(unittest.TestCase):
 
     def test_vorlage_hat_alle_abschnitte(self):
         self.assertEqual([k for k in server.vorlage() if not k.startswith("_")],
-                         ["mail", "kalender", "notizen", "reminders", "kontakte", "pdf", "ablage"])
+                         ["mail", "kalender", "notizen", "reminders", "kontakte", "pdf"])
+
+    def test_office_ueber_einstellungen(self):
+        """8.0: Die Einrichtung schreibt ablage in die config.json von office, mit dem Downloads-Ordner als Hilfe."""
+        office = self.ordner / "office"
+        with mock.patch.object(mb, "datenordner_pfad", lambda plugin: office if plugin == "office" else self.ordner):
+            fehler, aus = self.rufe("einstellungen_schreiben",
+                                    {"plugin": "office", "werte": {"ablage": {"privat": "~/Downloads/Claude Personal"}}})
+            self.assertFalse(fehler, aus)
+            self.assertEqual(json.loads((office / "config.json").read_text())["ablage"]["privat"],
+                             "~/Downloads/Claude Personal")
+            fehler, aus = self.rufe("einstellungen", {"plugin": "office"})
+        self.assertFalse(fehler)
+        self.assertIn("Downloads-Ordner für ablage", aus)
+        self.assertIn("Downloads-Ordner für pdf", self.rufe("einstellungen", {})[1])
+        self.assertIn("gibt es nicht", self.rufe("einstellungen_schreiben", {"werte": {"ablage": {}}})[1])
 
     def test_schreiben_nur_nach_vorlage_und_dialog(self):
         fehler, aus = self.rufe("einstellungen_schreiben", {"werte": {"kalender": {"default_calendar": "Privat"}}})

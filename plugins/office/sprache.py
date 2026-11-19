@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Sprache aller Textstellen einer .pptx (oder .docx) prüfen und auf eine Sprache setzen. Pflichtschritt vor jeder
-Übergabe einer Arbeitskopie, damit die Rechtschreibprüfung in PowerPoint und Word nicht halb Englisch prüft.
+"""Sprache aller Textstellen einer .pptx (oder .docx) prüfen und auf eine Sprache setzen, für das Werkzeug sprache des
+Plugins office (bis 7.3 ein Skript im Skill dateien von basis). Pflichtschritt vor jeder Übergabe einer Arbeitskopie,
+damit die Rechtschreibprüfung in PowerPoint und Word nicht halb Englisch prüft.
 
-Aufruf:
-  python3 sprache.py <datei.pptx|datei.docx> [--sprache=de-DE] [--pruefen]
+Aufruf (für den Server):
+  sprache.py [--sprache=de-DE] [--pruefen] --bereich=B --thema=T -- <Datei im Thema>
+  sprache.py [--sprache=de-DE] [--pruefen] -- <Pfad am Mac oder aus Cowork>
 
-Ohne --sprache gilt die Sprache der Präsentation: die häufigste unter den Textstellen der Folien (bei .docx im
-Haupttext), sonst die Vorgabe der Präsentation. --pruefen zeigt nur, was abweicht, und ändert nichts.
+Nur Arbeitskopien unter den Ordnern aus ablage der config.json (ablage.ablage_datei), keine Verweise. Ohne --sprache
+gilt die Sprache der Präsentation: die häufigste unter den Textstellen der Folien (bei .docx im Haupttext), sonst die
+Vorgabe der Präsentation. --pruefen zeigt nur, was abweicht, und ändert nichts.
 
 .pptx: lang an allen Textstellen (a:rPr, a:endParaRPr, a:defRPr) in Folien, Notizen, Layouts, Mastern, Diagrammen und
 der Vorgabe defaultTextStyle in presentation.xml. Fehlt lang an einer Vorgabe (a:defRPr in presentation.xml und den
 Mastern), ergänzt das Skript es. .docx: w:val von w:lang in Text, Formatvorlagen, Kopf- und Fußzeilen.
 
 Geschrieben wird nur bei Änderungen, erst in eine versteckte Temp-Datei daneben, dann in einem Schritt ersetzt.
-Nur Standardbibliothek, läuft in der Sandbox von Cowork und am Mac. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch.
+Nur Standardbibliothek, läuft auch mit dem System-Python 3.9. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch.
 """
 import argparse
 import collections
@@ -22,6 +25,9 @@ import re
 import sys
 import zipfile
 from pathlib import Path
+
+import ablage  # Ablage-Ordner und Pfade aus Cowork, im selben Plugin
+import kit_basis  # Fehlerprotokoll, gleich in apple, chat und office
 
 SPRACHE_RE = re.compile(r"[a-z]{2,3}(-[A-Za-z]{2,4})?(-[A-Z]{2})?")
 PPTX_TEIL = re.compile(r"ppt/(slides|notesSlides|slideLayouts|slideMasters|notesMasters|handoutMasters|charts|"
@@ -136,12 +142,23 @@ def schreiben(pfad: Path, infos: list, inhalt: dict) -> None:
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description="Sprache aller Textstellen einer .pptx oder .docx setzen.")
-    p.add_argument("datei")
-    p.add_argument("--sprache", default="", help="etwa de-DE oder en-US, Standard die Sprache der Präsentation")
-    p.add_argument("--pruefen", action="store_true", help="nur zeigen, nichts ändern")
-    a = p.parse_args(argv)
-    pfad = Path(a.datei).expanduser()
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] and argv[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return
+    p = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    p.add_argument("--sprache", default="")
+    p.add_argument("--pruefen", action="store_true")
+    p.add_argument("--bereich", default="")
+    p.add_argument("--thema", default="")
+    # Die Datei steht immer hinter --, ein - vorn im Namen gilt so nie als Schalter
+    if "--" not in argv or len(argv) - argv.index("--") != 2:
+        fehler(f"Hinter -- genau eine Datei. {ablage.FOLGE}", 2)
+    try:
+        a = p.parse_args(argv[:argv.index("--")])
+    except SystemExit:
+        fehler(__doc__, 2)
+    pfad = ablage.ablage_datei(ablage.config(), a.bereich, a.thema, argv[-1])
     art, infos, inhalt = teile_lesen(pfad)
     ziel = a.sprache.strip() or haeufigste(art, inhalt)
     if not ziel:
@@ -173,4 +190,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    kit_basis.starten(main, __file__)

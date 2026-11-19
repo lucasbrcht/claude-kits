@@ -1,19 +1,24 @@
-"""Tests für skills/dateien/scripts/sprache.py: Sprache der Präsentation erkennen, lang an allen Textstellen setzen,
-Vorgaben ergänzen, --pruefen ändert nichts, .docx mit w:lang. Kleine Office-Dateien entstehen im Temp-Ordner.
+"""Tests für sprache.py (bis 7.3 im Skill dateien von basis): Sprache der Präsentation erkennen, lang an allen
+Textstellen setzen, Vorgaben ergänzen, --pruefen ändert nichts, .docx mit w:lang, nur Dateien in der Ablage. Kleine
+Office-Dateien entstehen in einem Themen-Ordner der Ablage im Temp-Ordner.
 
 Aufruf im Plugin-Ordner: python3 -B -m unittest discover tests
 """
 import contextlib
 import io
+import json
+import os
 import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 PLUGIN = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PLUGIN / "skills" / "dateien" / "scripts"))
+sys.path.insert(0, str(PLUGIN))
 
+import ablage  # noqa: E402
 import sprache  # noqa: E402
 
 FOLIE = ('<p:sld xmlns:a="a" xmlns:p="p"><p:txBody><a:p><a:r><a:rPr lang="{a}" dirty="0"/><a:t>Hallo</a:t></a:r>'
@@ -30,7 +35,18 @@ class SpracheTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.ordner = Path(tmp.name)
+        wurzel = Path(tmp.name).resolve()
+        self.heim, self.daten = wurzel / "heim", wurzel / "daten"
+        self.ordner = self.heim / "Downloads" / "Claude Work" / "Pitch Q4"
+        for o in (self.ordner, self.daten, self.heim / "Documents"):
+            o.mkdir(parents=True)
+        (self.daten / "config.json").write_text(json.dumps(
+            {"ablage": {"privat": "", "arbeit": str(self.heim / "Downloads" / "Claude Work")}}))
+        for p in (mock.patch.object(ablage, "CONFIG_PATH", self.daten / "config.json"),
+                  mock.patch.object(ablage, "DATEN_DIR", self.daten), mock.patch.object(ablage, "HEIM", self.heim),
+                  mock.patch.dict(os.environ, {"KITS_FEHLERPROTOKOLL": "aus"})):
+            p.start()
+            self.addCleanup(p.stop)
 
     def pptx(self, folien) -> Path:
         pfad = self.ordner / "Pitch.pptx"
@@ -44,13 +60,18 @@ class SpracheTest(unittest.TestCase):
             z.writestr("ppt/media/bild.png", b"\x89PNG lang=\"en-US\"", compress_type=zipfile.ZIP_STORED)
         return pfad
 
-    def lauf(self, *argv):
+    def lauf(self, datei, *schalter):
+        """(Ausgabe, Exit-Code) für sprache.py [schalter] -- datei. Ein Abbruch mit Text zählt wie bei Python als 1."""
+        return self.aufruf(*schalter, "--", datei)
+
+    def aufruf(self, *argv):
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
                 sprache.main(list(argv))
             except SystemExit as e:
-                return out.getvalue() + err.getvalue(), e.code
+                code = e.code if isinstance(e.code, int) else 1
+                return out.getvalue() + err.getvalue() + ("" if isinstance(e.code, int) else str(e.code)), code
         return out.getvalue(), 0
 
     def teil(self, pfad, name) -> str:
@@ -115,6 +136,26 @@ class SpracheTest(unittest.TestCase):
         kaputt.write_bytes(b"kein zip")
         self.assertEqual(self.lauf(str(kaputt))[1], 1)
         self.assertEqual(self.lauf(str(self.ordner / "fehlt.pptx"))[1], 1)
+
+    def test_nur_in_der_ablage(self):
+        """8.0: Das Werkzeug sprache schreibt nur in Arbeitskopien, nie in ein Original oder durch einen Verweis."""
+        pfad = self.pptx([FOLIE.format(a="de-DE", b="en-US", c="de-DE")])
+        draussen = self.heim / "Documents" / "Pitch.pptx"
+        draussen.write_bytes(pfad.read_bytes())
+        vorher = draussen.read_bytes()
+        out, code = self.lauf(str(draussen))
+        self.assertEqual(code, 1)
+        self.assertIn("Nur Arbeitskopien in der Ablage", out)
+        self.assertEqual(draussen.read_bytes(), vorher)
+        verweis = self.ordner / "Verweis.pptx"
+        verweis.symlink_to(draussen)
+        self.assertIn("Verweis", self.lauf(str(verweis))[0])
+        self.assertEqual(draussen.read_bytes(), vorher)
+        out, code = self.aufruf("--pruefen", "--bereich=arbeit", "--thema=pitch q4", "--", "Pitch.pptx")
+        self.assertEqual(code, 0, out)
+        self.assertIn("Nur geprüft", out)
+        for falsch in ((str(pfad),), ("--", str(pfad), "x"), ("--unbekannt", "--", str(pfad))):
+            self.assertEqual(self.aufruf(*falsch)[1], 2, falsch)
 
 
 if __name__ == "__main__":

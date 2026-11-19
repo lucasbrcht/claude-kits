@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Arbeitskopien von Dokumenten im Ablage-Ordner, für die Werkzeuge arbeitskopie und arbeitskopie_uebertragen.
+"""Arbeitskopien von Dokumenten im Ablage-Ordner, für die Werkzeuge arbeitskopie und arbeitskopie_uebertragen des
+Plugins office (bis 7.3 im Plugin apple). sprache.py findet seine Datei über ablage_datei.
 
 Aufruf (für den Server):
   ablage.py liste [--bereich=privat|arbeit]
@@ -21,10 +22,11 @@ Pfade aus Cowork: Die VM bindet Ordner des Mac als /sessions/<id>/mnt/<Ordnernam
 Mac über den Ordnernamen gesucht (Heimordner, iCloud Drive, ~/Library/CloudStorage), nur ein eindeutiger Treffer zählt.
 
 Schutz: Originale nur unter dem Heimordner, aus ~/Library nur iCloud Drive und CloudStorage, keine versteckten Ordner,
-keine Verweise, nur Dokumente (ENDUNGEN). zeigen nur unter den Ablage-Ordnern und pdf.ordner, öffnen nur Dokumente
-ohne Skripte und Makros (OEFFNEN_ENDUNGEN) und Ordner, alles andere nur im Finder zeigen. uebertragen schreibt nur mit --ausfuehren direkt hinter dem Skript, das der
-Server erst nach dem Dialog am Mac übergibt, und nur, wenn sich das Original seit dem Holen nicht geändert hat und
-Office es nicht offen hat. Löschen gibt es nicht. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch.
+keine Verweise, nur Dokumente (ENDUNGEN). zeigen nur unter den Ablage-Ordnern, öffnen nur Dokumente ohne Skripte und
+Makros (OEFFNEN_ENDUNGEN) und Ordner, alles andere nur im Finder zeigen. uebertragen schreibt nur mit --ausfuehren
+direkt hinter dem Skript, das der Server erst nach dem Dialog am Mac übergibt, und nur, wenn sich das Original seit dem
+Holen nicht geändert hat und Office es nicht offen hat. Löschen gibt es nicht. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf
+falsch.
 """
 import argparse
 import datetime
@@ -38,7 +40,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import kit_basis  # Datenordner, config.json, Fehlerprotokoll, gleich in apple und chat
+import kit_basis  # Datenordner, config.json, Fehlerprotokoll, gleich in apple, chat und office
 
 KIT_DIR = Path(__file__).resolve().parent
 DATEN_DIR = kit_basis.datenordner(KIT_DIR)
@@ -97,12 +99,6 @@ def ablage(cfg: dict) -> dict:
             raise kit_basis.abbruch(f"config.json: ablage.{bereich} muss ein Ordner sein, absolut oder mit ~.", FOLGE)
         aus[bereich] = Path(os.path.expanduser(wert))
     return aus
-
-
-def pdf_ordner(cfg: dict) -> list:
-    block = cfg.get("pdf") if isinstance(cfg.get("pdf"), dict) else {}
-    ordner = block.get("ordner") if isinstance(block.get("ordner"), list) else []
-    return [Path(os.path.expanduser(o)).resolve() for o in ordner if isinstance(o, str) and o.strip()]
 
 
 def bereich_ordner(cfg: dict, bereich: str, anlegen: bool = False) -> Path:
@@ -290,6 +286,33 @@ def kopie_pruefen(cfg: dict, bereich: str, thema: str, datei: str) -> Path:
     if kopie.is_symlink() or not kopie.is_file():
         raise kit_basis.abbruch(f"{datei} gibt es in {ordner} nicht als Datei.", FOLGE)
     return kopie
+
+
+def in_ablage(echt: Path, cfg: dict) -> bool:
+    """Aufgelöster Pfad liegt unter einem vorhandenen Ablage-Ordner."""
+    return any(unter(echt, o.resolve()) for o in ablage(cfg).values() if o.is_dir() and not o.is_symlink())
+
+
+def ablage_datei(cfg: dict, bereich: str, thema: str, angabe: str) -> Path:
+    """Datei in der Ablage für andere Skripte des Plugins (sprache.py): mit bereich und thema ein Dateiname im Thema,
+    sonst ein Pfad am Mac oder aus Cowork. Nur eine normale Datei unter einem Ablage-Ordner, kein Verweis."""
+    if bereich or thema:
+        return kopie_pruefen(cfg, bereich, thema, angabe)
+    if not angabe:
+        aufruf_falsch(f"pfad oder bereich, thema und datei angeben. {FOLGE}")
+    pfad = mac_pfad(angabe)
+    if pfad.is_symlink():
+        raise kit_basis.abbruch(f"{pfad.name} ist ein Verweis.", FOLGE)
+    try:
+        echt = pfad.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise kit_basis.abbruch(f"Nicht gefunden: {pfad}.", FOLGE) from None
+    if not echt.is_file():
+        raise kit_basis.abbruch(f"{echt.name} ist keine Datei.", FOLGE)
+    if not in_ablage(echt, cfg):
+        raise kit_basis.abbruch(f"Nur Arbeitskopien in der Ablage, nicht {echt.parent}. Erst mit arbeitskopie holen.",
+                                FOLGE)
+    return echt
 
 
 def cowork_pfad(kopie: Path, cfg: dict) -> str:
@@ -500,10 +523,8 @@ def cmd_zeigen(cfg: dict, bereich: str, thema: str, angabe: str, finder: bool) -
         echt = pfad.resolve(strict=True)
     except (OSError, RuntimeError):
         raise kit_basis.abbruch(f"Nicht gefunden: {pfad}.", FOLGE) from None
-    orte = ablage(cfg) if "ablage" in cfg else {}
-    wurzeln = [o.resolve() for o in orte.values() if o.exists()] + pdf_ordner(cfg)
-    if not any(unter(echt, w) for w in wurzeln):
-        raise kit_basis.abbruch(f"Zeigen nur in der Ablage und in pdf.ordner, nicht {echt.parent}.", FOLGE)
+    if not in_ablage(echt, cfg):
+        raise kit_basis.abbruch(f"Zeigen nur in der Ablage, nicht {echt.parent}.", FOLGE)
     dokument = echt.is_dir() or (echt.is_file() and echt.suffix.lower() in OEFFNEN_ENDUNGEN)
     im_finder = finder or not dokument
     befehl = [os.environ.get("KITS_OEFFNEN", "").strip() or OEFFNEN, *(["-R"] if im_finder else []), str(echt)]

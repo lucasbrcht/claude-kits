@@ -14,7 +14,7 @@ sys.path.insert(0, str(PLUGIN))
 import mcp_basis as mb  # noqa: E402
 import server  # noqa: E402
 
-GRENZE_ALLE_SERVER = 36  # wie in apple/tests/test_server.py, 7.0: 31, 7.3: 36 mit Arbeitskopien, notiz_ergaenzen und erinnerung_aendern
+GRENZE_ALLE_SERVER = 34  # wie in apple/tests/test_server.py, 7.0: 31, 7.3: 36, 8.0: 34 (Arbeitskopien in office)
 
 
 class Aufnahme:
