@@ -58,4 +58,4 @@ Je Nachricht `Datum Uhrzeit | Absender: Text`, Medien als `[Bild]`, `[Sprachnach
 - Zitate zeigen nur den neuen Text, den Bezug aus den Nachrichten davor erschließen oder offen lassen.
 - Gelöschte Nachrichten fehlen oder erscheinen als `[leer]` oder `[sonstiger Inhalt, Typ N]`. Umfragen nur mit der Frage, Reaktionen fehlen.
 - Erwähnungen des Nutzers erkennt `chat_neues` am Namen. Als @Nummer nur, wenn seine eigene Nummer im Adressbuch steht.
-- Fehlt der Zugriff (Festplattenvollzugriff für die Claude-App), sagt die Meldung, was zu tun ist.
+- Fehlt der Festplattenvollzugriff, öffnet `einstellungen` mit `freigabe` (Plugin `apple`) Finder und Systemeinstellungen, der Nutzer zieht das markierte Programm in die Liste. Ohne `apple` sagt die Meldung, was zu tun ist.

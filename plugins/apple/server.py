@@ -19,7 +19,10 @@ die der Plugins chat, service und office: In Cowork erreicht Claude den Datenord
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -27,7 +30,7 @@ import mcp_basis as mb
 from mcp_basis import Fehler, Werkzeug, langtext, opt, schalter, text, textliste, zahl
 
 NAME = "apple"
-VERSION = "8.0.0"
+VERSION = "8.1.0"
 WURZEL = Path(__file__).resolve().parent
 lauf = mb.Lauf(WURZEL, NAME)
 PLUGINS_DATEN = ("apple", "chat", "service", "office")  # Datenordner, die einstellungen lesen und schreiben darf
@@ -501,7 +504,34 @@ def downloads_ordner() -> tuple:
     return "~/Downloads", "klassisch, ohne iCloud Drive"
 
 
+FREIGABE_SEITE = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+
+
+def freigabe_zeigen() -> tuple:
+    """Festplattenvollzugriff für das Programm, mit dem die Werkzeuge laufen (python3.9 der Command Line Tools, über
+    den Link in .mcp.json aufgelöst). Öffnet Systemeinstellungen bei der Liste und davor ein Finder-Fenster mit dem
+    Programm markiert: Der Nutzer zieht es hinein. Der Knopf Plus graut Programme ohne .app aus (Test 11/2026), nur
+    Ziehen geht zuverlässig. Ändert nichts, deshalb Teil von einstellungen statt eigenes Werkzeug (Obergrenze)."""
+    programm = Path(os.path.realpath(sys.executable))
+    for befehl in (["/usr/bin/open", FREIGABE_SEITE], ["/usr/bin/open", "-R", str(programm)]):
+        try:
+            subprocess.run(befehl, capture_output=True, timeout=15, stdin=subprocess.DEVNULL, check=True)
+        except (OSError, subprocess.SubprocessError) as e:
+            return 1, (f"Konnte Finder oder Systemeinstellungen nicht öffnen ({type(e).__name__}). Von Hand: "
+                       "Systemeinstellungen > Datenschutz & Sicherheit > Festplattenvollzugriff, daneben im Finder "
+                       f"mit Cmd+Umschalt+G den Ordner {programm.parent} öffnen und {programm.name} in die Liste ziehen.")
+    return 0, (f"Geöffnet: Systemeinstellungen bei Festplattenvollzugriff und davor ein Finder-Fenster mit "
+               f"{programm.name} markiert.\nDem Nutzer so ansagen:\n"
+               f"1. Beide Fenster nebeneinander schieben.\n"
+               f"2. {programm.name} aus dem Finder-Fenster in die Liste der Systemeinstellungen ziehen. Nicht über "
+               f"den Knopf Plus: Dort ist {programm.name} ausgegraut.\n"
+               f"3. Mit Passwort oder Touch ID bestätigen, der Schalter neben {programm.name} muss an sein.\n"
+               f"4. Claude mit Cmd+Q beenden und neu öffnen.\nProgramm: {programm}")
+
+
 def einstellungen(a: dict) -> tuple:
+    if schalter(a, "freigabe"):
+        return freigabe_zeigen()
     plugin = plugin_wahl(a)
     code, aus = mb.einstellungen_zeigen(plugin, vorlage() if plugin == NAME else None)
     if plugin in (NAME, "office"):
@@ -726,8 +756,10 @@ WERKZEUGE = [
               "ich": d(B, "die eigene Karte")}, kontakte),
     WERKZEUG_PDF,
     Werkzeug("einstellungen", "Einstellungen lesen",
-             "config.json und Stilprofile im Datenordner eines Plugins zeigen, mit offenen Werten. Für die Einrichtung "
-             "und um Vorgaben nachzusehen.", "lesen", {"plugin": PLUGIN}, einstellungen),
+             "config.json und Stilprofile eines Plugins zeigen, mit offenen Werten. freigabe öffnet Finder und "
+             "Systemeinstellungen für den Festplattenvollzugriff der Werkzeuge.", "lesen",
+             {"plugin": PLUGIN, "freigabe": d(B, "statt Einstellungen: Festplattenvollzugriff zum Einschalten öffnen, "
+                                                 "wenn ein Werkzeug fehlenden Zugriff meldet")}, einstellungen),
     Werkzeug("einstellungen_schreiben", "Einstellungen schreiben",
              "Ganze Abschnitte der config.json eines Plugins ersetzen oder ein Stilprofil speichern. Nur in der "
              "Einrichtung oder auf ausdrücklichen Auftrag.", "nachfrage",

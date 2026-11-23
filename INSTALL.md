@@ -5,7 +5,7 @@ Für deinen Mac mit der Claude-App. Du richtest einmal ein, danach hilft dir dei
 - **Dauer:** etwa 25 Minuten für die Installation (Schritte 1 bis 5), danach 30 bis 45 Minuten Einrichtung im Gespräch (Schritt 6). Beides geht an einem Termin oder an zwei.
 - **Am einfachsten** lässt du dich von Claude durchführen (nächster Abschnitt). Die Schritte darunter sind zum Nachlesen oder für den Weg von Hand.
 - **Was du tippen sollst**, steht in einem grauen Kasten: kopieren, einfügen, Enter.
-- **Menüs der App** stehen hier mit ihren englischen Namen (Customize, Plugins). Zeigt deine App sie auf Deutsch, heißen sie entsprechend.
+- **Menüs der App** stehen hier mit ihren englischen Namen (Plugins, Connectors). Zeigt deine App sie auf Deutsch, heißen sie entsprechend.
 
 ## Was du brauchst
 
@@ -77,7 +77,7 @@ Für Kalender und Erinnerungen braucht dein Mac ein paar kostenlose Zusatzprogra
    "$HOME/Library/Application Support/Claude Kits/apple/.venv/bin/python3" -c "import EventKit" && echo "EventKit ok"
    ```
 
-   Steht da `EventKit ok`, ist Schritt 1 fertig. Terminal schließen.
+   Steht da `EventKit ok`, ist Schritt 1 fertig. Terminal offen lassen, du brauchst es gleich noch einmal.
 
 Mac mit Intel-Prozessor (Apfelmenü > Über diesen Mac, Zeile Prozessor statt Chip): in den Befehlen 3 und 4 `/opt/homebrew` durch `/usr/local` ersetzen.
 
@@ -85,21 +85,25 @@ Mac mit Intel-Prozessor (Apfelmenü > Über diesen Mac, Zeile Prozessor statt Ch
 
 Damit Claude WhatsApp, iMessage und Kontakte lesen kann, braucht ein Programm der Entwicklerwerkzeuge den Festplattenvollzugriff. Mit ihm laufen die Werkzeuge des Pakets.
 
-1. Systemeinstellungen > Datenschutz & Sicherheit > **Festplattenvollzugriff**.
-2. Unten auf **+** klicken und mit Passwort oder Touch ID bestätigen.
-3. Im Fenster Cmd+Umschalt+G drücken, diesen Pfad einfügen, Enter:
+1. **Beide Fenster öffnen.** Im Terminal einfügen, Enter:
 
-   ```text
-   /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin
+   ```bash
+   open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"; open -R /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9
    ```
 
-4. `python3.9` wählen, **Öffnen**. Der Schalter daneben muss an sein.
+   Jetzt sind zwei Fenster offen: die Systemeinstellungen bei **Festplattenvollzugriff** und ein Finder-Fenster, in dem `python3.9` markiert ist. Schieb sie nebeneinander.
+2. **Hineinziehen.** `python3.9` aus dem Finder-Fenster in die Liste der Systemeinstellungen ziehen und mit Passwort oder Touch ID bestätigen. Nicht über den Knopf **+**: Dort ist `python3.9` ausgegraut und lässt sich nicht wählen.
+3. Der Schalter neben `python3.9` muss an sein. Terminal schließen.
+
+Schon eingerichtet und Claude meldet trotzdem fehlenden Zugriff? Sag Claude "Öffne mir den Festplattenvollzugriff", dann öffnet er beide Fenster selbst.
 
 Alle anderen Freigaben fragt dein Mac später von selbst, wenn Claude zum ersten Mal Mail, Kalender, Erinnerungen, Notizen oder Nachrichten braucht. Dann **OK** oder **Erlauben** klicken, bei Kalender und Erinnerungen **Vollzugriff**. Im Fenster kann ein technischer Name stehen, etwa `python3.9`: Das sind die Werkzeuge des Pakets.
 
 ## Schritt 3: Plugins in Claude (5 Minuten)
 
-1. Claude öffnen, links **Customize**, dann **Plugins**.
+> **Wichtig:** Plugins immer über die Seitenleiste installieren, nie über **Einstellungen > Plugins**. Der Weg über die Einstellungen ist in der aktuellen App unzuverlässig: Plugins fehlen danach oder starten nicht.
+
+1. Claude öffnen. Links in der Seitenleiste ganz oben, über deinen Chats und Aufgaben, auf **Plugins** klicken.
 2. **Add marketplace** wählen, das hier eintragen und bestätigen:
 
    ```text
@@ -107,7 +111,7 @@ Alle anderen Freigaben fragt dein Mac später von selbst, wenn Claude zum ersten
    ```
 
 3. Beim neuen Marketplace **Sync automatically** einschalten. Dann kommen Verbesserungen von selbst.
-4. Diese Plugins installieren, je Plugin **Install**:
+4. Diese Plugins installieren, je Plugin **Install**. Taucht eins nicht in der Liste auf, oben im Suchfeld seinen Namen eintippen (etwa `apple`): Oft findet nur die Suche es.
 
    | Plugin | Wofür | Installieren |
    |---|---|---|
@@ -182,8 +186,8 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 | Was passiert | Was hilft |
 |---|---|
-| Claude findet keine Werkzeuge für Mail oder Kalender | Customize > Plugins: `basis` und `apple` installiert und eingeschaltet? Dann Claude mit Cmd+Q beenden und neu öffnen |
-| Kontakte, WhatsApp oder iMessage lassen sich nicht lesen | Schritt 2 prüfen, danach Claude mit Cmd+Q neu starten |
+| Claude findet keine Werkzeuge für Mail oder Kalender | Seitenleiste oben > **Plugins** (nicht Einstellungen > Plugins): `basis` und `apple` installiert und eingeschaltet? Fehlt eins in der Liste, über das Suchfeld suchen. Dann Claude mit Cmd+Q beenden und neu öffnen |
+| Kontakte, WhatsApp oder iMessage lassen sich nicht lesen | Claude sagen: "Öffne mir den Festplattenvollzugriff", dann `python3.9` aus dem Finder in die Liste ziehen (Schritt 2). Danach Claude mit Cmd+Q neu starten |
 | Meldung `EventKit fehlt` oder `icalBuddy fehlt` | Schritt 1 ab Befehl 3 wiederholen |
 | Meldung `Kein Zugriff auf Kalender` oder `Erinnerungen` | Systemeinstellungen > Datenschutz & Sicherheit > Kalender oder Erinnerungen: beim Eintrag `python3.9` Vollzugriff wählen |
 | Meldung zu Automation bei Mail oder Notizen | Systemeinstellungen > Datenschutz & Sicherheit > Automation: beim gezeigten Eintrag Mail oder Notizen einschalten |
@@ -204,7 +208,7 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 | Ort | Inhalt | Wer es sieht |
 |---|---|---|
-| Customize > Plugins | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
+| Seitenleiste > Plugins | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
 | `~/Claude Kits/kontext/` | dein Kontext: Profil, Personen, Vorlieben, Prüfliste | nur du, nur auf diesem Mac |
 | `~/Library/Application Support/Claude Kits/<plugin>/` | Einstellungen je Plugin (`apple`, `chat`, `office`, `service`): `config.json`, Stilprofile in `style/`, bei `apple` die `.venv` aus Schritt 1, bei `office` die `.venv` des Motors und die Herkunft der Arbeitskopien | nur du, nur auf diesem Mac |
 | `Claude Personal` und `Claude Work` im Downloads-Ordner | Arbeitskopien von Dokumenten je Thema, PDFs | nur du, mit iCloud Drive auch auf deinen anderen Geräten |
@@ -212,7 +216,7 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 ## Entfernen
 
-Customize > Plugins, je Plugin **Remove**. Deine Ordner bleiben: `~/Claude Kits/kontext/` und `~/Library/Application Support/Claude Kits/` löschst du bei Bedarf selbst im Finder.
+Seitenleiste oben > **Plugins**, je Plugin **Remove**. Deine Ordner bleiben: `~/Claude Kits/kontext/` und `~/Library/Application Support/Claude Kits/` löschst du bei Bedarf selbst im Finder.
 
 ## Für den Betreuer: Code-Tab
 

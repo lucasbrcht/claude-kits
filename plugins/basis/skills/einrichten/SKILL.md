@@ -9,14 +9,14 @@ description: Den persönlichen Assistenten zum ersten Mal einrichten oder die Ei
 
 | Werkzeug | Zweck | Stufe |
 |---|---|---|
-| `einstellungen` | `config.json` und Stilprofile eines Plugins zeigen, mit offenen Werten und Vorlage | lesen |
+| `einstellungen` | `config.json` und Stilprofile eines Plugins zeigen, mit offenen Werten und Vorlage. Mit `freigabe` Systemeinstellungen und Finder für den Festplattenvollzugriff öffnen | lesen |
 | `einstellungen_schreiben` | ganze Abschnitte der `config.json` ersetzen oder ein Stilprofil speichern | fragt |
 
 Der Assistent lernt den Nutzer kennen. Was er dabei erfährt, liegt im **Kontextordner** (Standard `~/Claude Kits/kontext/`, lokal, nie in iCloud). In Cowork ist er der erste Ordner des Projekts Privat, im Code-Tab ein Arbeitsordner der Session. Ziel: unter 45 Minuten, pausieren geht jederzeit.
 
 ## Start
 
-Die festen Texte stehen in `references/texte.md`. Zuerst die **Einleitung** zeigen, dann den **Haltepunkt Modell** und auf die Antwort warten. Erst danach der erste Werkzeugaufruf: Mitten in der Recherche lässt sich das Modell nicht mehr wechseln.
+Die festen Texte stehen in `references/texte.md`. Zuerst die **Einleitung** zeigen, dann den **Haltepunkt Modell und Projekte** und auf die Antwort warten. Erst danach der erste Werkzeugaufruf: Mitten in der Recherche lässt sich das Modell nicht mehr wechseln. Der Haltepunkt fragt auch nach Projekten, die es in Cowork schon gibt (am besten als Screenshot der Seitenleiste). Diese Liste gilt für den ganzen Ablauf, Abschnitt Vorhandene Projekte in `references/ablauf.md`.
 
 ## Regeln für diesen Skill
 
@@ -40,8 +40,8 @@ Vor dem ersten Schritt `references/ablauf.md` lesen: Formate, Fragen je Runde, w
 6. **Interview** in Runden nach `references/ablauf.md`: Anrede und Gruß je Bereich, Du oder Sie, Emojis, Zeichen und Wörter, die nie vorkommen sollen, Interessen, Arbeitgeber und Rolle (nur mit Arbeitskonto), für den Tagesstart wiederkehrende Fristen und der Stil für Teams. Zum Schluss die Bereiche: einen Schnitt der Cowork-Projekte nach `references/projektschnitt.md` empfehlen, der Nutzer entscheidet, der Schnitt kommt nach `wissen/privat-profil.md` unter Bereiche und Projekte.
 7. **Stil:** Mail mit `mail_stilprofil` und `stilprobe` je Profil nach `references/ablauf.md`, WhatsApp mit `chat_stilprofil` und `stilprobe`. Profil zeigen, Korrekturen übernehmen, speichern mit `einstellungen_schreiben` und `stilprofil`.
 8. **Profil und Index:** `profil.md` und `CLAUDE.md` (Index des Projekts) im Kontextordner mit den Antworten füllen, ganz zeigen, auf Ja speichern.
-9. **Cowork vorbereiten** nach `references/cowork.md`: Text für Instructions for Claude, Projekte, Rechte der Connectoren in Alltagssprache, geplante Aufgaben (je Vorschlag ein Ja, Claude legt sie selbst an, wenn ein Werkzeug dafür da ist). Alles in `einrichtung/` im Kontextordner, dazu die Prüfliste.
-10. **Freigaben in macOS**, die noch fehlen, in die Prüfliste (Text in `references/texte.md`).
+9. **Cowork vorbereiten** nach `references/cowork.md`: Text für Instructions for Claude, Projekte, Rechte der Connectoren in Alltagssprache, geplante Aufgaben (je Vorschlag ein Ja, Claude legt sie selbst an, wenn ein Werkzeug dafür da ist). Alles in `einrichtung/` im Kontextordner, dazu die Prüfliste. **Die Texte für die Instructions und für jedes Projekt immer direkt im Chat** zeigen, je Text ein eigener Codeblock zum Kopieren mit Überschrift und Wo, in einer Nachricht am Ende der Runde (Abschnitt Texte zum Kopieren in `references/cowork.md`).
+10. **Freigaben in macOS**, die noch fehlen, in die Prüfliste (Text in `references/texte.md`). Für den Festplattenvollzugriff öffnet `einstellungen` mit `freigabe` Systemeinstellungen und Finder, der Nutzer zieht das Programm nur noch hinein.
 11. **Proben** nach `references/cowork.md`, nummeriert, je mit Ort, Eingabe und Erwartung, eine nach der anderen. Ohne Probe direkt zum Abschluss.
 12. **Abschluss** mit dem Text aus `references/texte.md`. Erreicht Bash den Kontextordner, committen: `git -C "<Kontextordner>" add -A` und `git -C "<Kontextordner>" commit -q -m "einrichten JJJJ-MM-TT"`.
 

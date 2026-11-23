@@ -4,7 +4,7 @@ Dienste für Alltag und Unterwegs: das Verpflegungs-Roadbook für Ultra- und Gra
 
 ## Installation
 
-In Cowork: Customize > Plugins > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `service` installieren. In Claude Code:
+In Cowork: Seitenleiste oben > Plugins (nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `service` installieren. In Claude Code:
 
 ```
 /plugin install service --marketplace lucasbrcht/claude-kits

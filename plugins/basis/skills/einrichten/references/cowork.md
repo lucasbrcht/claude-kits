@@ -1,8 +1,52 @@
 # Einrichten: Cowork vorbereiten (Schritte 9 bis 11)
 
-Was im Account steht (Instructions, Projekte, Connectoren), kann Claude nicht selbst einstellen. Der Skill schreibt es fertig nach `<Kontextordner>/einrichtung/`, der Nutzer klickt es nach der Prüfliste ein. Geplante Aufgaben legt Claude selbst an, wenn ein Werkzeug dafür da ist. Menüs heißen in der Desktop-App: Einstellungen > Your Claude (Instructions for Claude), Einstellungen > Capabilities (Memory), Customize > Connectors, Customize > Plugins. Weichen sie ab, den Weg nehmen, den der Nutzer nennt.
+Was im Account steht (Instructions, Projekte, Connectoren), kann Claude nicht selbst einstellen. Der Skill schreibt es fertig nach `<Kontextordner>/einrichtung/`, der Nutzer klickt es nach der Prüfliste ein. Geplante Aufgaben legt Claude selbst an, wenn ein Werkzeug dafür da ist. Menüs heißen in der Desktop-App: Einstellungen > Your Claude (Instructions for Claude), Einstellungen > Capabilities (Memory), Customize > Connectors, Plugins in der Seitenleiste ganz oben über den Chats (nie Einstellungen > Plugins, der Weg ist unzuverlässig, fehlende Plugins über das Suchfeld). Weichen sie ab, den Weg nehmen, den der Nutzer nennt.
 
 Nichts in `einrichtung/` darf Zugangsdaten, Telefonnummern, Adressen oder Inhalte aus Mails und Chats enthalten.
+
+## Texte zum Kopieren im Chat
+
+Instructions for Claude und alles, was je Projekt einzutragen ist, stehen **immer direkt im Chat**, gut sichtbar und fertig zum Kopieren. Die Dateien in `einrichtung/` sind nur die Sicherung, nie der Ersatz ("steht in der Datei" reicht nicht).
+
+- **Eine eigene Nachricht am Ende der Runde,** ohne Werkzeugaufruf danach: Text zwischen Werkzeugaufrufen klappt die App ein. Erst speichern (Write), dann die Nachricht zeigen und warten, bis der Nutzer "fertig" sagt.
+- **Je Ziel eine Überschrift** (`## Deine Instructions for Claude`, `## Projekt <Name> (vorhanden|neu)`), darunter **Wo** in einem Satz und was ersetzt oder ergänzt wird.
+- **Jeder Text zum Einfügen in einem eigenen Codeblock** mit `text` (so zeigt die App den Knopf Kopieren): ganz, wörtlich, ohne Kürzung, ohne Kommentar, Überschrift oder Wo im Block. Nicht in ein Zitat oder eine eingerückte Liste setzen. Enthält der Text selbst drei Backticks, den Block mit vier öffnen und schließen.
+- Kurze Werte wie Name und Beschreibung eines Projekts ebenfalls je in einem eigenen kleinen Block, Ordner und Memory als Tabelle daneben.
+- Der Nutzer arbeitet von oben nach unten: Instructions zuerst, dann die Projekte in der Reihenfolge der Prüfliste.
+
+Beispiel (Inhalte erfunden):
+
+````
+## Deine Instructions for Claude
+
+**Wo:** Einstellungen > Your Claude > Instructions for Claude. Alten Text sichern, dann alles durch diesen ersetzen. Länge: 6.180 Zeichen.
+
+```text
+# Über mich
+- Anna Beispiel, wohnhaft in Musterstadt.
+...
+```
+
+## Projekt Privat (vorhanden)
+
+| | |
+|---|---|
+| **Wo** | Seitenleiste > Projects > Privat > Einstellungen des Projekts |
+| **Ordner** | 1. `Claude Kits/kontext` (ist schon verbunden) |
+| **Memory** | an, Use account memory an |
+
+**Beschreibung:**
+
+```text
+Familie, Freunde, Haushalt und Freizeit
+```
+
+**Instruktionen des Projekts:**
+
+```text
+Projekt für Privat. Am Mac liegt das Wissen im Ordner kontext, ...
+```
+````
 
 ## Instructions for Claude (`einrichtung/instructions.md`)
 
@@ -10,11 +54,11 @@ Der Text ist `profil.md` ohne die Blöcke zwischen `<!-- nur-code -->` und `<!--
 - Abschnitte Über mich, Wie du arbeitest, Kommunikation, Schreibregeln, Texte in meinem Namen, Regeln, Memory müssen da sein. Keine Personen, keine Pfade, kein `cd`.
 - Länge in Zeichen nennen. Bis rund 8.600 Zeichen sind belegt, darüber auf Abschneiden achten (die letzte Zeile muss nach dem Einfügen sichtbar sein).
 - Sieht Claude schon Instructions in dieser Session: Zeilen, die dort stehen und im Profil fehlen, als Ergänzung für `profil.md` vorschlagen statt still wegzulassen, und sagen, dass der neue Text den alten ersetzt. In einem Account mit Instruktionen der Organisation: Widersprüche als Befund nennen, nicht selbst ändern.
-- Den Text im Chat als Block zum Kopieren zeigen und speichern.
+- Speichern und im Chat zeigen nach Abschnitt Texte zum Kopieren, als ersten Teil der Nachricht.
 
 ## Projekte
 
-Der Schnitt aus Runde 5 steht in `wissen/privat-profil.md`. Je Projekt in der Prüfliste:
+Der Schnitt aus Runde 5 steht in `wissen/privat-profil.md`. Je Projekt in der Prüfliste und im Chat nach Abschnitt Texte zum Kopieren, vorhandene Projekte nur mit dem, was fehlt oder sich ändert:
 - **Name und Beschreibung** (ein Satz, wofür das Projekt da ist, Dispatch wählt danach).
 - **Ordner** in dieser Reihenfolge: zuerst der Ordner mit den Unterlagen des Bereichs, im Projekt des Kontextordners der Kontextordner selbst. Dann der Kontextordner in den übrigen Projekten des Accounts.
 - **Instruktionen des Projekts** als Block zum Kopieren, kurz, weil der Index aus der `CLAUDE.md` im Ordner kommt:
@@ -24,7 +68,7 @@ Der Schnitt aus Runde 5 steht in `wissen/privat-profil.md`. Je Projekt in der Pr
   In Projekten mit Use account memory aus dazu die Zeile `<Name des Kontextordners>: nur lesen, ändern nur auf meinen Zuruf`.
 - **Memory:** an, Use account memory an oder aus nach dem Schnitt.
 
-Das Projekt für den Grundbereich (meist Privat) besteht schon, die Einrichtung läuft darin. Es braucht nur noch Beschreibung und Instruktionen.
+Das Projekt für den Grundbereich (meist Privat) besteht schon, die Einrichtung läuft darin. Es braucht nur noch Beschreibung und Instruktionen. Hat ein vorhandenes Projekt schon eigene Instruktionen, die der Nutzer eingefügt hat, den neuen Block als Ergänzung bauen: Bestehendes bleibt, Neues kommt dazu, der Block zeigt den ganzen neuen Text.
 
 ## Rechte der Connectoren
 
@@ -63,6 +107,6 @@ Nummeriert ab 1, eine nach der anderen. Je Probe vier Zeilen: **Wo** (neue Aufga
 1. Ohne Projekt: "Wie soll ich dich ansprechen, und was schreibe ich nie?" Erwartung: Anrede und verbotene Zeichen aus den Instructions. Wenn nicht: Instructions eingefügt und neue Aufgabe gestartet?
 2. Projekt Grundbereich: "Was ist neu in Mail?" Erwartung: neue Mails je Konto, Newsletter ausgeblendet. Wenn nicht: Automation für Mail in den Systemeinstellungen.
 3. Projekt Grundbereich: "Was steht morgen an?" Erwartung: Termine nach Kalender. Wenn nicht: Kalender-Freigabe, `.venv`.
-4. Projekt Grundbereich, mit Plugin `chat`: "Neue WhatsApp-Nachrichten?" Erwartung: Einzelchats zuerst. Wenn nicht: Festplattenvollzugriff.
+4. Projekt Grundbereich, mit Plugin `chat`: "Neue WhatsApp-Nachrichten?" Erwartung: Einzelchats zuerst. Wenn nicht: Festplattenvollzugriff, `einstellungen` mit `freigabe` öffnet beide Fenster.
 5. Projekt Grundbereich: "Wer ist <Name aus privat-personen.md>?" Erwartung: Beziehung und Kanal aus dem Wissen. Wenn nicht: Kontextordner als Ordner im Projekt?
 6. Projekt Grundbereich: "Schreib mir selbst eine Mail mit dem Betreff Test." Erwartung: Entwurf in Apple Mail, gesendet wird nichts ohne "senden".

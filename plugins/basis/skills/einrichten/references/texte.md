@@ -16,11 +16,20 @@ Zum Skill `einrichten`. Die Texte so zeigen, wie sie hier stehen. Nur die Teile 
 >
 > **Meine Grenzen:** Ich sende nichts ohne dein Wort "senden". Termine mit anderen lege ich nur nach deinem Ja an. Ich lösche nie. Wenn ich deine Einstellungen speichere, fragt dein Mac jedes Mal mit einem Fenster: Dann bitte auf **Freigeben** klicken.
 
-## Haltepunkt Modell (direkt nach der Einleitung, dann warten)
+## Haltepunkt Modell und Projekte (direkt nach der Einleitung, dann warten)
 
-> **Bevor ich anfange:** Stell oben im Modellwähler das stärkste Modell ein, das dir angeboten wird (Opus). Es erkennt Personen und deinen Stil sauberer, und mitten in der Einrichtung lässt es sich nicht mehr wechseln. Für den Alltag danach reicht das Standardmodell. Sag einfach "los", wenn du so weit bist.
+> **Bevor ich anfange, zwei Dinge:**
+>
+> 1. **Modell:** Stell oben im Modellwähler das stärkste Modell ein, das dir angeboten wird (Opus). Es erkennt Personen und deinen Stil sauberer, und mitten in der Einrichtung lässt es sich nicht mehr wechseln. Für den Alltag danach reicht das Standardmodell.
+> 2. **Deine Projekte:** Hast du in Cowork schon Projekte angelegt? Dann schick mir einen Screenshot der Seitenleiste links, so baue ich auf dem auf, was du schon hast:
+>    - Cmd+Ctrl+Umschalt+4 drücken und mit der Maus einen Rahmen um die Seitenleiste mit deinen Projekten ziehen.
+>    - Hier ins Eingabefeld klicken und mit Cmd+V einfügen.
+>
+>    Geht das nicht, schreib mir einfach die Namen der Projekte. Noch keine Projekte? Dann schreib "keine".
+>
+> Danach sag "los".
 
-Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen Modell, ohne Nachfrage weitermachen. Der Umfang der Auswertung hängt nicht vom Modell ab, er steht in `ablauf.md`.
+Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen Modell, ohne Nachfrage weitermachen. Der Umfang der Auswertung hängt nicht vom Modell ab, er steht in `ablauf.md`. Was der Screenshot oder die Antwort über Projekte zeigt, verarbeitet `ablauf.md`, Abschnitt Vorhandene Projekte.
 
 ## Projekt anlegen (Cowork ohne Projekt mit Ordner)
 
@@ -32,12 +41,20 @@ Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen M
 
 ## Plugins (Werkzeuge von apple fehlen)
 
-> Mir fehlen die Werkzeuge für Mail, Kalender und Notizen. Bitte in Claude unter **Customize > Plugins** prüfen, ob die Plugins **apple** und **basis** (für WhatsApp **chat**, für Dokumente **office**) installiert und eingeschaltet sind. Danach Claude mit Cmd+Q beenden, neu öffnen und mich erneut aufrufen.
+> Mir fehlen die Werkzeuge für Mail, Kalender und Notizen. So prüfst du die Plugins:
+> 1. In Claude links in der Seitenleiste ganz oben, über deinen Chats, auf **Plugins** klicken. **Nicht** über Einstellungen > Plugins: Der Weg ist in der aktuellen App unzuverlässig.
+> 2. Prüfen, ob **apple** und **basis** (für WhatsApp **chat**, für Dokumente **office**) installiert und eingeschaltet sind. Fehlt eins in der Liste, oben im Suchfeld den Namen eintippen, etwa `apple`: Oft findet nur die Suche es.
+> 3. Claude mit Cmd+Q beenden, neu öffnen und mich erneut aufrufen.
 
 ## Freigaben in macOS (Schritt 10, nur was fehlt)
 
+Fehlt der Festplattenvollzugriff, vor dem Text `einstellungen` mit `freigabe` aufrufen: Das öffnet Systemeinstellungen bei der Liste und ein Finder-Fenster mit dem Programm markiert. Meldet es einen Fehler, gilt der Weg von Hand aus seiner Meldung.
+
 > Ein paar Freigaben kann nur dein Mac erteilen. Systemeinstellungen, Datenschutz & Sicherheit:
-> - **Festplattenvollzugriff** für `python3.9` (Plus, dann im Finder mit Cmd+Umschalt+G den Pfad `/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin` öffnen und `python3.9` wählen): für WhatsApp, iMessage und Kontakte. Danach Claude neu starten.
+> - **Festplattenvollzugriff** für `python3.9`, für WhatsApp, iMessage und Kontakte. Ich habe dir zwei Fenster geöffnet: die Systemeinstellungen und daneben den Finder mit `python3.9` markiert.
+>   1. Schieb beide Fenster nebeneinander.
+>   2. Zieh `python3.9` aus dem Finder in die Liste der Systemeinstellungen und bestätige mit Passwort oder Touch ID. Nicht über den Knopf **+**, dort ist `python3.9` ausgegraut.
+>   3. Der Schalter daneben muss an sein. Danach Claude mit Cmd+Q beenden und neu öffnen.
 > - **Automation**: Mail, Notizen, Nachrichten und System Events. Die Abfrage kommt beim ersten Mal von selbst, dann **Erlauben**. Im Fenster kann ein technischer Name stehen, etwa `python3.9`: Das sind die Werkzeuge des Pakets.
 > - **Kalender** und **Erinnerungen**: Vollzugriff für `python3.9`. Auch das fragt macOS beim ersten Mal.
 > - **Bedienungshilfen**: nur wenn eine Antwort in Mail ohne Text bleibt, dann den Eintrag einschalten, den dein Mac dort neu zeigt.

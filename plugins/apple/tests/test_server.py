@@ -349,6 +349,20 @@ class Einrichtung(unittest.TestCase):
         self.assertFalse(fehler)
         self.assertIn('"default_calendar": "Privat"', aus)
 
+    def test_freigabe_oeffnet_einstellungen_und_finder(self):
+        """8.1: freigabe öffnet die Liste Festplattenvollzugriff und den Finder mit dem Programm der Werkzeuge."""
+        with mock.patch.object(server.subprocess, "run") as run:
+            fehler, aus = self.rufe("einstellungen", {"freigabe": True})
+        self.assertFalse(fehler, aus)
+        befehle = [c.args[0] for c in run.call_args_list]
+        self.assertEqual(befehle[0], ["/usr/bin/open", server.FREIGABE_SEITE])
+        self.assertEqual(befehle[1], ["/usr/bin/open", "-R", os.path.realpath(sys.executable)])
+        self.assertIn("ziehen", aus)
+        with mock.patch.object(server.subprocess, "run", side_effect=OSError("x")):
+            fehler, aus = self.rufe("einstellungen", {"freigabe": True})
+        self.assertTrue(fehler)
+        self.assertIn("Cmd+Umschalt+G", aus)
+
     def test_stilprofile(self):
         self.assertFalse(self.rufe("einstellungen_schreiben", {"stilprofil": "privat", "text": "Kurz."})[0])
         self.assertEqual((self.ordner / "style" / "privat" / "profil.md").read_text(), "Kurz.\n")

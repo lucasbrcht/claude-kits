@@ -2,6 +2,8 @@
 
 Für den Skill `einrichten` (Runde 5 des Interviews, Projekte in `cowork.md`). Claude empfiehlt aus den Befunden einen Schnitt, je Projekt mit kurzer Begründung. Der Nutzer entscheidet, Claude legt nichts selbst an. Das Projekt für den Grundbereich besteht schon, die Einrichtung läuft darin.
 
+**Vorhandene Projekte zuerst.** Die Liste aus dem Haltepunkt (Zeile `Vorhanden:` in `wissen/privat-profil.md`) ist der Ausgangspunkt. Ein vorhandenes Projekt, das zu einem Bereich passt, bleibt mit seinem Namen. Zusammenlegen, umbenennen oder archivieren nur empfehlen, wenn eine Regel unten es verlangt, und mit Grund. Neue Projekte nur für Bereiche, die noch keins haben.
+
 ## Was ein Projekt ist (Doku von Anthropic, abgerufen 14.11.2026)
 
 Quellen: claude.com/docs/cowork/guide/projects, Hilfe-Center "Organize your tasks with projects in Claude Cowork", "What are projects?" und "Use Claude's chat search and memory".
@@ -44,8 +46,10 @@ Beispiele (nur zur Verdeutlichung):
 
 Eine Tabelle, dann die Frage, ob der Schnitt so passt (Auswahlfrage: so übernehmen, zusammenlegen, weiter teilen):
 
-| Projekt | Beschreibung (für Dispatch) | Ordner | Memory | Warum eigenes Projekt |
-|---|---|---|---|---|
-| Privat | Familie, Freunde, Haushalt und Freizeit | Kontextordner | Use account memory an | Standardbereich, Wissen im Kontextordner |
+| Projekt | Stand | Beschreibung (für Dispatch) | Ordner | Memory | Warum eigenes Projekt |
+|---|---|---|---|---|---|
+| Privat | vorhanden | Familie, Freunde, Haushalt und Freizeit | Kontextordner | Use account memory an | Standardbereich, Wissen im Kontextordner |
+
+Stand ist vorhanden (bleibt wie es ist, nur Fehlendes ergänzen), anpassen (vorhanden, aber umbenennen, zusammenlegen oder anders einstellen) oder neu.
 
 Je Projekt eine Zeile Begründung nach den Regeln oben. Was der Nutzer verwirft oder zusammenlegt, gilt. Unklares (etwa ob ein Account der Firma kommt) als `OFFEN:`.

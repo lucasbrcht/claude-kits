@@ -15,4 +15,5 @@ Format: Stichpunkte mit festen Feldern. Offene Punkte beginnen mit `OFFEN:`.
 
 ## Bereiche und Projekte
 Schnitt der Cowork-Projekte, vom Nutzer bestätigt (Skill einrichten, Runde 5). Je Projekt eine Zeile: `- **Name**: Beschreibung. Ordner: ... Memory: Use account memory an oder aus.`
+- Vorhanden: OFFEN: Projekte, die es in Cowork schon gab, je mit Zweck (aus dem Haltepunkt der Einrichtung)
 - OFFEN: Schnitt nach references/projektschnitt.md im Skill einrichten

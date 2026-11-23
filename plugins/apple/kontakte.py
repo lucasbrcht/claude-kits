@@ -154,7 +154,8 @@ def alle_kontakte() -> list:
     if not dateien:
         sys.exit("Keine Kontakte-Datenbank gefunden oder kein Zugriff. Systemeinstellungen > Datenschutz & Sicherheit > "
                  "Festplattenvollzugriff: python3.9 der Command Line Tools (damit laufen die Werkzeuge) oder die "
-                 "Claude-App einschalten. Im Code-Tab per Bash als eigenen Befehl mit absolutem Pfad starten "
+                 "Claude-App einschalten (Werkzeug einstellungen mit freigabe öffnet beides). Im Code-Tab per Bash als "
+                 "eigenen Befehl mit absolutem Pfad starten "
                  f"(python3 \"{KIT_DIR}/kontakte.py\" ...), ohne cd, Pipe oder Umleitung.")
     personen = []
     with tempfile.TemporaryDirectory(prefix="apple-kit-kontakte-") as tmp:
@@ -168,7 +169,8 @@ def alle_kontakte() -> list:
             except PermissionError:
                 sys.exit("Kein Zugriff auf die Kontakte-Datenbank. Systemeinstellungen > Datenschutz & Sicherheit > "
                          "Festplattenvollzugriff: python3.9 der Command Line Tools (damit laufen die Werkzeuge) "
-                         "oder die Claude-App einschalten. Im Code-Tab per Bash als eigenen Befehl mit absolutem Pfad "
+                         "oder die Claude-App einschalten (Werkzeug einstellungen mit freigabe öffnet beides). Im "
+                         "Code-Tab per Bash als eigenen Befehl mit absolutem Pfad "
                          f"starten (python3 \"{KIT_DIR}/kontakte.py\" ...), ohne cd, Pipe oder Umleitung.")
             except (OSError, sqlite3.Error) as e:
                 print(f"Hinweis: eine Quelle von Kontakte nicht lesbar ({type(e).__name__}), ohne sie weiter.",

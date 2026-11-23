@@ -1,7 +1,7 @@
 {
   "name": "basis",
   "displayName": "Basis",
-  "version": "8.0.1",
+  "version": "8.1.0",
   "description": "Der persönliche Assistent für alle: Einrichtung im Gespräch (auch in Cowork), Kontext merken und monatlich abgleichen, Tagesstart und Wochenstart mit Überblick über alle Kanäle und nummerierten Vorschlägen, Rückmeldungen an den Betreuer. Braucht das Plugin apple, empfohlen office für Dokumente und, wer WhatsApp und iMessage will, chat.",
   "author": {
     "name": "Lucas Bracht"

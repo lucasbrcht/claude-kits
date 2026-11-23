@@ -2,6 +2,15 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.1.0 (23.11.2026)
+
+`apple` 8.1.0, `basis` 8.1.0, `chat` 7.0.3 (Hinweise in den Skills), `pflege` 7.1.3 (Hinweis zu ZIPs), `office` und `service` bleiben. Befunde aus einer Einrichtung bei einer neuen Nutzerin.
+
+- **Festplattenvollzugriff einfacher (apple):** `einstellungen` mit `freigabe` öffnet die Systemeinstellungen bei Festplattenvollzugriff und daneben ein Finder-Fenster mit `python3.9` markiert. Man zieht es nur noch in die Liste. Der Knopf **+** graut `python3.9` aus, deshalb führen Einrichtung, Fehlermeldungen von Kontakte und die Skills für WhatsApp und iMessage jetzt diesen Weg. `INSTALL.md` Schritt 2 öffnet beide Fenster mit einem Befehl im Terminal.
+- **Plugins über die Seitenleiste:** Installieren, prüfen und entfernen immer über **Plugins** in der Seitenleiste ganz oben über den Chats, nie über Einstellungen > Plugins (in der aktuellen App unzuverlässig). Fehlt ein Plugin in der Liste, findet es das Suchfeld. Gilt in `INSTALL.md`, den READMEs und der Einrichtung.
+- **Einrichtung fragt nach vorhandenen Projekten (basis):** Der Haltepunkt vor der ersten Suche bittet neben dem Modell um einen Screenshot der Seitenleiste oder die Namen der Projekte. Der Projektschnitt geht davon aus: vorhandene behalten und ergänzen, neue nur für Bereiche ohne Projekt, Spalte Stand in der Empfehlung. Die Liste steht unter `Vorhanden:` in `wissen/privat-profil.md`.
+- **Texte zum Kopieren gut sichtbar (basis):** Instructions for Claude und alles je Projekt (Name, Beschreibung, Instruktionen) stehen immer direkt im Chat, je Ziel mit Überschrift und Wo, je Text ein eigener Codeblock, in einer Nachricht am Ende der Runde. Die Datei in `einrichtung/` ist nur die Sicherung.
+
 ## v8.0.2 (19.11.2026)
 
 `pflege` 7.1.2, die anderen Plugins bleiben wie in 8.0.1. Nur für den Betreuer im Code-Tab.

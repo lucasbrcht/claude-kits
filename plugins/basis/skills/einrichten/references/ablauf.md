@@ -1,8 +1,21 @@
 # Einrichten: Ablauf im Einzelnen
 
-Zum Skill `einrichten`. Reihenfolge wie im Skill. Vorher Einleitung und Haltepunkt Modell aus `texte.md`. Nach jedem Schritt eine Zeile, was angelegt wurde ("Ich lege jetzt deinen Kontextordner an.", "3 Kalender eingetragen."), dann ohne Rückfrage weiter. Bricht der Nutzer ab, bleibt der Stand erhalten: Der nächste Aufruf macht bei den Zeilen mit `OFFEN:` weiter.
+Zum Skill `einrichten`. Reihenfolge wie im Skill. Vorher Einleitung und Haltepunkt Modell und Projekte aus `texte.md`. Nach jedem Schritt eine Zeile, was angelegt wurde ("Ich lege jetzt deinen Kontextordner an.", "3 Kalender eingetragen."), dann ohne Rückfrage weiter. Bricht der Nutzer ab, bleibt der Stand erhalten: Der nächste Aufruf macht bei den Zeilen mit `OFFEN:` weiter.
 
 Ziel: Der Nutzer tut so wenig wie möglich. Alles, was sich lesen oder schreiben lässt, macht der Assistent selbst. Der Nutzer entscheidet, bestätigt, gibt Dialoge am Mac frei und erteilt Freigaben.
+
+## Vorhandene Projekte (aus dem Haltepunkt, vor jeder Suche)
+
+Der Screenshot der Seitenleiste oder die genannten Namen sind die Liste der Projekte, die es schon gibt. Daraus, bevor der erste Werkzeugaufruf kommt:
+- Die Namen in einer Zeile bestätigen: "Ich sehe diese Projekte: Privat, Verein, Steuern. Stimmt das?" Ist der Screenshot unscharf oder abgeschnitten, nur nachfragen, was unklar ist. Chats und Aufgaben in der Seitenleiste sind keine Projekte, sie bleiben unbeachtet.
+- Bei jedem Projekt, dessen Zweck der Name nicht verrät, kurz fragen, wofür es da ist (Freitext, höchstens eine Runde).
+- Als `Vorhanden:` unter Bereiche und Projekte in `wissen/privat-profil.md` schreiben, sobald der Kontextordner steht (Schritt 2), je Projekt eine Zeile mit Name und Zweck. So kennt ein späterer Aufruf sie auch.
+- Läuft die Einrichtung schon in einem Projekt mit Ordner, ist das meist das Projekt für den Grundbereich. Heißt es anders als Privat, den Namen übernehmen, nicht umbenennen lassen.
+
+Was daraus folgt:
+- **Schritt 1:** Gibt es schon ein Projekt für den Grundbereich, aber die Einrichtung läuft außerhalb davon, nicht Projekt anlegen zeigen, sondern bitten, die Einrichtung in diesem Projekt neu zu starten und es mit dem Kontextordner zu verbinden.
+- **Schritt 6, Runde 5:** Der Schnitt nach `projektschnitt.md` geht von den vorhandenen Projekten aus: passende behalten, ähnliche zusammenlegen oder umbenennen nur mit Grund, neue nur für Bereiche ohne Projekt. In der Tabelle der Empfehlung je Projekt Spalte Stand: vorhanden, anpassen oder neu.
+- **Schritt 9:** Für vorhandene Projekte nur nennen, was fehlt oder sich ändert (Beschreibung, Ordner, Instruktionen, Memory), nie raten, was schon eingestellt ist. Hat ein vorhandenes Projekt eigene Instruktionen, den Nutzer bitten, sie hier einzufügen, dann ergänzen statt ersetzen.
 
 ## Umfang der Auswertung
 
@@ -26,7 +39,7 @@ Fest für jedes Modell. Nicht mehr suchen, nicht weniger, keine weiteren Quellen
 Fehlt etwas, das nur der Nutzer beheben kann, das in einem Satz sagen, den Text aus `texte.md` zeigen und anhalten oder die Quelle überspringen, nicht lange probieren:
 - **Cowork ohne Projekt mit Ordner:** Das Projekt für den Grundbereich (meist Privat) kommt immer zuerst. Text Projekt anlegen, dann anhalten. Die Einrichtung startet danach neu in einer Aufgabe dieses Projekts.
 - **Werkzeuge von `apple` fehlen:** Plugin nicht installiert oder der Server startet nicht. Text Plugins, dann anhalten.
-- **`kontakte` oder ein Chat-Werkzeug meldet fehlenden Zugriff:** Festplattenvollzugriff fehlt (Text Freigaben). Danach Claude neu starten, die Einrichtung macht beim nächsten Aufruf weiter.
+- **`kontakte` oder ein Chat-Werkzeug meldet fehlenden Zugriff:** Festplattenvollzugriff fehlt. `einstellungen` mit `freigabe` aufrufen (öffnet Systemeinstellungen und Finder), dann nur den Punkt Festplattenvollzugriff aus dem Text Freigaben zeigen. Danach Claude neu starten, die Einrichtung macht beim nächsten Aufruf weiter.
 - **WhatsApp fehlt am Mac oder der Nutzer nutzt es nicht, Plugin `chat` fehlt:** die Zeilen zu WhatsApp und iMessage überspringen, kein Stilprofil dafür.
 - **Dialog am Mac abgelehnt oder nicht gesehen:** `einstellungen_schreiben` meldet es. Den Nutzer bitten, auf den Mac zu schauen, dann einmal erneut.
 
@@ -97,7 +110,7 @@ Vorschläge in Auswahlfragen nach `../../kontext/references/fragen.md`, jede Per
 | 2 Arbeit | nur mit Arbeitskonto: Arbeitgeber, Rolle, Anrede und Gruß in Arbeitsmails, Du oder Sie intern und extern, mit Microsoft 365 der Stil für Teams-Chats und die Arbeitsadresse, wenn die Arbeitsmail nicht in Apple Mail läuft |
 | 3 Schreiben | Zeichen oder Wörter, die nie vorkommen sollen, Datum und Uhrzeit, Länge von Nachrichten |
 | 4 Alltag | Interessen, wofür der Assistent am meisten helfen soll |
-| 5 Bereiche | angestellt, selbständig oder ohne Beruf, Account der Firma ja oder nein, dauerhafte Bereiche mit eigenen Unterlagen (Verein, Studium, Verwaltung), was vertraulich bleiben muss, wiederkehrende Fristen mit Zeitraum (etwa Zeiterfassung in den letzten Tagen des Monats) für den Tagesstart. Dann die Empfehlung nach `projektschnitt.md` zeigen und den Schnitt bestätigen lassen |
+| 5 Bereiche | angestellt, selbständig oder ohne Beruf, Account der Firma ja oder nein, dauerhafte Bereiche mit eigenen Unterlagen (Verein, Studium, Verwaltung), was vertraulich bleiben muss, wiederkehrende Fristen mit Zeitraum (etwa Zeiterfassung in den letzten Tagen des Monats) für den Tagesstart. Was die vorhandenen Projekte schon beantworten, nicht noch einmal fragen. Dann die Empfehlung nach `projektschnitt.md` zeigen, ausgehend von den vorhandenen Projekten, und den Schnitt bestätigen lassen |
 
 Je Frage zwei bis drei konkrete Optionen mit fertigem Text, "Empfohlen" für die naheliegende, Freitext über die eingebaute Option Sonstiges. Was der Assistent aus den Quellen schon weiß (Gruß in gesendeten Mails, Emojis in WhatsApp), als Empfehlung vorschlagen statt offen zu fragen.
 

@@ -8,7 +8,7 @@ Was das Plugin bewusst nicht kann: Mails, Notizen, Erinnerungen oder Termine lö
 
 ## Installation
 
-In Cowork: Customize > Plugins > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `apple` installieren. In Claude Code:
+In Cowork: Seitenleiste oben > Plugins (nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `apple` installieren. In Claude Code:
 
 ```
 /plugin install apple --marketplace lucasbrcht/claude-kits

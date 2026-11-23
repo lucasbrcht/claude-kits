@@ -48,4 +48,4 @@ Je Nachricht `Datum Uhrzeit | Absender: Text`. Gekürzte Verläufe nennen unter 
 ## Grenzen
 
 - Nur was die Nachrichten-App am Mac gespeichert hat, Anhänge und Reaktionen nicht. Weitere Grenzen in `references/ausgabe-und-sonderfaelle.md`.
-- Fehlt der Zugriff (Festplattenvollzugriff, Automation für Nachrichten, jeweils für die Claude-App), sagt die Meldung, was zu tun ist.
+- Fehlt der Festplattenvollzugriff, öffnet `einstellungen` mit `freigabe` (Plugin `apple`) Finder und Systemeinstellungen, der Nutzer zieht das markierte Programm in die Liste. Für Automation und ohne `apple` sagt die Meldung, was zu tun ist.
