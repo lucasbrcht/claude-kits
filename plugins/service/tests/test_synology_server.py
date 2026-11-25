@@ -155,7 +155,17 @@ class Start(Basis):
                   "PasswordAuthentication=no", "ClearAllForwardings=yes"):
             self.assertIn(o, b)
         self.assertEqual(b[-3:], ["claude@192.0.2.10", "--", "nas_status"])
-        self.assertIn(f"UserKnownHostsFile={self.daten / 'ssh' / 'known_hosts'}", b)
+        self.assertIn(f'UserKnownHostsFile="{self.daten / "ssh" / "known_hosts"}"', b)
+
+    def test_known_hosts_mit_leerzeichen(self):
+        """Echtes ssh: Der Pfad mit Leerzeichen wird als eine Datei gelesen (ssh -G zeigt die wirksamen Optionen)."""
+        ordner = self.tmp / "Application Support"
+        ordner.mkdir()
+        b = ss.Verbindung(CFG).befehl("lesen", ["x"])
+        b = [f'UserKnownHostsFile="{ordner / "known_hosts"}"' if x.startswith("UserKnownHostsFile") else x for x in b]
+        lauf = subprocess.run(["/usr/bin/ssh", "-G", *b[1:b.index("--")]], capture_output=True, text=True, timeout=30)
+        zeile = next(z for z in lauf.stdout.splitlines() if z.startswith("userknownhostsfile "))
+        self.assertEqual(zeile, f"userknownhostsfile {ordner / 'known_hosts'}")
 
 
 class Werkzeuge(Basis):

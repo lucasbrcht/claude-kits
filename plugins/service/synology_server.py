@@ -129,7 +129,8 @@ class Verbindung:
         o = ssh_ordner()
         return [SSH, "-F", "/dev/null", "-i", str(o / rolle), "-p", str(self.cfg["port"]),
                 "-o", "IdentitiesOnly=yes", "-o", "UseKeychain=yes", "-o", "AddKeysToAgent=no",
-                "-o", f"UserKnownHostsFile={o / 'known_hosts'}", "-o", "GlobalKnownHostsFile=/dev/null",
+                # in Anführungszeichen: ssh liest hier eine Liste, das Leerzeichen in Application Support trennte sonst
+                "-o", f'UserKnownHostsFile="{o / "known_hosts"}"', "-o", "GlobalKnownHostsFile=/dev/null",
                 "-o", "StrictHostKeyChecking=yes", "-o", "UpdateHostKeys=no", "-o", "PreferredAuthentications=publickey",
                 "-o", "PasswordAuthentication=no", "-o", "KbdInteractiveAuthentication=no", "-o", "ConnectTimeout=10",
                 "-o", "ServerAliveInterval=15", "-o", "ForwardAgent=no", "-o", "ForwardX11=no", "-o", "ClearAllForwardings=yes",
@@ -172,6 +173,9 @@ class Verbindung:
                              "Der Server versucht es bis zum Neustart nicht mehr, sonst sperrt DSM die Adresse (Auto "
                              "Block). Einrichtung prüfen: synology_start.py --pruefen im Terminal.")
             return self.gesperrt
+        if "host key is known" in e:
+            return ("Für die DiskStation ist kein Host-Schlüssel gespeichert (known_hosts im Datenordner). Nichts "
+                    "gesendet. Einrichtung im Terminal: synology_start.py --einrichten.")
         if "host key verification failed" in e or "remote host identification has changed" in e:
             return ("Der Host-Schlüssel der DiskStation passt nicht zum gespeicherten. Nichts gesendet. Nach einer "
                     "Neuinstallation von DSM neu pinnen: synology_start.py --einrichten. Sonst nicht weiterarbeiten "
