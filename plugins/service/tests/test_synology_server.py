@@ -336,10 +336,15 @@ class Einrichtung(unittest.TestCase):
         with mock.patch("builtins.input", lambda _t: next(antworten)):
             with self.assertRaises(synology_start.Abbruch):
                 synology_start.angaben_abfragen({})
-        antworten = iter(["192.168.1.20", "", "ich", ""])
+        antworten = iter(["192.168.1.20", "", "Ich.Admin", ""])
         with mock.patch("builtins.input", lambda _t: next(antworten)):
             cfg = synology_start.angaben_abfragen({})
-        self.assertEqual((cfg["port"], cfg["netz"], cfg["benutzer"]), (22, "192.168.1.0/24", "claude"))
+        self.assertEqual((cfg["port"], cfg["netz"], cfg["benutzer"], cfg["admin"]),
+                         (22, "192.168.1.0/24", "claude", "Ich.Admin"))
+        antworten = iter(["nas", "22", "ich admin"])
+        with mock.patch("builtins.input", lambda _t: next(antworten)):
+            with self.assertRaises(synology_start.Abbruch):
+                synology_start.angaben_abfragen({})
 
 
 if __name__ == "__main__":

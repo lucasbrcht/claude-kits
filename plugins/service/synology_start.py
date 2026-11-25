@@ -28,6 +28,8 @@ import synology_server as ss
 
 BUENDEL = "claude-gate-neu"
 NAS_DATEIEN = ("install.sh", "eingang.sh", "gate.sh", "VERSION")
+# DSM erlaubt im Benutzernamen Groß- und Kleinbuchstaben, Ziffern und - _ . (ohne Unterschied von Groß und Klein)
+ADMIN_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}")
 NETZ_RE = re.compile(r"\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?(,\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?){0,4}")
 
 
@@ -54,8 +56,8 @@ def angaben_abfragen(alt: dict) -> dict:
     if not port.isdigit() or not 1 <= int(port) <= 65535:
         raise Abbruch("Der Port ist eine Zahl von 1 bis 65535.")
     admin = frage("Dein Admin-Konto auf der DiskStation (nur für die Befehle unten)", str(alt.get("admin", "")))
-    if not ss.BENUTZER_RE.fullmatch(admin):
-        raise Abbruch("Das ist kein Benutzername.")
+    if not ADMIN_RE.fullmatch(admin):
+        raise Abbruch("Das ist kein Benutzername (Buchstaben, Ziffern, - _ . ohne Leerzeichen).")
     try:
         vorschlag = str(ipaddress.ip_network(f"{host}/24", strict=False))
     except ValueError:
