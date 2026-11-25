@@ -9,7 +9,7 @@ Dokumente (PowerPoint, Word, Excel, PDF und andere) bearbeitest du nie am Origin
 
 | Werkzeug | Zweck | Stufe |
 |---|---|---|
-| `arbeitskopie` | `holen` kopiert das Original in einen Themen-Ordner, `liste` zeigt Themen und Stand, `zeigen` öffnet eine Datei oder zeigt sie im Finder, `zuruecknehmen` setzt die letzte Runde von `folien_aendern` oder `excel_skript` zurück | schreiben |
+| `arbeitskopie` | `holen` kopiert das Original in einen Themen-Ordner, `anlegen` macht eine neue Datei zur Arbeitskopie ohne Original (mit `pfad` aus einer Vorlage, ohne die Datei im Thema), `liste` zeigt Themen und Stand, `zeigen` öffnet eine Datei oder zeigt sie im Finder, `zuruecknehmen` setzt die letzte Runde von `folien_aendern` oder `excel_skript` zurück | schreiben |
 | `arbeitskopie_uebertragen` | Arbeitskopie in die Originaldatei am selben Ort schreiben, Dialog am Mac | fragt |
 | `sprache` | Sprache aller Textstellen einer Arbeitskopie (.pptx, .docx) setzen, mit `pruefen` nur zeigen | schreiben |
 
@@ -32,7 +32,11 @@ Dokumente (PowerPoint, Word, Excel, PDF und andere) bearbeitest du nie am Origin
 5. **Übergeben:** sagen, welche Bereiche sich geändert haben (Blätter und Zellen, Folien und Formen, Abschnitte), damit der Nutzer Überschneidungen mit eigenen Änderungen sofort sieht, und wo die Datei liegt (Thema und Name). Auf Wunsch `arbeitskopie` mit `aktion` zeigen, `bereich`, `thema` und `datei` (mit `finder` im Finder statt öffnen).
 6. **Übertragen:** erst auf "übertragen" `arbeitskopie_uebertragen` mit `bereich`, `thema` und `datei`. Danach sagen, dass das Original ersetzt ist und Links bleiben. Weitere Runden gehen in derselben Arbeitskopie weiter.
 
-**Neue Dateien ohne Original** (etwa ein neues Deck): gleich im Themen-Ordner der Ablage anlegen. Sie haben keine Herkunft, Übertragen gibt es für sie nicht. Wohin sie später sollen, entscheidet der Nutzer und legt sie selbst dort ab.
+**Neue Dateien ohne Original** (etwa ein neues Deck): immer über `arbeitskopie` mit `aktion` anlegen, `bereich`, `thema`, `datei` (der neue Name).
+- Aus einer Vorlage (Mastervorlage, Vorbilddeck, .potx wird .pptx): `pfad` die Vorlage, das Werkzeug kopiert sie unter dem neuen Namen ins Thema.
+- Schon gebaut (pptx-, xlsx- oder docx-Skill im Themen-Ordner): ohne `pfad`, gleich nach dem Bauen.
+
+`anlegen` setzt die Sprache und prüft ein Deck. Ab dann laufen alle Runden darin wie bei einer geholten Arbeitskopie. Übertragen gibt es nicht, wohin die Datei soll, entscheidet der Nutzer. Nie eine zweite Datei daneben (`-1`, `_v2`): ist sie in Office offen, den Nutzer bitten, sie zu schließen.
 
 ## Wenn Übertragen abbricht
 
@@ -43,11 +47,11 @@ Dokumente (PowerPoint, Word, Excel, PDF und andere) bearbeitest du nie am Origin
 
 ## Aufräumen
 
-Auf Wunsch oder wenn die Ablage voll wirkt: `arbeitskopie` mit `aktion` liste, erledigte Themen (übertragen, lange unverändert) als Liste zum Löschen vorschlagen. Löschen nur nach Ja für genau diese Ordner: in Cowork im eingebundenen Ordner, sonst macht es der Nutzer im Finder (`zeigen` mit `finder` hilft). Themen mit Änderungen, die nicht übertragen sind, nie vorschlagen, ohne das zu sagen.
+Auf Wunsch oder wenn die Ablage voll wirkt: erst `${CLAUDE_SKILL_DIR}/references/aufraeumen.md` lesen. Löschen nur nach Ja für genau diese Ordner.
 
 ## PDF aus HTML
 
-`pdf_aus_html` kommt vom Plugin `apple` und druckt eine HTML-Datei aus den Ordnern in `pdf.ordner` als PDF in denselben Ordner, A4 hoch oder mit `quer` quer. Die Seitenzahl in der Antwort ist die Prüfung auf Überlauf. Ein PDF, das von diesem Werkzeug stammt, ersetzt es beim nächsten Druck ohne Rückfrage. Liegt dort ein fremdes PDF gleichen Namens, bricht es ab: dann `name` für einen anderen Namen, oder auf ausdrücklichen Wunsch `ersetzen` mit Dialog am Mac. HTML für den Druck gehört in den Themen-Ordner der Ablage, nicht neben ein Original.
+`pdf_aus_html` kommt vom Plugin `apple` und druckt HTML als PDF. Vor dem ersten Druck `${CLAUDE_SKILL_DIR}/references/pdf-aus-html.md` lesen (Ordner, Ersetzen, Prüfung auf Überlauf).
 
 ## Grenzen
 

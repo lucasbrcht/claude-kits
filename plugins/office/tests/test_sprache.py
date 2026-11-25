@@ -99,6 +99,23 @@ class SpracheTest(unittest.TestCase):
         out, _ = self.lauf(str(pfad))
         self.assertIn("nichts geändert", out)
 
+    def test_text_ohne_sprache_aus_python_pptx(self):
+        """8.2: python-pptx schreibt Läufe ohne a:rPr oder a:rPr ohne lang. PowerPoint am Mac prüft sie in der eigenen
+        Sprache, sprache ergänzt lang dort. Ohne lang auf den Folien gilt die Vorgabe der Präsentation."""
+        folie = ('<p:sld xmlns:a="a" xmlns:p="p"><p:txBody><a:p><a:r><a:t>Hallo</a:t></a:r>'
+                 '<a:r><a:rPr sz="900" b="1"/><a:t>Welt</a:t></a:r><a:endParaRPr sz="900"/></a:p>'
+                 '<a:p><a:r>\n<a:t/></a:r></a:p></p:txBody></p:sld>')
+        pfad = self.pptx([folie])
+        out, code = self.lauf(str(pfad))
+        self.assertEqual(code, 0, out)
+        self.assertIn("en-US (Sprache der Präsentation)", out)  # aus der Vorgabe lvl2pPr
+        text = self.teil(pfad, "ppt/slides/slide1.xml")
+        self.assertIn('<a:r><a:rPr lang="en-US"/><a:t>Hallo</a:t></a:r>', text)
+        self.assertIn('<a:rPr lang="en-US" sz="900" b="1"/>', text)
+        self.assertIn('<a:endParaRPr lang="en-US" sz="900"/>', text)
+        self.assertIn('<a:r>\n<a:rPr lang="en-US"/><a:t/></a:r>', text)
+        self.assertIn("nichts geändert", self.lauf(str(pfad))[0])
+
     def test_pruefen_aendert_nichts(self):
         pfad = self.pptx([FOLIE.format(a="en-US", b="en-US", c="de-DE")])
         vorher = pfad.read_bytes()

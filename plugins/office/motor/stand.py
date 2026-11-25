@@ -303,6 +303,9 @@ def merkmale_pptx(pfad: str) -> dict:
                 if el is baum or el.tag.endswith("}spTree"):
                     continue
                 kopie = etree.fromstring(etree.tostring(el))
+                for r in kopie.iter(a + "r"):  # Lauf ohne a:rPr gleich Lauf mit leerem: sprache ergänzt es mit lang
+                    if r.find(a + "rPr") is None:
+                        r.insert(0, etree.Element(a + "rPr"))
                 if kopie.tag.endswith("}grpSp"):  # Gruppe: nur eigene Angaben, die Formen darin zählen selbst
                     for k in [k for k in kopie if not k.tag.endswith(("}nvGrpSpPr", "}grpSpPr"))]:
                         kopie.remove(k)

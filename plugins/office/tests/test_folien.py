@@ -413,6 +413,21 @@ else:
             self.assertEqual(code, 0, out)
             self.assertNotIn("VON HAND", out)
 
+        def test_sprache_an_laeufen_ohne_rpr_zaehlt_nicht(self):
+            """8.2: sprache ergänzt a:rPr mit lang an Läufen von python-pptx, das ist keine Änderung von Hand."""
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
+            with zipfile.ZipFile(self.arbeit) as z:
+                teile = {n: z.read(n) for n in z.namelist()}
+            self.assertIn(b"<a:r><a:t>", teile["ppt/slides/slide1.xml"])
+            teile["ppt/slides/slide1.xml"] = teile["ppt/slides/slide1.xml"].replace(
+                b"<a:r><a:t>", b'<a:r><a:rPr lang="de-DE"/><a:t>')
+            with zipfile.ZipFile(self.arbeit, "w", zipfile.ZIP_DEFLATED) as z:
+                for n, d in teile.items():
+                    z.writestr(n, d)
+            code, out = self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("VON HAND", out)
+
         def test_erster_lauf_auf_bearbeiteter_arbeitskopie(self):
             prs = self.ergebnis()  # der Nutzer hat die Arbeitskopie vor dem ersten Lauf bearbeitet
             prs.slides[4].shapes.title.text = "Vorab geändert"
@@ -762,6 +777,77 @@ else:
             code, out = self.pruefen(self.arbeit, "--original", self.deck)
             self.assertEqual(code, 1, out)
             self.assertIn("ppt/slides/slide2.xml: XML nicht wohlgeformt", out)
+
+        def karte_mit_textfeld(self, pfad: Path) -> Path:
+            """Eine Folie wie vom Skill pptx: Karte, Textfeld darüber mit getippten Punkten in 9 pt, Form über den
+            Rand."""
+            from pptx.util import Pt
+            prs = Presentation()
+            s = prs.slides.add_slide(prs.slide_layouts[6])
+            s.shapes.add_shape(5, Cm(1), Cm(1), Cm(8), Cm(5))  # abgerundetes Rechteck, ID 2
+            tf = s.shapes.add_textbox(Cm(1.5), Cm(1.5), Cm(7), Cm(3)).text_frame  # ID 3
+            tf.text = "Pflichtschulung"
+            lauf = tf.add_paragraph().add_run()
+            lauf.text = "•  Start im Januar"
+            lauf.font.size = Pt(9)
+            tf.add_paragraph().text = "- zweiter Punkt"
+            s.shapes.add_shape(1, Cm(20), Cm(1), Cm(8), Cm(2))  # ID 4, ragt rechts hinaus
+            s.shapes.add_textbox(Cm(12), Cm(10), Cm(4), Cm(1)).text_frame.text = "Fußnote frei"  # ID 5, auf nichts
+            prs.save(pfad)
+            return pfad
+
+        def test_hinweise_zur_gestaltung(self):
+            deck = self.karte_mit_textfeld(self.tmp / "karte.pptx")
+            _infos, funde = pruefen.analyse(str(deck))
+            arten = {f["art"]: f for f in funde if f["art"] in pruefen.GESTALTUNG}
+            self.assertEqual(sorted(arten), ["aufzaehlung-text", "ausserhalb", "schrift-klein", "textfeld-ueber-form"])
+            self.assertEqual(arten["aufzaehlung-text"]["anzahl"], 2)
+            self.assertIn("Textfeld 3 (TextBox 2) liegt auf Form 2", arten["textfeld-ueber-form"]["text"])
+            self.assertEqual(sum(f["art"] == "textfeld-ueber-form" for f in funde), 1, "Fußnote liegt auf nichts")
+            code, out = self.pruefen(deck)
+            self.assertIn("WARNUNG  Folie 1, Form 3 (TextBox 2): Schrift 9 pt, unter 10 pt", out)
+            self.assertIn('"art": "in_form"', out)
+            self.assertIn("Zähler Slides 0 statt 1", out)  # python-pptx schreibt keine Zähler
+            code, out = self.pruefen(deck, "--original", deck)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("WARNUNG", out)
+            self.assertIn("INFO     4 Hinweise zur Gestaltung stecken schon im Original", out)
+
+        def test_in_form_und_echte_aufzaehlung(self):
+            """8.2: Text aus dem Textfeld in die Karte, Textfeld weg, Text bleibt an seiner Stelle. Danach echte
+            Aufzählung statt getippter Zeichen."""
+            self.deck = self.karte_mit_textfeld(self.quelle / "karte.pptx")
+            self.arbeit = self.thema / "karte.pptx"
+            shutil.copy(self.deck, self.arbeit)
+            code, out = self.aendern([{"art": "in_form", "folie": 1, "form": 3, "ziel": 4}])
+            self.assertEqual(code, 1, out)
+            self.assertIn("liegt nicht auf Form 4", out)
+            code, out = self.aendern([{"art": "in_form", "folie": 1, "form": 3, "ziel": 5}])
+            self.assertEqual(code, 1)
+            self.assertIn("ziel hat schon Text", out)
+            code, out = self.aendern([
+                {"art": "in_form", "folie": 1, "form": 3, "ziel": 2},
+                {"art": "absaetze", "folie": 1, "form": 2, "absaetze": [
+                    "Pflichtschulung", {"text": "Start im Januar", "punkt": True},
+                    {"text": "Zweiter Punkt", "punkt": True}]}])
+            self.assertEqual(code, 0, out)
+            self.assertIn("Textfeld 3 (TextBox 2) in Form 2 (Rounded Rectangle 1) übernommen", out)
+            self.assertIn("Textfarbe tx1", out)
+            self.assertNotIn("textfeld", out.split("Prüfung")[-1].lower().replace("textfelder", ""))
+            form = self.ergebnis().slides[0].shapes
+            self.assertEqual([s.shape_id for s in form], [2, 4, 5])
+            karte = form[0]._element
+            self.assertEqual(form[0].text_frame.text, "Pflichtschulung\nStart im Januar\nZweiter Punkt")
+            bp = karte.find(f".//{{{A}}}bodyPr")
+            self.assertEqual(bp.get("lIns"), str(int(Cm(0.5)) + 91440))
+            self.assertEqual(bp.get("tIns"), str(int(Cm(0.5)) + 45720))
+            ps = karte.findall(f".//{{{A}}}p")
+            self.assertIsNone(ps[0].find(f"{{{A}}}pPr/{{{A}}}buChar"))
+            for p in ps[1:]:
+                ppr = p.find(f"{{{A}}}pPr")
+                self.assertEqual(ppr.find(f"{{{A}}}buChar").get("char"), "•")
+                self.assertEqual((ppr.get("marL"), ppr.get("indent")), ("228600", "-228600"))
+            self.assertNotIn("getipptem", out)
 
         def test_bestehende_decks_ohne_neue_funde(self):
             """Das Testdeck und eine Folie aus python-pptx bleiben ohne Funde zu Verweisen und Inhaltstypen."""

@@ -247,6 +247,79 @@ class AblageTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "keine Datei"):
             ablage.ablage_datei(cfg, "", "", str(self.kopie.parent))
 
+    # ---------- anlegen (8.2) ----------
+    def test_anlegen_nimmt_neue_datei_auf(self):
+        """Eine Datei, die der Skill pptx im Thema gebaut hat, wird Arbeitskopie ohne Original: Ausgang im
+        Datenordner, liste und herkunft nennen das, übertragen bricht ab."""
+        ordner = self.downloads / "Claude Work" / "All Hands"
+        ordner.mkdir(parents=True)
+        neu = ordner / "OnePager.pptx"
+        neu.write_bytes(b"PK neu")
+        self.assertIn("keine bekannte Herkunft", str(self.lauf("herkunft", "--bereich=arbeit", "--thema=All Hands",
+                                                                  "--", "OnePager.pptx")[1]))
+        out, fehler = self.lauf("anlegen", "--bereich=arbeit", "--thema=all hands", "--", "OnePager.pptx")
+        self.assertIsNone(fehler)
+        self.assertIn(f"Neue Datei: {neu}", out)
+        self.assertIn("nicht übertragbar", out)
+        eintrag = self.herkunft()[str(neu)]
+        self.assertTrue(eintrag["neu"])
+        self.assertIsNone(eintrag["original"])
+        ausgang = Path(eintrag["ausgang"])
+        self.assertEqual(ausgang.read_bytes(), b"PK neu")
+        self.assertTrue(str(ausgang).startswith(str(self.daten / "ablage-ausgang")))
+        self.assertEqual(sorted(p.name for p in ordner.iterdir()), ["OnePager.pptx"])  # nichts neben der Datei
+        out, _ = self.lauf("herkunft", "--bereich=arbeit", "--thema=All Hands", "--", "OnePager.pptx")
+        self.assertIn(f"Ausgang: {ausgang}", out)
+        self.assertNotIn("Original:", out)
+        self.assertIn("OnePager.pptx: neu angelegt, nicht übertragbar", self.lauf("liste")[0])
+        neu.write_bytes(b"PK geaendert")
+        _out, fehler = self.lauf("--ausfuehren", "uebertragen", "--bereich=arbeit", "--thema=All Hands", "--",
+                                 "OnePager.pptx")
+        self.assertIn("kein Original", fehler)
+        self.assertIn("schon Arbeitskopie", str(self.lauf("anlegen", "--bereich=arbeit", "--thema=All Hands", "--",
+                                                         "OnePager.pptx")[1]))
+        self.assertIn("arbeitskopie anlegen", str(self.holen("Anderes", neu)[1]))  # holen aus der Ablage: Hinweis
+
+    def test_anlegen_aus_vorlage(self):
+        import zipfile
+        vorlage = self.sharepoint / "Master.potx"
+        typ = b'<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.'
+        with zipfile.ZipFile(vorlage, "w") as z:
+            z.writestr("[Content_Types].xml", typ + b'presentationml.template.main+xml"/>')
+            z.writestr("ppt/presentation.xml", "<p:presentation/>")
+        out, fehler = self.lauf("anlegen", "--bereich=arbeit", "--thema=All Hands", f"--vorlage={vorlage}", "--",
+                                "OnePager.pptx")
+        self.assertIsNone(fehler, out)
+        neu = self.downloads / "Claude Work" / "All Hands" / "OnePager.pptx"
+        with zipfile.ZipFile(neu) as z:
+            self.assertIn(b"presentationml.presentation.main+xml", z.read("[Content_Types].xml"))
+        self.assertEqual(sorted(p.name for p in self.sharepoint.iterdir()), ["Master.potx", "Pitch.pptx"])
+        self.assertIn(f"Vorlage: {vorlage}", out)
+        self.assertIn("aus Vorlage Master.potx", self.lauf("liste")[0])
+        # gleiche Datei noch einmal, falsche Endung, Vorlage aus der Ablage, --vorlage nur für anlegen
+        self.assertIn("schon Arbeitskopie", str(self.lauf("anlegen", "--bereich=arbeit", "--thema=All Hands",
+                                                         f"--vorlage={vorlage}", "--", "OnePager.pptx")[1]))
+        self.assertIn("wird eine .pptx", str(self.lauf("anlegen", "--bereich=arbeit", "--thema=All Hands",
+                                                        f"--vorlage={vorlage}", "--", "Brief.docx")[1]))
+        self.assertIn("Endung", str(self.lauf("anlegen", "--bereich=arbeit", "--thema=All Hands", "--", "x.potx")[1]))
+        out, fehler = self.lauf("anlegen", "--bereich=arbeit", "--thema=Zweites", f"--vorlage={neu}", "--",
+                                "Kopie.pptx")
+        self.assertIsNone(fehler, out)
+        self.assertEqual(self.lauf("holen", "--bereich=arbeit", "--thema=X", f"--vorlage={vorlage}", "--",
+                                   str(self.original))[1][:1], "2")
+
+    def test_anlegen_raeumt_alte_ausgaenge_auf(self):
+        ordner = self.downloads / "Claude Work" / "Neu"
+        ordner.mkdir(parents=True)
+        for name in ("a.pptx", "b.pptx"):
+            (ordner / name).write_bytes(b"PK " + name.encode())
+            self.lauf("anlegen", "--bereich=arbeit", "--thema=Neu", "--", name)
+        self.assertEqual(len(list((self.daten / "ablage-ausgang").iterdir())), 2)
+        (ordner / "a.pptx").rename(ordner.parent / "weg.pptx")  # der Nutzer verschiebt sie
+        (ordner / "c.pptx").write_bytes(b"PK c")
+        self.lauf("anlegen", "--bereich=arbeit", "--thema=Neu", "--", "c.pptx")
+        self.assertEqual(len(list((self.daten / "ablage-ausgang").iterdir())), 2)
+
     def test_ohne_abschnitt_ablage(self):
         (self.daten / "config.json").write_text(json.dumps({"motor": {}}))
         self.assertIn("Abschnitt ablage", str(self.holen()[1]))

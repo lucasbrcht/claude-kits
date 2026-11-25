@@ -13,7 +13,10 @@ Aufruf (der Server gibt alle Pfade vor):
 Liste: {"aenderungen": [{"art": "...", "folie": <Nummer wie folien_lesen auf der Arbeitskopie>, ...}]}
 Arten (folie und form wie in lesen.py, form auch als Name, Maße in cm):
   text         alt, neu, form und folie optional, alle: true für mehrere Treffer. Format bleibt
-  absaetze     form, absaetze: ["Text", {"text": "...", "ebene": 1}]. Format des ersten Absatzes
+  absaetze     form, absaetze: ["Text", {"text": "...", "ebene": 1, "punkt": true}]. Format des ersten Absatzes,
+               punkt true setzt eine echte Aufzählung mit hängendem Einzug, false nimmt sie weg
+  in_form      form (Textfeld), ziel (Form ohne Text darunter): Text in die Form, Textfeld weg, Lage des Texts
+               bleibt über die Innenränder
   zelle        form, zeile, spalte (ab 1), neu (\\n gibt Absätze)
   notizen      neu, "" leert (umgesetzte Wünsche löschen)
   backup       ausblenden und ans Ende des Abschnitts Backup (legt ihn an), statt löschen
@@ -58,7 +61,7 @@ from lesen import (ABSCHNITTE_URI, EMU_CM, NOTIZ_PLATZHALTER, NS, absatz_text, k
                    platzhalter, q)
 from uebernehmen import Fehler  # noqa: E402
 
-SICHTBAR = {"text", "absaetze", "zelle", "lage", "farbe"}  # Arten, die im Vergleich als Paar erscheinen
+SICHTBAR = {"text", "absaetze", "zelle", "lage", "farbe", "in_form"}  # Arten, die im Vergleich als Paar erscheinen
 STRUKTUR = {"backup", "verschieben", "loeschen"}  # wirken nach allen Inhalten, Nummern bleiben die vor dem Lauf
 VORWEG = {"uebernehmen", "reparieren"}
 FUELLUNGEN = ("a:solidFill", "a:noFill", "a:gradFill", "a:pattFill", "a:blipFill", "a:grpFill")
@@ -170,6 +173,9 @@ def absaetze_setzen(tb, absaetze: list) -> str:
             if pp is None:
                 pp = etree.SubElement(p, q("a:pPr"))
             pp.set("lvl", str(ebene)) if ebene else pp.attrib.pop("lvl", None)
+        if isinstance(eintrag, dict) and eintrag.get("punkt") is not None:
+            pp = p.find(q("a:pPr"))
+            aufzaehlung(pp if pp is not None else etree.SubElement(p, q("a:pPr")), bool(eintrag["punkt"]))
         if text:
             r = etree.SubElement(p, q("a:r"))
             if rpr is not None:
@@ -178,6 +184,25 @@ def absaetze_setzen(tb, absaetze: list) -> str:
         if end is not None:
             p.append(copy.deepcopy(end))
     return alt
+
+
+BU_TAGS = ("a:buFontTx", "a:buFont", "a:buNone", "a:buAutoNum", "a:buChar", "a:buBlip")
+EINZUG = 228600  # 0,635 cm hängender Einzug je Ebene
+
+
+def aufzaehlung(pp, an: bool):
+    """Echte Aufzählung im Absatzformat (Zeichen mit hängendem Einzug) oder keine. Getippte Zeichen braucht es dann
+    nicht, die zweite Zeile steht unter dem Text."""
+    for tag in BU_TAGS:
+        for x in pp.findall(q(tag)):
+            pp.remove(x)
+    ebene = int(pp.get("lvl") or 0)
+    pp.set("marL", str(EINZUG * (ebene + 1)) if an else "0")
+    pp.set("indent", str(-EINZUG) if an else "0")
+    neu = [element("a:buFont", typeface="Arial"), element("a:buChar", char="•")] if an else [element("a:buNone")]
+    nach = next((pp.find(q(t)) for t in ("a:tabLst", "a:defRPr", "a:extLst") if pp.find(q(t)) is not None), None)
+    for x in neu:
+        nach.addprevious(x) if nach is not None else pp.append(x)
 
 
 def element(tag: str, **attribute):
@@ -244,6 +269,71 @@ def lage(el, e: dict, slide) -> str:
     return f"{zeig(alt)} -> {zeig(neu)} cm"
 
 
+def eine_form(slide, fid, was: str):
+    els = [el for el in formen(slide, fid) if not im_fallback(el)]
+    if len(els) != 1 or els[0].tag != q("p:sp"):
+        raise Fehler(f"{was} {fid} muss eine einfache Form sein (kein Bild, keine Tabelle, keine Gruppe)")
+    return els[0]
+
+
+def lage_emu(el, was: str) -> list:
+    xf = el.find(f"{q('p:spPr')}/{q('a:xfrm')}")
+    if xf is None or xf.find(q("a:off")) is None or xf.find(q("a:ext")) is None:
+        raise Fehler(f"{was} ohne eigene Lage (Platzhalter mit Lage aus dem Layout), erst mit lage setzen")
+    return [int(xf.find(q("a:off")).get(k)) for k in "xy"] + [int(xf.find(q("a:ext")).get(k)) for k in ("cx", "cy")]
+
+
+def in_form(slide, e: dict) -> str:
+    """Text eines Textfelds in die Form darunter übernehmen und das Textfeld entfernen. Die Innenränder der Form
+    rücken den Text dorthin, wo er im Textfeld stand. Gibt die Form eine eigene Textfarbe vor (Stil), behält der Text
+    die Farbe tx1, die er im Textfeld hatte."""
+    t, s = eine_form(slide, e["form"], "form"), eine_form(slide, e["ziel"], "ziel")
+    if t is s:
+        raise Fehler("form und ziel sind dieselbe Form")
+    if t.getparent() is not s.getparent():
+        raise Fehler("form und ziel liegen in verschiedenen Gruppen")
+    tb, sb = t.find(q("p:txBody")), s.find(q("p:txBody"))
+    if tb is None or not "".join(x.text or "" for x in tb.iter(q("a:t"))).strip():
+        raise Fehler("form hat keinen Text")
+    if sb is not None and "".join(x.text or "" for x in sb.iter(q("a:t"))).strip():
+        raise Fehler("ziel hat schon Text, Text dort erst leeren oder mit absaetze ergänzen")
+    lt, ls = lage_emu(t, "form"), lage_emu(s, "ziel")
+    if pruefen.ueberdeckt(lt, ls) < 0.5:
+        raise Fehler(f"Textfeld {e['form']} liegt nicht auf Form {e['ziel']}")
+    neu = copy.deepcopy(tb)
+    bp = neu.find(q("a:bodyPr"))
+    if bp is None:
+        bp = element("a:bodyPr")
+        neu.insert(0, bp)
+    ins = {k: int(bp.get(k) or std) for k, std in (("lIns", 91440), ("rIns", 91440), ("tIns", 45720),
+                                                    ("bIns", 45720))}
+    werte = {"lIns": lt[0] + ins["lIns"] - ls[0], "rIns": ls[0] + ls[2] - lt[0] - lt[2] + ins["rIns"],
+             "tIns": lt[1] + ins["tIns"] - ls[1], "bIns": ls[1] + ls[3] - lt[1] - lt[3] + ins["bIns"]}
+    for k, v in werte.items():
+        bp.set(k, str(max(v, 0)))
+    for x in bp.findall(q("a:spAutoFit")):  # passt sonst die Form an den Text an
+        bp.remove(x)
+    farbe = ""
+    if s.find(f"{q('p:style')}/{q('a:fontRef')}") is not None and t.find(q("p:style")) is None:
+        for r in neu.iter(q("a:r")):
+            if r.find(q("a:rPr")) is None:
+                r.insert(0, element("a:rPr"))
+        for rpr in list(neu.iter(q("a:rPr"))) + list(neu.iter(q("a:endParaRPr"))):
+            if not any(rpr.find(q(f)) is not None for f in FUELLUNGEN):
+                ln = rpr.find(q("a:ln"))
+                ln.addnext(solid("tx1")) if ln is not None else rpr.insert(0, solid("tx1"))
+        farbe = ", Textfarbe tx1 wie im Textfeld"
+    if sb is not None:
+        s.replace(sb, neu)
+    else:
+        ext = s.find(q("p:extLst"))
+        ext.addprevious(neu) if ext is not None else s.append(neu)
+    t.getparent().remove(t)
+    name = lambda el: el.find(f"./*/{q('p:cNvPr')}").get("name") or ""  # noqa: E731
+    return (f"Text in Form: Textfeld {e['form']} ({name(t)}) in Form {e['ziel']} ({name(s)}) übernommen, Textfeld "
+            f"entfernt{farbe}")
+
+
 def notizen_setzen(slide, neu: str) -> str:
     alt = notizen(slide)
     felder = [el for el in (slide.notes_slide.shapes._spTree.iter(q("p:sp")) if slide.has_notes_slide else [])
@@ -306,6 +396,8 @@ def inhalt(e: dict, prs, folien: dict, liste: str) -> tuple:
         alt = notizen_setzen(slide, e["neu"])
         return f"{wo} Notizen: {kurz(alt, False, 120)!r} -> " + (f"{kurz(e['neu'], False, 120)!r}" if e["neu"] else
                                                                    "geleert"), set()
+    if art == "in_form":
+        return f"{wo} " + in_form(slide, e), {nr}
     els = formen(slide, e["form"])
     if art == "absaetze":
         tbs = [el.find(q("p:txBody")) for el in els if el.find(q("p:txBody")) is not None]

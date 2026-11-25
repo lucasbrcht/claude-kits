@@ -15,10 +15,14 @@ SmartArt), auf die mehrere Folien zeigen, mehrere Füllungen in einem Element un
 Änderungsverlauf (changesInfo mit Namen der Bearbeiter) und Zähler in docProps/app.xml, die nicht zum Deck passen.
 Formen in mc:AlternateContent (Choice und Fallback beschreiben dieselbe Form) zählen einmal. Mit --original zählen
 Funde, die schon im Original stecken, nicht als Fehler.
+Dazu Hinweise zur Gestaltung je Folie als WARNUNG, die nicht als Fund zählen: getippte Aufzählungszeichen (zweite Zeile
+ohne Einzug, gemischtes Fett), Schrift unter SCHRIFT_MIN, Formen über den Folienrand und Textfelder auf einer Form ohne
+eigenen Text (Text gehört in die Form, sonst trennt Verschieben beides). Hinweise aus dem Original fallen weg.
 Rückgabewert 0 ohne Fund, 1 mit Fund, 2 bei falschem Aufruf. Nur Standardbibliothek, läuft auch unter python3 (3.9).
 """
 import os
 import posixpath
+import re
 import subprocess
 import sys
 import zipfile
@@ -69,7 +73,22 @@ ABHILFE = {
     "aenderungsverlauf": "verweist nach Löschen auf fehlende Folien und trägt Namen der Bearbeiter. folien_aendern "
                          "entfernt ihn",
     "app-zaehler": "Altlast aus einem Referenzdeck. folien_aendern setzt die Zähler neu",
+    # Gestaltung: nur WARNUNG, zählt nicht als Fund
+    "aufzaehlung-text": "Die zweite Zeile rutscht unter das Zeichen, beim Markieren mischt sich Fett. Echte Aufzählung "
+                        "über das Absatzformat: absaetze in folien_aendern mit {\"text\": \"...\", \"punkt\": true} "
+                        "und Text ohne Zeichen",
+    "schrift-klein": "Auf Folien zum Zeigen schlecht lesbar",
+    "ausserhalb": "Sie fehlt dann in der Präsentation oder im Druck teilweise",
+    "textfeld-ueber-form": "Verschieben und Bearbeiten trennt Text und Form. Besser Text direkt in der Form: "
+                           "folien_aendern mit {\"art\": \"in_form\", \"folie\": N, \"form\": <Textfeld>, \"ziel\": "
+                           "<Form>}",
 }
+GESTALTUNG = {"aufzaehlung-text", "schrift-klein", "ausserhalb", "textfeld-ueber-form"}
+SCHRIFT_MIN = 10  # pt, darunter WARNUNG
+# getipptes Aufzählungszeichen am Absatzanfang, Striche nur mit Leerzeichen danach
+GETIPPT = re.compile("^\\s*(?:[•▪◦‣●■◆►✓·]\\s*|[-–]\\s+)\\S")
+LINIEN = {"line", "straightConnector1", "bentConnector2", "bentConnector3", "curvedConnector3"}
+SICHTBAR = ("solidFill", "gradFill", "pattFill", "blipFill")
 
 
 def q(ns: str, tag: str) -> str:
@@ -281,8 +300,112 @@ def schriften(paket: Paket, pres) -> list:
     return [fund("schriften", "ppt/presentation.xml", "", 1, f"{SCHRIFT_HINWEIS} ({', '.join(namen)})")]
 
 
+# ---------- Gestaltung ----------
+def lage_von(el):
+    """(x, y, b, h) in EMU aus spPr, grpSpPr oder p:xfrm, sonst None."""
+    for pfad in (f"{q(P, 'spPr')}/{q(A, 'xfrm')}", f"{q(P, 'grpSpPr')}/{q(A, 'xfrm')}", q(P, "xfrm")):
+        x = el.find(pfad)
+        if x is not None and x.find(q(A, "off")) is not None and x.find(q(A, "ext")) is not None:
+            try:
+                return (int(x.find(q(A, "off")).get("x")), int(x.find(q(A, "off")).get("y")),
+                        int(x.find(q(A, "ext")).get("cx")), int(x.find(q(A, "ext")).get("cy")))
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def kennung(el) -> str:
+    c = el.find("./*/" + q(P, "cNvPr"))
+    return f"Form {c.get('id') or '?'} ({c.get('name') or ''})" if c is not None else "Form ?"
+
+
+def form_nr(el) -> str:
+    c = el.find("./*/" + q(P, "cNvPr"))
+    return (c.get("id") or "?") if c is not None else "?"
+
+
+def text_von(el) -> str:
+    return "".join(t.text or "" for t in el.iter(q(A, "t")))
+
+
+def textfeld(sp) -> bool:
+    """Textfeld: als solches angelegt oder ohne sichtbare Füllung und Linie."""
+    c = sp.find(f"{q(P, 'nvSpPr')}/{q(P, 'cNvSpPr')}")
+    if c is not None and c.get("txBox") == "1":
+        return True
+    sppr = sp.find(q(P, "spPr"))
+    return sppr is not None and sp.find(q(P, "style")) is None and not any(sppr.find(q(A, f)) is not None
+                                                                          for f in SICHTBAR + ("ln",))
+
+
+def flaeche(sp) -> bool:
+    """Sichtbare Form ohne eigenen Text: Geometrie (keine Linie) mit Füllung oder Linie, auch aus dem Stil."""
+    sppr = sp.find(q(P, "spPr"))
+    if sppr is None or text_von(sp).strip() or textfeld(sp):
+        return False
+    geo = sppr.find(q(A, "prstGeom"))
+    if geo is not None and geo.get("prst") in LINIEN:
+        return False
+    if geo is None and sppr.find(q(A, "custGeom")) is None:
+        return False
+    if any(sppr.find(q(A, f)) is not None for f in SICHTBAR):
+        return True
+    fill = sp.find(f"{q(P, 'style')}/{q(A, 'fillRef')}")
+    return sppr.find(q(A, "noFill")) is None and fill is not None and fill.get("idx") not in (None, "0")
+
+
+def ueberdeckt(innen, aussen) -> float:
+    """Anteil der Fläche von innen, der in aussen liegt."""
+    x1, y1 = max(innen[0], aussen[0]), max(innen[1], aussen[1])
+    x2, y2 = min(innen[0] + innen[2], aussen[0] + aussen[2]), min(innen[1] + innen[3], aussen[1] + aussen[3])
+    if x2 <= x1 or y2 <= y1 or innen[2] <= 0 or innen[3] <= 0:
+        return 0.0
+    return (x2 - x1) * (y2 - y1) / (innen[2] * innen[3])
+
+
+def gestaltung(teil: str, nr: int, root, groesse) -> list:
+    """Hinweise zur Gestaltung einer Folie: getippte Aufzählungszeichen, zu kleine Schrift, Formen über den Rand,
+    Textfelder auf Formen ohne eigenen Text."""
+    funde, wo = [], f"Folie {nr}"
+    for el in list(root.iter(q(P, "sp"))) + list(root.iter(q(P, "graphicFrame"))):
+        getippt = sum(1 for p in el.iter(q(A, "p")) if GETIPPT.match(text_von(p)))
+        if getippt:
+            funde.append(fund("aufzaehlung-text", teil, form_nr(el), getippt,
+                              f"{wo}, {kennung(el)}: {getippt} Absätze mit getipptem Aufzählungszeichen"))
+        groessen = [int(r.find(q(A, "rPr")).get("sz")) for r in el.iter(q(A, "r"))
+                    if (r.findtext(q(A, "t")) or "").strip() and r.find(q(A, "rPr")) is not None
+                    and (r.find(q(A, "rPr")).get("sz") or "").isdigit()]
+        if groessen and min(groessen) < SCHRIFT_MIN * 100:
+            pt = f"{min(groessen) / 100:g}".replace(".", ",")
+            funde.append(fund("schrift-klein", teil, form_nr(el), 1,
+                              f"{wo}, {kennung(el)}: Schrift {pt} pt, unter {SCHRIFT_MIN} pt"))
+    baum = root.find(f"{q(P, 'cSld')}/{q(P, 'spTree')}")
+    if baum is None:
+        return funde
+    formen = (q(P, "sp"), q(P, "pic"), q(P, "graphicFrame"), q(P, "grpSp"), q(P, "cxnSp"))
+    if groesse:
+        rand_b, rand_h = groesse[0] * 1.005, groesse[1] * 1.005
+        for el in (k for k in baum if k.tag in formen):
+            lage = lage_von(el)
+            if lage and (lage[0] < 0 or lage[1] < 0 or lage[0] + lage[2] > rand_b or lage[1] + lage[3] > rand_h):
+                funde.append(fund("ausserhalb", teil, form_nr(el), 1, f"{wo}, {kennung(el)} ragt über den Folienrand"))
+    for behaelter in [baum] + list(baum.iter(q(P, "grpSp"))):  # Lagen gelten je Ebene
+        kinder = [k for k in behaelter if k.tag == q(P, "sp")]
+        for i, t in enumerate(kinder):
+            lage_t = lage_von(t)
+            if lage_t is None or not text_von(t).strip() or not textfeld(t):
+                continue
+            unter_t = [(s, lage_von(s)) for s in kinder[:i] if flaeche(s) and lage_von(s)]
+            treffer = [(s, l_s) for s, l_s in unter_t if ueberdeckt(lage_t, l_s) >= 0.8]
+            if treffer:
+                s, _l = min(treffer, key=lambda x: x[1][2] * x[1][3])
+                funde.append(fund("textfeld-ueber-form", teil, form_nr(t), 1,
+                                  f"{wo}: Textfeld{kennung(t)[4:]} liegt auf {kennung(s)} ohne eigenen Text"))
+    return funde
+
+
 def analyse(pfad: str):
-    """(Info-Zeilen, Funde) einer .pptx."""
+    """(Info-Zeilen, Funde) einer .pptx. Funde der Gestaltung (GESTALTUNG) sind nur Hinweise."""
     funde, nutzer = [], {}
     try:
         z = zipfile.ZipFile(pfad)
@@ -302,6 +425,12 @@ def analyse(pfad: str):
         pres_rels = lade_rels(paket, "ppt/presentation.xml")
         folien = [pres_rels[s.get(q(R, "id"))][1] for s in pres.iter(q(P, "sldId")) if s.get(q(R, "id")) in pres_rels]
         notizen = versteckt = 0
+        sld_sz = pres.find(q(P, "sldSz"))
+        try:
+            groesse = (int(sld_sz.get("cx")), int(sld_sz.get("cy"))) if sld_sz is not None else None
+        except (TypeError, ValueError):
+            groesse = None
+        hinweise = []
         funde += inhaltstypen(paket) + verweise(paket) + schriften(paket, pres)
         for n in sorted(paket.namen):
             if not n.endswith(".xml") or "/_rels/" in n:
@@ -318,6 +447,7 @@ def analyse(pfad: str):
                     if n in folien:
                         versteckt += root.get("show") == "0"
                         notizen += any(t.endswith("/notesSlide") for t, _z in rels.values())
+                        hinweise += gestaltung(n, folien.index(n) + 1, root, groesse)
         for ziel, quellen in sorted(nutzer.items()):
             if len(quellen) > 1:
                 funde.append(fund("teil-geteilt", ziel, "", len(quellen),
@@ -334,6 +464,7 @@ def analyse(pfad: str):
                 funde.append(fund("app-zaehler", "docProps/app.xml", "", 1, "Zähler " + ", ".join(falsch)))
         for n, grund in sorted(paket.defekt.items()):
             funde.append(fund("xml", n, "", 1, f"XML nicht wohlgeformt ({grund})"))
+        funde += hinweise
     return [f"{len(folien)} Folie{'n' if len(folien) != 1 else ''}, davon {versteckt} ausgeblendet"], funde
 
 
@@ -388,15 +519,29 @@ def pruefe(pfad: str, original: str = None, mit_xsd: bool = True, ausgabe=print)
     ausgabe(f"Prüfung {os.path.basename(pfad)}" + (f" (Vergleich mit {os.path.basename(original)})" if original else ""))
     for i in infos:
         ausgabe(f"  INFO     {i}")
-    zaehlt = 0
+    zaehlt = schon = 0
+    hinweise = []
     for f in funde:
-        if f["schluessel"] in basis and f["anzahl"] <= basis[f["schluessel"]]:
+        alt = f["schluessel"] in basis and f["anzahl"] <= basis[f["schluessel"]]
+        if f["art"] in GESTALTUNG:
+            schon += alt
+            hinweise += [] if alt else [f]
+        elif alt:
             ausgabe(f"  ORIGINAL {f['teil']}: {f['text']} (steckt schon im Original)")
         else:
             zaehlt += 1
             ausgabe(f"  FEHLER   {f['teil']}: {f['text']}. {ABHILFE[f['art']]}")
     if not zaehlt:
         ausgabe("  OK       keine PowerPoint-Fallen")
+    for art in sorted({f["art"] for f in hinweise}, key=list(ABHILFE).index):  # je Art die Abhilfe einmal
+        gruppe = [f for f in hinweise if f["art"] == art]
+        for f in gruppe[:LISTE_MAX * 2]:
+            ausgabe(f"  WARNUNG  {f['text']}")
+        if len(gruppe) > LISTE_MAX * 2:
+            ausgabe(f"  WARNUNG  und {len(gruppe) - LISTE_MAX * 2} weitere dieser Art")
+        ausgabe(f"           {ABHILFE[art]}")
+    if schon:
+        ausgabe(f"  INFO     {schon} Hinweise zur Gestaltung stecken schon im Original")
     if mit_xsd:
         zaehlt += xsd(pfad, original, ausgabe)
     return zaehlt

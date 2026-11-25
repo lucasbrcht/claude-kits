@@ -1,8 +1,8 @@
 {
   "name": "office",
   "displayName": "Office",
-  "version": "8.1.0",
-  "description": "Dokumente bearbeiten, ohne das Original anzufassen: Arbeitskopie je Thema in der Ablage holen, zeigen und auf ausdrückliches übertragen zurück ins Original schreiben (auch SharePoint und OneDrive), Sprache von PowerPoint und Word prüfen und setzen. Mit Motor dazu bestehende Decks und Excel-Mappen finden, lesen, ändern, prüfen und als Vorschau zeigen. Nie löschen. Ein lokaler MCP-Server am Mac, in Cowork und im Code-Tab. Übertragen ins Original fragt mit einem Dialog am Mac.",
+  "version": "8.2.0",
+  "description": "Dokumente bearbeiten, ohne das Original anzufassen: Arbeitskopie je Thema in der Ablage holen oder neu anlegen, zeigen und auf ausdrückliches übertragen zurück ins Original schreiben (auch SharePoint und OneDrive), Sprache von PowerPoint und Word prüfen und setzen. Mit Motor dazu bestehende Decks und Excel-Mappen finden, lesen, ändern, prüfen und als Vorschau zeigen. Nie löschen. Ein lokaler MCP-Server am Mac, in Cowork und im Code-Tab. Übertragen ins Original fragt mit einem Dialog am Mac.",
   "author": {
     "name": "Lucas Bracht"
   }

@@ -5,6 +5,7 @@ Plugins office (bis 7.3 im Plugin apple). sprache.py findet seine Datei über ab
 Aufruf (für den Server):
   ablage.py liste [--bereich=privat|arbeit]
   ablage.py holen --bereich=B --thema=T [--neu] -- <Original>
+  ablage.py anlegen --bereich=B --thema=T [--vorlage=<Pfad>] -- <Dateiname>
   ablage.py zeigen [--finder] [--bereich=B --thema=T] -- <Datei im Thema oder Pfad>
   ablage.py herkunft --bereich=B --thema=T -- <Datei>
   ablage.py [--ausfuehren] uebertragen --bereich=B --thema=T -- <Datei>
@@ -17,6 +18,12 @@ Neuanlegen (gleiche Datei, gleicher Name): So bleiben Links und Versionsverlauf 
 Herkunft (Pfad des Originals, Stand beim Holen mit Änderungszeit, Größe und Prüfsumme) liegt in ablage.json im
 Datenordner, nie neben der Arbeitskopie. Der alte Stand des Originals vor dem letzten Übertragen liegt in
 ablage-sicherung/ im Datenordner (je Original nur der letzte).
+
+Neue Dateien ohne Original (anlegen): mit --vorlage eine Kopie der Vorlage (.potx, .dotx, .xltx werden zu .pptx, .docx,
+.xlsx) unter neuem Namen im Thema, ohne --vorlage eine Datei, die schon im Thema liegt (etwa vom Skill pptx gebaut).
+Die Herkunft hat kein Original, übertragen gibt es nicht. Den Stand beim Anlegen hebt ablage-ausgang/ im Datenordner
+auf: Er dient den Runden von folien_aendern und excel_skript als Vergleich, so erkennt schon die erste Runde
+Änderungen von Hand.
 
 Pfade aus Cowork: Die VM bindet Ordner des Mac als /sessions/<id>/mnt/<Ordnername>/... ein. Ein solcher Pfad wird am
 Mac über den Ordnernamen gesucht (Heimordner, iCloud Drive, ~/Library/CloudStorage), nur ein eindeutiger Treffer zählt.
@@ -38,6 +45,7 @@ import re
 import stat
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import kit_basis  # Datenordner, config.json, Fehlerprotokoll, gleich in apple, chat und office
@@ -47,6 +55,11 @@ DATEN_DIR = kit_basis.datenordner(KIT_DIR)
 CONFIG_PATH = DATEN_DIR / "config.json"
 HERKUNFT_DATEI = "ablage.json"
 SICHERUNG_ORDNER = "ablage-sicherung"
+AUSGANG_ORDNER = "ablage-ausgang"
+# Vorlage -> Datei: Endung und Inhaltstyp des Hauptteils (Office öffnet eine .pptx mit dem Typ der Vorlage nicht)
+VORLAGEN = {".potx": (".pptx", b"presentationml.template.main+xml", b"presentationml.presentation.main+xml"),
+            ".dotx": (".docx", b"wordprocessingml.template.main+xml", b"wordprocessingml.document.main+xml"),
+            ".xltx": (".xlsx", b"spreadsheetml.template.main+xml", b"spreadsheetml.sheet.main+xml")}
 HEIM = Path(pwd.getpwuid(os.getuid()).pw_dir)  # aus der Benutzerdatenbank, nicht aus HOME
 BEREICHE = ("privat", "arbeit")
 ENDUNGEN = {".pptx", ".ppt", ".potx", ".docx", ".doc", ".dotx", ".xlsx", ".xlsm", ".xls", ".xltx", ".csv", ".pdf",
@@ -247,7 +260,8 @@ def schnell_geaendert(pfad: Path, alt: dict) -> bool:
 
 
 # ---------- Prüfungen ----------
-def quelle_pruefen(pfad: Path, cfg: dict) -> Path:
+def quelle_pruefen(pfad: Path, cfg: dict, aus_ablage: bool = False) -> Path:
+    """Original (oder mit aus_ablage eine Vorlage, die auch in der Ablage liegen darf) als aufgelöster Pfad."""
     if pfad.is_symlink():
         raise kit_basis.abbruch(f"{pfad} ist ein Verweis. Nur das Original selbst.", FOLGE)
     try:
@@ -268,8 +282,9 @@ def quelle_pruefen(pfad: Path, cfg: dict) -> Path:
     if echt.suffix.lower() not in ENDUNGEN:
         raise kit_basis.abbruch(f"Nur Dokumente ({', '.join(sorted(ENDUNGEN))}), nicht {echt.name}.", FOLGE)
     for ort in ablage(cfg).values():
-        if ort.exists() and unter(echt, ort.resolve()):
-            raise kit_basis.abbruch(f"{echt.name} liegt schon in der Ablage, dort direkt weiterarbeiten.", FOLGE)
+        if ort.exists() and unter(echt, ort.resolve()) and not aus_ablage:
+            raise kit_basis.abbruch(f"{echt.name} liegt schon in der Ablage, dort direkt weiterarbeiten. Eine neue Datei "
+                                    f"dort mit arbeitskopie anlegen aufnehmen.", FOLGE)
     if echt.stat().st_size > GROESSE_MAX:
         raise kit_basis.abbruch(f"{echt.name} ist größer als {GROESSE_MAX // 1_000_000} MB.", FOLGE)
     return echt
@@ -350,7 +365,7 @@ def cmd_holen(cfg: dict, bereich: str, thema: str, angabe: str, neu: bool) -> No
         if kopie.is_symlink() or not kopie.is_file():
             raise kit_basis.abbruch(f"{kopie.name} in {ordner.name} ist ein Verweis oder keine Datei.", FOLGE)
         if not eintrag or eintrag.get("original") != str(quelle):
-            woher = eintrag.get("original") if eintrag else "ohne bekannte Herkunft"
+            woher = (eintrag.get("original") or "neu angelegt") if eintrag else "ohne bekannte Herkunft"
             raise kit_basis.abbruch(f"{kopie.name} liegt in {ordner.name} schon ({woher}). Ein anderes Thema wählen.",
                                     FOLGE)
         if not neu:
@@ -384,6 +399,98 @@ def cmd_holen(cfg: dict, bereich: str, thema: str, angabe: str, neu: bool) -> No
     print(f"Stand des Originals: {zeit_text(vorher.st_mtime)}" + (", frisch geholt" if vorhanden else ""))
 
 
+def vorlage_kopieren(quelle: Path, ziel: Path) -> str:
+    """Vorlage als neue Datei: .potx, .dotx, .xltx mit dem Inhaltstyp der Datei, sonst Byte für Byte. Liefert die
+    Prüfsumme."""
+    art = VORLAGEN.get(quelle.suffix.lower())
+    if not art:
+        return kopieren(quelle, ziel)
+    try:
+        with zipfile.ZipFile(quelle) as ein:
+            infos = ein.infolist()
+            inhalt = {i.filename: ein.read(i) for i in infos}
+    except (zipfile.BadZipFile, OSError) as e:
+        raise kit_basis.abbruch(f"{quelle.name} ist keine lesbare Vorlage ({type(e).__name__}).", FOLGE) from None
+    typen = inhalt.get("[Content_Types].xml", b"")
+    if art[1] not in typen:
+        raise kit_basis.abbruch(f"{quelle.name}: Inhaltstyp der Vorlage nicht gefunden.", FOLGE)
+    inhalt["[Content_Types].xml"] = typen.replace(art[1], art[2])
+    fd = os.open(ziel, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, "wb") as aus, zipfile.ZipFile(aus, "w") as z:
+        for info in infos:
+            z.writestr(info, inhalt[info.filename], compress_type=info.compress_type)
+    return pruefsumme(ziel)
+
+
+def ausgang_ordner(kopie: Path) -> Path:
+    """Ordner für den Stand beim Anlegen, je Datei der Ablage einer, im Datenordner."""
+    wurzel = DATEN_DIR / AUSGANG_ORDNER
+    if wurzel.is_symlink():
+        raise kit_basis.abbruch(f"{AUSGANG_ORDNER} im Datenordner ist ein Verweis.", FOLGE)
+    return wurzel / hashlib.sha256(str(kopie).encode()).hexdigest()[:16]
+
+
+def ausgang_aufraeumen(kopien: dict) -> None:
+    """Stände beim Anlegen, zu denen es keine Datei in der Herkunft mehr gibt, fallen weg (nur im Datenordner)."""
+    wurzel = DATEN_DIR / AUSGANG_ORDNER
+    if not wurzel.is_dir() or wurzel.is_symlink():
+        return
+    genutzt = {Path(e["ausgang"]).parent.name for k, e in kopien.items() if e.get("ausgang") and Path(k).is_file()}
+    for ordner in wurzel.iterdir():
+        if ordner.name in genutzt or ordner.is_symlink() or not ordner.is_dir():
+            continue
+        for datei in ordner.iterdir():
+            if datei.is_file() or datei.is_symlink():
+                datei.unlink()
+        ordner.rmdir()
+
+
+def cmd_anlegen(cfg: dict, bereich: str, thema: str, datei: str, vorlage: str) -> None:
+    name = dateiname(datei)
+    endung = Path(name).suffix.lower()
+    if endung not in ENDUNGEN or endung in VORLAGEN:
+        raise kit_basis.abbruch(f"datei braucht die Endung eines Dokuments (.pptx, .docx, .xlsx), nicht {name}.", FOLGE)
+    ordner = thema_ordner(bereich_ordner(cfg, bereich, anlegen=True), thema, anlegen=True)
+    kopie = ordner / name
+    kopien = herkunft_laden()
+    eintrag = kopien.get(str(kopie))
+    if eintrag and kopie.is_file():
+        woher = eintrag.get("original") or "neu angelegt"
+        raise kit_basis.abbruch(f"{name} ist schon Arbeitskopie in {ordner.name} ({woher}), darin weiterarbeiten.",
+                                FOLGE)
+    quelle = None
+    if vorlage:
+        quelle = quelle_pruefen(mac_pfad(vorlage), cfg, aus_ablage=True)
+        ziel_endung = VORLAGEN.get(quelle.suffix.lower(), (quelle.suffix.lower(),))[0]
+        if ziel_endung != endung:
+            raise kit_basis.abbruch(f"Aus {quelle.name} wird eine {ziel_endung}, datei endet auf {endung}.", FOLGE)
+        if kopie.exists() or kopie.is_symlink():
+            raise kit_basis.abbruch(f"{name} liegt in {ordner.name} schon. Einen anderen Namen wählen, oder ohne "
+                                    f"vorlage die vorhandene Datei aufnehmen.", FOLGE)
+        summe = vorlage_kopieren(quelle, kopie)
+    else:
+        if kopie.is_symlink() or not kopie.is_file():
+            raise kit_basis.abbruch(f"{name} gibt es in {ordner.name} nicht. Mit vorlage aus einer Vorlage anlegen, oder "
+                                    f"die Datei erst dort ablegen.", FOLGE)
+        summe = pruefsumme(kopie)
+    ausgang = ausgang_ordner(kopie)
+    ausgang.mkdir(parents=True, exist_ok=True)
+    for alt in ausgang.iterdir():
+        if alt.is_file() or alt.is_symlink():
+            alt.unlink()
+    if pruefsumme_kopieren(kopie, ausgang / name) != summe:
+        raise kit_basis.abbruch(f"{name} hat sich beim Anlegen geändert, erneut versuchen.", FOLGE)
+    kopien[str(kopie)] = {"original": None, "neu": True, "vorlage": str(quelle) if quelle else None,
+                          "bereich": bereich, "thema": ordner.name, "geholt": jetzt(), "ausgang": str(ausgang / name),
+                          "stand": None, "kopie_sha256": summe, "uebertragen": None}
+    herkunft_speichern(kopien)
+    ausgang_aufraeumen(kopien)
+    print(f"Neue Datei: {kopie}")
+    print(f"In Cowork: {cowork_pfad(kopie, cfg)}")
+    print(f"Vorlage: {quelle}" if quelle else "Aufgenommen, wie sie im Thema liegt")
+    print("Kein Original, nicht übertragbar. Weitere Runden darin mit folien_aendern oder excel_skript, nie neu bauen.")
+
+
 def cmd_liste(cfg: dict, nur: str) -> None:
     kopien = herkunft_laden()
     orte = ablage(cfg)
@@ -406,7 +513,11 @@ def cmd_liste(cfg: dict, nur: str) -> None:
             for d in dateien:
                 e = kopien.get(str(d.resolve()))
                 if not e:
-                    zeilen.append(f"  - {d.name}: ohne Herkunft, nicht übertragbar")
+                    zeilen.append(f"  - {d.name}: ohne Herkunft, nicht übertragbar, mit anlegen aufnehmen")
+                    continue
+                if e.get("neu"):
+                    vorlage = f", aus Vorlage {Path(e['vorlage']).name}" if e.get("vorlage") else ""
+                    zeilen.append(f"  - {d.name}: neu angelegt{vorlage}, nicht übertragbar")
                     continue
                 teile = [f"aus {Path(e['original']).parent.name}"]
                 teile.append("geändert, nicht übertragen" if pruefsumme(d) != e.get("kopie_sha256")
@@ -423,9 +534,18 @@ def cmd_herkunft(cfg: dict, bereich: str, thema: str, datei: str) -> None:
     kopie = kopie_pruefen(cfg, bereich, thema, datei)
     e = herkunft_laden().get(str(kopie))
     if not e:
-        raise kit_basis.abbruch(f"{kopie.name} hat keine bekannte Herkunft, sie kam nicht über arbeitskopie.", FOLGE)
+        raise kit_basis.abbruch(f"{kopie.name} hat keine bekannte Herkunft, sie kam nicht über arbeitskopie. Eine neue "
+                                f"Datei mit arbeitskopie anlegen aufnehmen.", FOLGE)
     print(f"Arbeitskopie: {kopie}")
-    print(f"Original: {e['original']}")
+    if e.get("neu"):
+        print("Neu angelegt: ohne Original, nicht übertragbar")
+        if e.get("vorlage"):
+            print(f"Vorlage: {e['vorlage']}")
+        ausgang = Path(e.get("ausgang") or "")
+        if e.get("ausgang") and ausgang.is_file() and not ausgang.is_symlink():
+            print(f"Ausgang: {ausgang}")
+    else:
+        print(f"Original: {e['original']}")
     print(f"Geholt: {e.get('geholt', '')}")
 
 
@@ -452,6 +572,9 @@ def cmd_uebertragen(cfg: dict, bereich: str, thema: str, datei: str, ausfuehren:
     e = kopien.get(str(kopie))
     if not e:
         raise kit_basis.abbruch(f"{kopie.name} hat keine bekannte Herkunft, sie kam nicht über arbeitskopie.", FOLGE)
+    if e.get("neu") or not e.get("original"):
+        raise kit_basis.abbruch(f"{kopie.name} ist neu angelegt und hat kein Original. Wohin sie soll, entscheidet der "
+                                f"Nutzer und legt sie selbst dort ab.", FOLGE)
     original = Path(e["original"])
     if original.is_symlink() or not original.is_file():
         raise kit_basis.abbruch(f"Das Original fehlt am alten Ort ({original}), verschoben oder umbenannt. Den Nutzer "
@@ -544,9 +667,10 @@ def main(argv=None):
         return
     vorn, rest = kit_basis.schalter_vorn(argv, schalter=("--ausfuehren",))
     p = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
-    p.add_argument("befehl", choices=("liste", "holen", "zeigen", "herkunft", "uebertragen"))
+    p.add_argument("befehl", choices=("liste", "holen", "anlegen", "zeigen", "herkunft", "uebertragen"))
     p.add_argument("--bereich", default="")
     p.add_argument("--thema", default="")
+    p.add_argument("--vorlage", default="")
     p.add_argument("--neu", action="store_true")
     p.add_argument("--finder", action="store_true")
     p.add_argument("angabe", nargs="?", default="")
@@ -572,8 +696,12 @@ def main(argv=None):
         return cmd_zeigen(cfg, a.bereich, a.thema, a.angabe, a.finder)
     if not (a.bereich and a.thema and a.angabe):
         aufruf_falsch(f"bereich, thema und {'das Original' if a.befehl == 'holen' else 'datei'} angeben. {FOLGE}")
+    if a.vorlage and a.befehl != "anlegen":
+        aufruf_falsch(f"--vorlage gilt nur für anlegen. {FOLGE}")
     if a.befehl == "holen":
         return cmd_holen(cfg, a.bereich, a.thema, a.angabe, a.neu)
+    if a.befehl == "anlegen":
+        return cmd_anlegen(cfg, a.bereich, a.thema, a.angabe, a.vorlage)
     if a.befehl == "herkunft":
         return cmd_herkunft(cfg, a.bereich, a.thema, a.angabe)
     return cmd_uebertragen(cfg, a.bereich, a.thema, a.angabe, "--ausfuehren" in vorn)

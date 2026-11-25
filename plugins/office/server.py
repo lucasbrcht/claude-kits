@@ -36,7 +36,7 @@ import sperren
 from mcp_basis import Fehler, Werkzeug, opt, schalter, text
 
 NAME = "office"
-VERSION = "8.1.0"
+VERSION = "8.2.0"
 WURZEL = Path(__file__).resolve().parent
 lauf = mb.Lauf(WURZEL, NAME)
 
@@ -83,7 +83,31 @@ def arbeitskopie(a: dict) -> tuple:
         if pfad:
             return lauf("ablage.py", ["zeigen", *finder, "--", pfad])
         return lauf("ablage.py", ["zeigen", *finder, *bereich_thema(a), "--", text(a, "datei", maximal=255)])
-    raise Fehler("aktion ist holen, liste, zeigen oder zuruecknehmen.")
+    if aktion == "anlegen":
+        return anlegen(a)
+    raise Fehler("aktion ist holen, anlegen, liste, zeigen oder zuruecknehmen.")
+
+
+def anlegen(a: dict) -> tuple:
+    """Neue Datei ohne Original als Arbeitskopie (ablage.py anlegen), danach bei .pptx und .docx die Sprache setzen und
+    bei .pptx mit dem Motor prüfen. So greifen Stand, Prüfung und folien_aendern auch für neu gebaute Decks."""
+    datei = text(a, "datei", True, 255)
+    vorlage = text(a, "pfad", maximal=2000)
+    code, aus = lauf("ablage.py", ["anlegen", *bereich_thema(a), *opt("--vorlage", vorlage), "--", datei], zeit=170)
+    if code != 0:
+        return code, aus
+    teile = [aus.strip()]  # angelegt ist sie, Funde von Sprache und Prüfung stehen im Text, der Code bleibt 0
+    if datei.lower().endswith((".pptx", ".docx")):
+        _code, aus_s = lauf("sprache.py", [*bereich_thema(a), "--", datei], zeit=120)
+        teile.append("Sprache: " + aus_s.strip())
+    if datei.lower().endswith(".pptx"):
+        try:
+            kopie = next(z.split(": ", 1)[1] for z in aus.splitlines() if z.startswith("Neue Datei: "))
+            _code, aus_p = motor(MOTOR / "pruefen.py", [kopie, "--ohne-xsd"], zeit=300)
+            teile.append(aus_p.strip())
+        except (StopIteration, Fehler) as e:
+            teile.append(f"Prüfung übersprungen ({e or 'Pfad fehlt'}), später mit folien_pruefen.")
+    return code, "\n\n".join(teile)
 
 
 def arbeitskopie_uebertragen(a: dict) -> tuple:
@@ -358,17 +382,19 @@ def deck(a: dict, name: str = "datei", pflicht: bool = True) -> str:
 
 def arbeitskopie_von(a: dict, endungen: tuple) -> tuple:
     """(Arbeitskopie, Original) aus der Herkunft in ablage.json (ablage.py herkunft). Nur Arbeitskopien, die
-    arbeitskopie holen angelegt hat."""
+    arbeitskopie holen oder anlegen angelegt hat. Bei neuen Dateien steht der Stand beim Anlegen (Ausgang) für das
+    Original: Vergleich für Änderungen von Hand und für Funde, die schon in der Vorlage stecken."""
     datei = text(a, "datei", True, 255)
     if not datei.lower().endswith(endungen):
         raise Fehler(f"datei: erwartet {', '.join(endungen)}.")
     code, aus = lauf("ablage.py", ["herkunft", *bereich_thema(a), "--", datei], zeit=60)
     if code != 0:
-        raise Fehler(aus.strip() + " Erst mit arbeitskopie holen.")
+        raise Fehler(aus.strip() + " Erst mit arbeitskopie holen (Original) oder anlegen (neue Datei).")
     werte = dict(z.split(": ", 1) for z in aus.splitlines() if ": " in z)
-    if not werte.get("Arbeitskopie") or not werte.get("Original"):
-        raise Fehler("Herkunft der Arbeitskopie unbekannt.")
-    return werte["Arbeitskopie"], werte["Original"]
+    vergleich = werte.get("Original") or werte.get("Ausgang")
+    if not werte.get("Arbeitskopie") or not vergleich:
+        raise Fehler("Herkunft der Arbeitskopie unbekannt. Eine neue Datei mit arbeitskopie anlegen erneut aufnehmen.")
+    return werte["Arbeitskopie"], vergleich
 
 
 def offen(pfad: str) -> bool:
@@ -506,13 +532,16 @@ UEBERSCHREIBEN = d(B, "nur nach Ja des Nutzers: schreibt trotz HALT wegen Änder
 
 WERKZEUGE = [
     Werkzeug("arbeitskopie", "Arbeitskopie",
-             "Arbeitskopien statt Original: holen kopiert das Original in einen Themen-Ordner, liste zeigt Themen, "
-             "zeigen öffnet oder zeigt im Finder, zuruecknehmen setzt die letzte Runde von Claude zurück.",
+             "Arbeitskopien statt Original: holen (Original ins Thema), anlegen (neue Datei, auch aus Vorlage), liste, "
+             "zeigen (öffnen oder Finder), zuruecknehmen (letzte Runde von Claude).",
              "schreiben",
-             {"aktion": {"type": "string", "enum": ["holen", "liste", "zeigen", "zuruecknehmen"]}, "bereich": BEREICH,
+             {"aktion": {"type": "string", "enum": ["holen", "anlegen", "liste", "zeigen", "zuruecknehmen"]},
+              "bereich": BEREICH,
               "thema": d(S, "Ordner je Thema ohne Datum, ein vorhandenes Thema wiederverwenden"),
-              "pfad": d(S, "holen: das Original. zeigen: Datei aus der Ablage. Mac-Pfad oder wie in Cowork"),
-              "datei": d(S, "zeigen: Dateiname im Thema, leer zeigt den Ordner. zuruecknehmen: Dateiname im Thema"),
+              "pfad": d(S, "holen: das Original. anlegen: die Vorlage (leer nimmt die Datei im Thema auf). zeigen: "
+                           "Datei aus der Ablage. Mac-Pfad oder wie in Cowork"),
+              "datei": d(S, "anlegen: Name der neuen Datei im Thema. zeigen: Dateiname im Thema, leer zeigt den Ordner. "
+                            "zuruecknehmen: Dateiname im Thema"),
               "neu": d(B, "holen: Arbeitskopie frisch vom Original, nur ohne offene Änderungen"),
               "finder": d(B, "zeigen: im Finder zeigen statt öffnen")},
              arbeitskopie, pflicht=("aktion",), zeit=170),

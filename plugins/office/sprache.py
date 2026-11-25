@@ -12,8 +12,9 @@ gilt die Sprache der Präsentation: die häufigste unter den Textstellen der Fol
 Vorgabe der Präsentation. --pruefen zeigt nur, was abweicht, und ändert nichts.
 
 .pptx: lang an allen Textstellen (a:rPr, a:endParaRPr, a:defRPr) in Folien, Notizen, Layouts, Mastern, Diagrammen und
-der Vorgabe defaultTextStyle in presentation.xml. Fehlt lang an einer Vorgabe (a:defRPr in presentation.xml und den
-Mastern), ergänzt das Skript es. .docx: w:val von w:lang in Text, Formatvorlagen, Kopf- und Fußzeilen.
+der Vorgabe defaultTextStyle in presentation.xml. Fehlt lang an einer Textstelle (a:rPr, a:endParaRPr), an einer
+Vorgabe (a:defRPr in presentation.xml und den Mastern) oder hat ein Lauf gar kein a:rPr (so schreibt python-pptx neuen
+Text), ergänzt das Skript es. Sonst prüft PowerPoint am Mac solchen Text in der eigenen Sprache, nicht in der des Decks. .docx: w:val von w:lang in Text, Formatvorlagen, Kopf- und Fußzeilen.
 
 Geschrieben wird nur bei Änderungen, erst in eine versteckte Temp-Datei daneben, dann in einem Schritt ersetzt.
 Nur Standardbibliothek, läuft auch mit dem System-Python 3.9. Exit-Codes: 0 ok, 1 Fehler, 2 Aufruf falsch.
@@ -36,6 +37,7 @@ DOCX_TEIL = re.compile(r"word/(document|styles|footnotes|endnotes|comments|heade
 # Textstellen in DrawingML: <a:rPr .../>, <a:endParaRPr ...>, <a:defRPr ...>
 A_TAG = re.compile(r"<a:(rPr|endParaRPr|defRPr)\b([^>]*?)(/?)>")
 A_LANG = re.compile(r'(\slang=")([^"]*)(")')
+A_LAUF_OHNE = re.compile(r"(<a:r>\s*)(<a:t[\s/>])")  # Lauf ohne a:rPr, a:rPr steht immer vor a:t
 W_LANG = re.compile(r'(<w:lang\b[^>]*?\sw:val=")([^"]*)(")')
 VORGABE_TEILE = re.compile(r"ppt/(presentation|slideMasters/[^/]+)\.xml")
 MAX_BYTES = 300_000_000
@@ -120,12 +122,18 @@ def setzen(art: str, name: str, text: str, ziel: str, abweichend: collections.Co
             abweichend[lang.group(2) or "(leer)"] += 1
             geaendert += 1
             attribute = attribute[:lang.start(2)] + ziel + attribute[lang.end(2):]
-        elif element == "defRPr" and vorgabe:
+        elif element != "defRPr" or vorgabe:  # Text ohne lang (python-pptx) prüft PowerPoint am Mac in seiner Sprache
             ergaenzt += 1
             attribute = f' lang="{ziel}"' + attribute
         else:
             return m.group(0)
         return f"<a:{element}{attribute}{zu}>"
+
+    def lauf_ergaenzen(m):
+        nonlocal ergaenzt
+        ergaenzt += 1
+        return f'{m.group(1)}<a:rPr lang="{ziel}"/>{m.group(2)}'
+    text = A_LAUF_OHNE.sub(lauf_ergaenzen, text)  # <a:r><a:t> ohne a:rPr bekommt eins mit lang
     return A_TAG.sub(a_ersetzen, text), geaendert, ergaenzt
 
 
@@ -180,13 +188,13 @@ def main(argv=None):
         print("Alle Textstellen stimmen, nichts geändert.")
         return
     liste = ", ".join(f"{k} {v}" for k, v in abweichend.most_common())
-    print(f"Abweichend: {gesamt} Stellen ({liste or 'keine'}), ohne Sprache in Vorgaben: {ergaenzt_gesamt}, "
+    print(f"Abweichend: {gesamt} Stellen ({liste or 'keine'}), ohne Sprache: {ergaenzt_gesamt}, "
           f"in {len(teile)} Teilen")
     if a.pruefen:
         print("Nur geprüft, nichts geändert.")
         return
     schreiben(pfad, infos, inhalt)
-    print(f"Gesetzt auf {ziel}: {gesamt} Stellen geändert, {ergaenzt_gesamt} Vorgaben ergänzt.")
+    print(f"Gesetzt auf {ziel}: {gesamt} Stellen geändert, {ergaenzt_gesamt} ohne Sprache ergänzt.")
 
 
 if __name__ == "__main__":

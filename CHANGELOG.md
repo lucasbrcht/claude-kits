@@ -2,6 +2,18 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.3.0 (25.11.2026)
+
+`office` 8.2.0, die anderen Plugins bleiben. Befund aus einem OnePager in einer Firmenvorlage: Die zweite Runde baute das Deck neu, Aufzählungen waren getippt, Sprache und Prüfung fehlten, Text lag in Textfeldern über den Formen.
+
+- **Neue Decks werden Arbeitskopien (office):** `arbeitskopie` mit `aktion` anlegen macht eine neue Datei zur Arbeitskopie ohne Original, aus einer Vorlage (`pfad`, .potx wird .pptx) oder so, wie der Skill pptx sie im Thema gebaut hat. Bisher konnte `folien_aendern` an neuen Decks gar nicht arbeiten, jede Runde wurde neu gebaut und Änderungen von Hand gingen verloren. Jetzt erkennt schon die erste Runde Änderungen von Hand. `anlegen` setzt die Sprache und prüft das Deck. Übertragen gibt es für neue Dateien nicht.
+- **Text in die Form (office):** `folien_pruefen` meldet Textfelder, die auf einer Form ohne eigenen Text liegen. Neue Art `in_form` in `folien_aendern` übernimmt den Text in die Form und entfernt das Textfeld, der Text bleibt über die Innenränder an seiner Stelle.
+- **Echte Aufzählungen (office):** `absaetze` nimmt `punkt` true oder false, das gibt dem Absatz ein Aufzählungszeichen mit hängendem Einzug. `folien_pruefen` meldet getippte Zeichen wie • oder - am Absatzanfang.
+- **Hinweise zur Gestaltung (office):** Dazu Schrift unter 10 pt und Formen über den Folienrand, als WARNUNG, die nicht als Fund zählt. Hinweise aus dem Original oder der Vorlage fallen weg.
+- **Sprache an jedem Text (office):** `sprache` ergänzt lang auch an Text ohne Sprachangabe, wie python-pptx ihn schreibt. Den prüfte PowerPoint am Mac bisher in der eigenen Sprache.
+- **Skill `folien`:** Abschnitt Neue Folien: Vorbild klären oder danach fragen, Musterfolien übernehmen statt frei bauen, Regeln für Text in Formen, echte Aufzählungen und Schriftgrößen auf gezeigten Folien. Gilt jetzt vor dem pptx-Skill für alles mit PowerPoint. Skill `dateien`: neue Dateien immer über `anlegen`, keine zweite Datei mit `-1` daneben.
+- **Update:** Claude einmal mit Cmd+Q beenden und neu öffnen. Decks, die Claude neu gebaut hat und die schon in der Ablage liegen, einmal mit `arbeitskopie` und `aktion` anlegen aufnehmen.
+
 ## v8.2.0 (25.11.2026)
 
 `office` 8.1.0, `basis` 8.1.1 (Befehl für den Motor), die anderen Plugins bleiben. Zwei Befunde aus dem Alltag mit Decks und Mappen.
