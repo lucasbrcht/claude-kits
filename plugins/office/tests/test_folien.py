@@ -50,6 +50,7 @@ else:
     from lxml import etree
     from pptx import Presentation
     from pptx.chart.data import CategoryChartData
+    from pptx.dml.color import RGBColor
     from pptx.enum.chart import XL_CHART_TYPE
     from pptx.opc.constants import RELATIONSHIP_TYPE as RT
     from pptx.opc.package import Part
@@ -61,6 +62,7 @@ else:
     import finden
     import lesen
     import pruefen
+    import stand
     from gemeinsam import sha256
 
     P = "http://schemas.openxmlformats.org/presentationml/2006/main"
@@ -284,8 +286,9 @@ else:
             self.assertEqual(code, 0, out)
             self.assertEqual(self.deck.read_bytes(), vorher, "Original unangetastet")
             zustand = self.zustand_json()
-            self.assertEqual(zustand["sha"], sha256(str(self.deck)))
-            self.assertEqual(zustand["arbeitskopie"], sha256(str(self.arbeit)))
+            self.assertEqual(zustand["sha"], sha256(str(self.arbeit)))
+            self.assertEqual(zustand["vorher"]["sha"], sha256(str(self.deck)))
+            self.assertEqual(zustand["von_hand"], [])
             self.assertFalse(self.vergleich.exists(), "Vergleich nur mit --vergleich")
             self.assertEqual(sorted(p.name for p in self.thema.iterdir()), [DECKNAME], "keine Hilfsdateien im Thema")
             for text in ("Folie 1 Text: 'Q3 2026' -> 'Q4 2026' (1-mal)",
@@ -293,7 +296,9 @@ else:
                          "Notizen: 'Bitte Zahlen aktualisieren\\nFolie behalten' -> 'Folie behalten'",
                          "Folie 4 ausgeblendet, in Abschnitt Backup", "Folie 5 gelöscht",
                          "OK       keine PowerPoint-Fallen", "XSD-Prüfung aus",
-                         "Prüfseiten im PDF der Arbeitskopie: 1, 2, 3", "(4 Folien, Original unverändert)"):
+                         "Prüfseiten im PDF der Arbeitskopie: 1, 2, 3", "(4 Folien, Original unverändert)",
+                         "GEÄNDERT in dieser Runde", "Deck: Reihenfolge der Folien",
+                         "Folie 3: Form 3 Table 2 (Text), Form 5 Rectangle 4 (Form)", "\n  Folie 5 gelöscht\n"):
                 self.assertIn(text, out)
             prs = self.ergebnis()
             self.assertEqual([lesen.titel(s) for s in prs.slides], ["Status Atlas: Start verschoben", "", "Zahlen",
@@ -350,7 +355,7 @@ else:
             sperre = self.thema / ("~$" + DECKNAME)
             sperre.write_text("")
             stand = self.arbeit.read_bytes()
-            code, out = self.aendern(ALLE_ARTEN[:2])
+            code, out = self.aendern(ALLE_ARTEN[1:2])
             self.assertEqual(code, 1, out)
             self.assertIn("in PowerPoint offen", out)
             self.assertEqual(self.arbeit.read_bytes(), stand, "offen: nichts geschrieben")
@@ -358,19 +363,55 @@ else:
             prs = self.ergebnis()  # der Nutzer ändert und speichert in PowerPoint
             prs.slides[4].shapes.title.text = "Vom Nutzer"
             prs.save(self.arbeit)
-            code, out = self.aendern(ALLE_ARTEN[:2])
-            self.assertEqual(code, 1, out)
-            self.assertIn("ab jetzt die Basis", out)
-            code, out = self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])
+            code, out = self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])  # nur Neues
             self.assertEqual(code, 0, out)
-            self.assertIn("Basis ist die Fassung des Nutzers", out)
+            self.assertIn("VON HAND  Arbeitskopie seit der letzten Runde von Hand geändert", out)
+            self.assertIn("Folie 5: Form 2 Title 1 (Text)", out)
+            self.assertIn("GEÄNDERT in dieser Runde (für die Übergabe):\n  Folie 4: Form 2 Title 1 (Text)", out)
             titel = [lesen.titel(s) for s in self.ergebnis().slides]
             self.assertEqual((titel[0], titel[3], titel[4]), ("Status Atlas", "Neu", "Vom Nutzer"))
-            self.assertIn("Q4 2026", self.ergebnis().slides[0].placeholders[1].text_frame.text, "Stand der Basis bleibt")
-            self.deck.write_bytes(self.deck.read_bytes() + b" ")  # jemand speichert das Original
-            code, out = self.aendern([])
+            self.assertIn("Q4 2026", self.ergebnis().slides[0].placeholders[1].text_frame.text, "erste Runde bleibt")
+            stand = self.arbeit.read_bytes()
+            ueber = [{"art": "text", "folie": 5, "alt": "Vom Nutzer", "neu": "Von Claude"}]
+            code, out = self.aendern(ueber)  # würde die Änderung von Hand überschreiben
             self.assertEqual(code, 1, out)
-            self.assertIn("Basis ist aber die gespeicherte Fassung des Nutzers", out)
+            self.assertIn("HALT  Nichts geschrieben", out)
+            self.assertIn("überschreiben:\n  Folie 5: Form 2 Title 1 (Text)", out)
+            self.assertEqual(self.arbeit.read_bytes(), stand)
+            liste = self.tmp / "liste.json"
+            code, out = self.lauf(aendern, "--original", self.deck, "--ziel", self.arbeit, "--zustand", self.zustand,
+                                  "--ueberschreiben", liste)
+            self.assertEqual(code, 0, out)
+            self.assertIn("ÜBERSCHRIEBEN auf Wunsch", out)
+            self.assertEqual(lesen.titel(self.ergebnis().slides[4]), "Von Claude")
+            self.assertEqual(self.aendern([{"art": "text", "folie": 5, "alt": "Von Claude", "neu": "X"}])[0], 0,
+                             "überschriebene Stelle ist nicht mehr geschützt")
+
+        def test_farbe_von_hand_bleibt(self):
+            """Teil B: Der Nutzer färbt eine Form, Runde 2 ändert nur Text auf einer anderen Folie."""
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
+            prs = self.ergebnis()
+            form = prs.slides[1].shapes[3]  # Rectangle 4 auf Folie 2
+            form.fill.solid()
+            form.fill.fore_color.rgb = RGBColor(0xC0, 0, 0)
+            prs.save(self.arbeit)
+            code, out = self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Nur Text"}])
+            self.assertEqual(code, 0, out)
+            self.assertIn("Folie 2: Form 5 Rectangle 4 (Form)", out)
+            self.assertEqual(str(self.ergebnis().slides[1].shapes[3].fill.fore_color.rgb), "C00000")
+            self.assertEqual(lesen.titel(self.ergebnis().slides[3]), "Nur Text")
+
+        def test_sprache_zaehlt_nicht_als_aenderung_von_hand(self):
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
+            with zipfile.ZipFile(self.arbeit) as z:
+                teile = {n: z.read(n) for n in z.namelist()}
+            teile["ppt/slides/slide1.xml"] = teile["ppt/slides/slide1.xml"].replace(b"<a:rPr ", b'<a:rPr lang="en-US" ')
+            with zipfile.ZipFile(self.arbeit, "w", zipfile.ZIP_DEFLATED) as z:
+                for n, d in teile.items():
+                    z.writestr(n, d)
+            code, out = self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("VON HAND", out)
 
         def test_erster_lauf_auf_bearbeiteter_arbeitskopie(self):
             prs = self.ergebnis()  # der Nutzer hat die Arbeitskopie vor dem ersten Lauf bearbeitet
@@ -378,21 +419,50 @@ else:
             prs.save(self.arbeit)
             code, out = self.aendern(ALLE_ARTEN[:1])
             self.assertEqual(code, 0, out)
-            self.assertIn("Arbeitskopie weicht vom Original ab", out)
+            self.assertIn("Arbeitskopie weicht schon vom Original ab", out)
+            self.assertIn("Folie 5: Form 2 Title 1 (Text)", out)
             titel = [lesen.titel(s) for s in self.ergebnis().slides]
             self.assertEqual(titel[4], "Vorab geändert")
             self.assertIn("Q4 2026", self.ergebnis().slides[0].placeholders[1].text_frame.text)
-            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0, "zweiter Lauf auf derselben Basis")
+            code, out = self.aendern(ALLE_ARTEN[:1])
+            self.assertEqual(code, 1, "die Liste nie erneut abspielen: Q3 steht nicht mehr da")
+            self.assertIn("Text nicht gefunden", out)
 
-        def test_uebertragen_beginnt_neue_runde(self):
+        def test_nach_uebertragen_weiter_in_derselben_arbeitskopie(self):
             self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
             shutil.copy(self.arbeit, self.deck)  # arbeitskopie_uebertragen
-            code, out = self.aendern(ALLE_ARTEN[:1])
-            self.assertEqual(code, 1, out)
-            self.assertIn("neue Runde", out)
-            self.assertEqual(list(self.zustand.glob("*")), [])
             code, out = self.aendern([{"art": "text", "folie": 1, "alt": "Q4 2026", "neu": "Q1 2027"}])
             self.assertEqual(code, 0, out)
+            self.assertNotIn("VON HAND", out)
+            self.assertIn("Q1 2027", self.ergebnis().slides[0].placeholders[1].text_frame.text)
+
+        def alter_zustand(self):
+            self.zustand.mkdir(parents=True, exist_ok=True)
+            stamm = stand.Zustand(str(self.zustand), str(self.arbeit)).stamm
+            for endung in (".json", ".basis.pptx"):
+                Path(stamm + endung).write_text("alt")
+
+        def test_alter_zustand_aus_80_faellt_weg(self):
+            self.alter_zustand()
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0, "Text ohne Struktur läuft gleich")
+            self.assertEqual(sorted(p.name[16:] for p in self.zustand.iterdir()), [".stand.json", ".vorher.pptx"])
+
+        def test_erste_runde_nach_update_haelt_einmal_bei_struktur(self):
+            """Ein Chat von vor dem Update schickt die alte Liste erneut: backup träfe eine andere Folie."""
+            self.alter_zustand()
+            vorher = self.arbeit.read_bytes()
+            code, out = self.aendern([{"art": "backup", "folie": 4}])
+            self.assertEqual(code, 1, out)
+            self.assertIn("Erste Runde nach dem Update", out)
+            self.assertEqual(self.arbeit.read_bytes(), vorher)
+            self.assertEqual(self.aendern([{"art": "backup", "folie": 4}])[0], 0, "nur einmal")
+
+        def test_nur_lesen_ohne_aenderung_schreibt_nichts(self):
+            vorher = self.arbeit.read_bytes()
+            code, out = self.aendern([])
+            self.assertEqual(code, 0, out)
+            self.assertIn("Keine Änderung an der Datei, nichts geschrieben", out)
+            self.assertEqual(self.arbeit.read_bytes(), vorher)
 
         def test_fehler_schreiben_nichts(self):
             stand = self.arbeit.read_bytes()
@@ -428,17 +498,36 @@ else:
             self.assertIn("'Q3 2026' -> 'Q4 2026' (1-mal)", out)
             self.assertEqual(self.aendern([{"art": "text", "alt": "Folie", "neu": "Seite", "alle": True}])[0], 0)
 
-        def test_ruecknahme_und_neuer_stand_des_originals(self):
-            self.assertEqual(self.aendern(ALLE_ARTEN[:2])[0], 0)
-            code, out = self.aendern(ALLE_ARTEN[1:2])  # Eintrag 1 gestrichen: Q3 kommt zurück
+        def test_zuruecknehmen_nur_die_letzte_runde(self):
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
+            nach_runde_1 = self.arbeit.read_bytes()
+            self.assertEqual(self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])[0], 0)
+            code, out = self.lauf(stand, "zuruecknehmen", self.arbeit, "--zustand", self.zustand)
             self.assertEqual(code, 0, out)
-            self.assertIn("Q3 2026", self.ergebnis().slides[0].placeholders[1].text_frame.text)
+            self.assertEqual(self.arbeit.read_bytes(), nach_runde_1)
+            code, out = self.lauf(stand, "zuruecknehmen", self.arbeit, "--zustand", self.zustand)
+            self.assertEqual(code, 1, out)
+            self.assertIn("Keine Runde zum Zurücknehmen", out)
+            self.assertEqual(self.aendern([{"art": "text", "folie": 4, "alt": "Folie 4", "neu": "Neu"}])[0], 0)
+            prs = self.ergebnis()  # der Nutzer ändert danach
+            prs.slides[4].shapes.title.text = "Vom Nutzer"
+            prs.save(self.arbeit)
+            stand_ = self.arbeit.read_bytes()
+            code, out = self.lauf(stand, "zuruecknehmen", self.arbeit, "--zustand", self.zustand)
+            self.assertEqual(code, 1, out)
+            self.assertIn("von Hand geändert", out)
+            self.assertEqual(self.arbeit.read_bytes(), stand_)
+            self.assertEqual(self.lauf(stand, "zuruecknehmen", self.arbeit)[0], 2)
+
+        def test_neuer_stand_des_originals_aendert_die_arbeitskopie_nicht(self):
+            self.assertEqual(self.aendern(ALLE_ARTEN[:1])[0], 0)
             prs = Presentation(self.deck)  # jemand speichert das Original
             prs.slides[3].shapes.title.text = "Neu von Lena"
             prs.save(self.deck)
             code, out = self.aendern(ALLE_ARTEN[1:2])
-            self.assertIn("HINWEIS  Original seit dem letzten Lauf geändert", out)
-            self.assertEqual(lesen.titel(self.ergebnis().slides[3]), "Neu von Lena")
+            self.assertEqual(code, 0, out)
+            self.assertEqual(lesen.titel(self.ergebnis().slides[3]), "Folie 4")
+            self.assertIn("Q4 2026", self.ergebnis().slides[0].placeholders[1].text_frame.text)
 
         def test_backup_und_verschieben_ohne_abschnitte(self):
             for pfad in (self.deck, self.arbeit):
@@ -450,7 +539,7 @@ else:
             self.assertEqual(self.aendern([{"art": "verschieben", "folie": 5, "nach": 0}])[0], 0)
             self.assertEqual(lesen.titel(self.ergebnis().slides[0]), "Folie 5")
             self.assertEqual(lesen.abschnitte(self.ergebnis()), [])
-            self.assertEqual(self.aendern([{"art": "backup", "folie": 1}])[0], 0)
+            self.assertEqual(self.aendern([{"art": "backup", "folie": 2}])[0], 0, "Nummern wie jetzt im Deck")
             self.assertEqual([(n, len(i)) for n, i in lesen.abschnitte(self.ergebnis())],
                              [("Standardabschnitt", 4), ("Backup", 1)])
             self.assertEqual(lesen.titel(self.ergebnis().slides[4]), "Status Atlas")
@@ -582,6 +671,102 @@ else:
                 code, out = self.pruefen(self.variante(fn), "--original", self.deck)
                 self.assertEqual(code, 1, out)
                 self.assertIn(text, out)
+
+        def schriften_ohne_datei(self, pfad: Path) -> Path:
+            """Wie PowerPoint mit Firmenschriften, die nicht eingebettet werden dürfen: Liste mit leeren Verweisen,
+            nichts unter ppt/fonts/, keine Beziehung."""
+            with zipfile.ZipFile(pfad) as z:
+                xml = z.read("ppt/presentation.xml").decode("utf-8")
+            liste = "".join(f'<p:embeddedFont><p:font typeface="{n}"/>' + "".join(
+                f'<p:{a} r:id=""/>' for a in ("regular", "bold", "italic", "boldItalic")) + "</p:embeddedFont>"
+                for n in ("Beispiel Sans", "Beispiel Head"))
+            xml = re.sub(r"<p:presentation ", '<p:presentation embedTrueTypeFonts="1" ', xml, count=1)
+            xml = xml.replace("<p:defaultTextStyle", f"<p:embeddedFontLst>{liste}</p:embeddedFontLst>"
+                              "<p:defaultTextStyle", 1)
+            ersetze_im_zip(pfad, "ppt/presentation.xml", xml)
+            return pfad
+
+        def test_eingebettete_schriften_ohne_datei(self):
+            """Teil A: PowerPoint scheitert am Deck, die XSD-Prüfung merkt nichts."""
+            self.schriften_ohne_datei(self.arbeit)
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 1, out)
+            self.assertIn("FEHLER   ppt/presentation.xml: Eingebettete Schriften fehlen, PowerPoint kann die Datei "
+                          "nicht öffnen (Beispiel Sans, Beispiel Head)", out)
+            self.assertIn('folien_aendern mit {"art": "reparieren"}', out)
+            self.assertIn("Schriftarten in die Datei einbetten aus", out)
+            self.assertNotIn("Verweise ohne Beziehung", out, "leere Verweise der Schriften nur einmal melden")
+            code, out = self.aendern([{"art": "reparieren"}])
+            self.assertEqual(code, 0, out)
+            self.assertIn("eingebettete Schriften ohne Datei entfernt (Beispiel Sans, Beispiel Head)", out)
+            self.assertIn("Deck: eingebettete Schriften", out)
+            with zipfile.ZipFile(self.arbeit) as z:
+                xml = z.read("ppt/presentation.xml").decode("utf-8")
+            self.assertNotIn("embeddedFontLst", xml)
+            self.assertNotIn("embedTrueTypeFonts", xml)
+            self.assertEqual(self.pruefen(self.arbeit, "--original", self.deck)[0], 0)
+
+        def test_papierkorb_ist_kein_fund(self):
+            with zipfile.ZipFile(self.arbeit, "a") as z:
+                z.writestr("[trash]/0000.dat", b"\x00\x01")
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("trash", out)
+
+        def test_verweis_auf_fehlende_id_im_layout(self):
+            with zipfile.ZipFile(self.arbeit) as z:
+                xml = z.read("ppt/slideLayouts/slideLayout2.xml").decode("utf-8")
+            bild = ('<p:pic><p:nvPicPr><p:cNvPr id="90" name="Logo"><a:hlinkClick r:id="" action="ppaction://'
+                    'hlinkshowjump?jump=nextslide"/></p:cNvPr><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill>'
+                    '<a:blip r:embed="rId99"/></p:blipFill><p:spPr/></p:pic>')
+            ersetze_im_zip(self.arbeit, "ppt/slideLayouts/slideLayout2.xml", xml.replace("</p:spTree>", bild
+                                                                                        + "</p:spTree>", 1))
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 1, out)
+            self.assertIn('FEHLER   ppt/slideLayouts/slideLayout2.xml: 1 Verweise ohne Beziehung (a:blip r:embed='
+                          '"rId99" unbekannt)', out)
+            self.assertNotIn("hlinkClick", out, "leerer Aktions-Link ist erlaubt")
+
+        def test_leerer_verweis_wo_ein_ziel_noetig_ist(self):
+            with zipfile.ZipFile(self.arbeit) as z:
+                xml = z.read("ppt/slides/slide2.xml").decode("utf-8")
+            xml, n = re.subn(r'(<c:chart [^>]*r:id=")[^"]*"', r'\1"', xml)
+            self.assertEqual(n, 1)
+            ersetze_im_zip(self.arbeit, "ppt/slides/slide2.xml", xml)
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 1, out)
+            self.assertIn('ppt/slides/slide2.xml: 1 Verweise ohne Beziehung (c:chart r:id="" leer)', out)
+
+        def test_beziehung_auf_fehlendes_teil_und_inhaltstyp(self):
+            with zipfile.ZipFile(self.arbeit) as z:
+                rels = z.read("ppt/slides/_rels/slide4.xml.rels").decode("utf-8")
+            ersetze_im_zip(self.arbeit, "ppt/slides/_rels/slide4.xml.rels", rels.replace(
+                "</Relationships>", '<Relationship Id="rId77" Type="http://schemas.openxmlformats.org/officeDocument/'
+                '2006/relationships/image" Target="../media/fehlt.png"/></Relationships>'))
+            with zipfile.ZipFile(self.arbeit, "a") as z:
+                z.writestr("ppt/media/extra.qqq", b"x")
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 1, out)
+            self.assertIn("ppt/slides/_rels/slide4.xml.rels: 1 Beziehungen zeigen auf fehlende Teile "
+                          "(ppt/media/fehlt.png)", out)
+            self.assertIn("1 Teile ohne Inhaltstyp (ppt/media/extra.qqq)", out)
+
+        def test_kaputte_datei_ohne_absturz(self):
+            kaputt = self.tmp / "kaputt.pptx"
+            kaputt.write_bytes(b"kein zip")
+            code, out = self.pruefen(kaputt)
+            self.assertEqual(code, 1, out)
+            self.assertIn("keine Zip-Datei", out)
+            self.assertNotIn("Traceback", out)
+            ersetze_im_zip(self.arbeit, "ppt/slides/slide2.xml", "<p:sld")
+            code, out = self.pruefen(self.arbeit, "--original", self.deck)
+            self.assertEqual(code, 1, out)
+            self.assertIn("ppt/slides/slide2.xml: XML nicht wohlgeformt", out)
+
+        def test_bestehende_decks_ohne_neue_funde(self):
+            """Das Testdeck und eine Folie aus python-pptx bleiben ohne Funde zu Verweisen und Inhaltstypen."""
+            _infos, funde = pruefen.analyse(str(self.deck))
+            self.assertEqual(sorted({f["art"] for f in funde}), ["aenderungsverlauf", "app-zaehler"])
 
         def test_eingebettete_objekte_duerfen_geteilt_sein(self):
             def geteiltes_objekt(prs):

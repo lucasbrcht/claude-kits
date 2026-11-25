@@ -23,10 +23,14 @@ Der Server `server.py` (über `.mcp.json` mit dem Python der Command Line Tools,
 | Stufe | Grundstufe | Motor |
 |---|---|---|
 | lesen | | `folien_finden`, `folien_lesen`, `folien_pruefen` |
-| schreiben | `arbeitskopie` (holen, liste, zeigen), `sprache` (prüfen oder setzen, .pptx und .docx) | `folien_aendern`, `excel_skript`, `excel_fertig`, `office_vorschau` |
+| schreiben | `arbeitskopie` (holen, liste, zeigen, zuruecknehmen mit Motor), `sprache` (prüfen oder setzen, .pptx und .docx) | `folien_aendern`, `excel_skript`, `excel_fertig`, `office_vorschau` |
 | nachfrage | `arbeitskopie_uebertragen` (Arbeitskopie ins Original, Dialog von macOS mit `Achtung: Shared Folder` bei geteilten Ordnern) | |
 
 Mit `mcp_nur_lesen` bleiben die drei lesenden Werkzeuge des Motors. Fehlt der Motor, melden seine Werkzeuge das mit Installationszeile, die Grundstufe läuft weiter.
+
+**Runden und Änderungen von Hand (seit 8.1):** `excel_skript` und `folien_aendern` arbeiten auf dem aktuellen Stand der Arbeitskopie. Jede Runde läuft über `motor/stand.py`: Merkmale je Zelle, Format, Tabelle, Form, Text und Folie nach der letzten Runde liegen im Zustandsordner, Abweichungen meldet die nächste Runde als VON HAND und schützt sie. Die Änderung entsteht in einer Kopie im Temp-Ordner und geht nur ohne Überschneidung zurück (bei Excel auch ohne Verlust durch openpyxl), sonst HALT, `ueberschreiben` nur nach Ja des Nutzers. Danach stehen die geänderten Bereiche unter GEÄNDERT. `arbeitskopie` mit `aktion` zuruecknehmen setzt die letzte Runde zurück, solange niemand die Datei danach geändert hat. Bis 8.0 spielte `folien_aendern` die ganze Liste bei jedem Lauf auf das Original ab, dessen Zustand fällt beim ersten Lauf weg.
+
+**Prüfung von Decks:** `folien_pruefen` prüft Zip, XML, Inhaltstypen, alle Verweise in allen Teilen, fehlende Ziele von Beziehungen und eingebettete Schriften ohne Datei (daran scheitert PowerPoint, die XSD-Prüfung merkt es nicht), dazu die bekannten Fallen. `[trash]/` von PowerPoint für Mac zählt nie. Die XSD-Prüfung nimmt `validate.py` aus `motor.pptx_validate` oder sucht den Skill pptx, den Cowork am Mac ablegt, und braucht `defusedxml` in der `.venv`.
 
 ## Skills
 
@@ -45,7 +49,7 @@ Mit `mcp_nur_lesen` bleiben die drei lesenden Werkzeuge des Motors. Fehlt der Mo
 | `sprache.py` | Sprache von .pptx und .docx prüfen und setzen, nur in der Ablage |
 | `office.py` | Vorschau (PDF, PNG) und Nachrechnen mit LibreOffice und pdftoppm, mit dem Python des Servers |
 | `sperren.py` | gesperrte Orte und Regeln für `sandbox-exec`, gemeinsam für Server und `office.py` |
-| `motor/` | `finden.py`, `lesen.py`, `pruefen.py`, `aendern.py` mit `uebernehmen.py`, `excel.py`, `gemeinsam.py`. Laufen mit der `.venv` (python-pptx, openpyxl, lxml) |
+| `motor/` | `finden.py`, `lesen.py`, `pruefen.py`, `aendern.py` mit `uebernehmen.py`, `excel.py`, `stand.py` (Runden, Änderungen von Hand, zurücknehmen), `gemeinsam.py`. Laufen mit der `.venv` (python-pptx, openpyxl, lxml, defusedxml) |
 | `kit_basis.py`, `mcp_basis.py` | gleich in `apple`, `chat` und `office`, nur zusammen ändern |
 
 ## Sandbox des Motors
@@ -62,8 +66,8 @@ Jedes Skript in `motor/` und jeder Python-Code für Excel läuft unter `sandbox-
 |---|---|
 | `config.json` | Abschnitte `ablage`, `motor`, `suche` (Vorlage `config.example.json`) |
 | `ablage.json`, `ablage-sicherung/` | Herkunft und Stand jeder Arbeitskopie, alter Stand vor dem letzten Übertragen |
-| `.venv` | python3.12 mit python-pptx, openpyxl, lxml (für Bash gesperrt) |
-| `zwischen/` | `listen`, `zustand`, `vorschau`, `tmp`: einziger Schreibort des Motors außer Ablage und Temp |
+| `.venv` | python3.12 mit python-pptx, openpyxl, lxml, defusedxml (für Bash gesperrt) |
+| `zwischen/` | `listen`, `zustand` (je Arbeitskopie Stand und Stand davor), `vorschau`, `tmp`: einziger Schreibort des Motors außer Ablage und Temp |
 | `staging/`, `libreoffice-profil/`, `libreoffice-rechnen/` | für `office.py`, für den Motor nicht beschreibbar |
 
 Gelesen und geschrieben wird die `config.json` über `einstellungen` und `einstellungen_schreiben` des Plugins `apple` mit `plugin` office.
@@ -78,12 +82,12 @@ Gelesen und geschrieben wird die `config.json` über `einstellungen` und `einste
 | `suche.ordner` | Ordner, in denen `folien_finden` ohne eigenen `ordner` sucht |
 | `motor.gesperrt` | weitere Ordner, die der Motor weder lesen noch schreiben darf, etwa der Kontextordner. Ein falscher Eintrag bricht ab |
 | `motor.umgebung` | `FONTCONFIG_FILE` für LibreOffice, sonst Ersatzschriften |
-| `motor.pptx_validate` | optional Pfad zu `validate.py` aus dem Skill `pptx` von Anthropic für die XSD-Prüfung |
+| `motor.pptx_validate` | Pfad zu `validate.py` aus dem Skill `pptx` von Anthropic für die XSD-Prüfung. Leer sucht der Server ihn unter `~/Library/Application Support/*/local-agent-mode-sessions/skills-plugin/`, `aus` schaltet die XSD-Prüfung ab |
 
 ## Voraussetzungen
 
 - Grundstufe: macOS, der Server startet mit `/Library/Developer/CommandLineTools/usr/bin/python3`.
-- Motor: `brew install python@3.12 poppler`, `brew install --cask libreoffice`, eine `.venv` im Datenordner mit `pip install python-pptx openpyxl lxml`. Befehle in `INSTALL.md`.
+- Motor: `brew install python@3.12 poppler`, `brew install --cask libreoffice`, eine `.venv` im Datenordner mit `pip install python-pptx openpyxl lxml defusedxml`. Befehle in `INSTALL.md`.
 
 ## Tests
 

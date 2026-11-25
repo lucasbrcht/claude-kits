@@ -1,21 +1,18 @@
-"""Änderungsliste (JSON) auf das Original anwenden und die Arbeitskopie in der Ablage neu schreiben. Das Original
-bleibt unangetastet: Jeder Lauf liest das Original (oder die Basis) und schreibt die Arbeitskopie neu, die
-arbeitskopie holen im Themen-Ordner angelegt hat. Rücknahme einer Änderung: Eintrag streichen, neu anwenden.
-Prüfsummen von Original und Arbeitskopie und die Basis stehen im Zustandsordner (Zwischenordner im Datenordner von
-office, je Arbeitskopie eine Datei), nie neben der Arbeitskopie.
-
-Basis: Weicht die Arbeitskopie beim ersten Lauf vom Original ab (der Nutzer hat sie schon bearbeitet), ist sie die
-Basis. Hat der Nutzer sie nach einem Lauf in PowerPoint gespeichert, wird sie zur Basis: Der Lauf schreibt dann
-nichts und meldet das, die Liste enthält danach nur neue Wünsche mit den Foliennummern der Basis. Gleicht die
-Arbeitskopie dem Original (übertragen oder frisch geholt), beginnt eine neue Runde. Ist die Arbeitskopie in Office
-offen, schreibt der Lauf nichts.
+"""Änderungsliste (JSON) auf den aktuellen Stand der Arbeitskopie in der Ablage anwenden. Das Original bleibt
+unangetastet. Jeder Lauf ist eine Runde (stand.py): Er meldet Änderungen von Hand seit der letzten Runde, ändert eine
+Kopie und schreibt sie nur zurück, wenn sie keine Änderung von Hand überschreibt (sonst HALT, mit --ueberschreiben
+nur auf ausdrücklichen Wunsch). Die Liste enthält darum nur die neuen Wünsche, frühere Runden stecken schon in der
+Arbeitskopie. Rücknahme der letzten Runde: arbeitskopie mit aktion zuruecknehmen. Ist die Arbeitskopie in Office
+offen, schreibt der Lauf nichts. Stand und Stand davor liegen im Zustandsordner (Zwischenordner im Datenordner von
+office), nie neben der Arbeitskopie.
 
 Aufruf (der Server gibt alle Pfade vor):
-  python3 -I aendern.py --original <Original> --ziel <Arbeitskopie> --zustand <Ordner> [--vergleich] <liste.json>
+  python3 -I aendern.py --original <Original> --ziel <Arbeitskopie> --zustand <Ordner> [--vergleich]
+                        [--ueberschreiben] <liste.json>
 
-Liste: {"aenderungen": [{"art": "...", "folie": <Nummer in der Basis>, ...}]}
+Liste: {"aenderungen": [{"art": "...", "folie": <Nummer wie folien_lesen auf der Arbeitskopie>, ...}]}
 Arten (folie und form wie in lesen.py, form auch als Name, Maße in cm):
-  text         alt, neu, form und folie optional, alle: true für mehrere Treffer. Format bleibt, auch über Läufe
+  text         alt, neu, form und folie optional, alle: true für mehrere Treffer. Format bleibt
   absaetze     form, absaetze: ["Text", {"text": "...", "ebene": 1}]. Format des ersten Absatzes
   zelle        form, zeile, spalte (ab 1), neu (\\n gibt Absätze)
   notizen      neu, "" leert (umgesetzte Wünsche löschen)
@@ -28,20 +25,21 @@ Arten (folie und form wie in lesen.py, form auch als Name, Maße in cm):
   skript       datei: Notausgang, Python-Datei mit umbau(prs), geänderte Folien erkennt der Lauf selbst
   uebernehmen  quelle (Deck, auch das Original), folie (dort), nach, als (Name für spätere Einträge, sonst neu1),
                layout (optional, sonst gleicher Name im Ziel). Jedes Teil als eigene Kopie (uebernehmen.py)
+  reparieren   nur auf Wunsch: eingebettete Schriften ohne Datei aus p:embeddedFontLst entfernen, ist die Liste
+               leer, auch sie und embedTrueTypeFonts. [trash]/ fällt beim Schreiben ohnehin weg
 
-Reihenfolge: erst uebernehmen, dann Inhalte, zuletzt backup, verschieben, loeschen. Ergebnis: die Arbeitskopie und die
-Seiten der geänderten und neuen Folien im PDF (ausgeblendete fehlen dort). Mit --vergleich zusätzlich
-<Stamm> Vergleich.pptx im Themen-Ordner mit den Paaren vorher und nachher und den neuen Folien. Jeder Lauf entfernt
-den Änderungsverlauf (changesInfo mit Namen der Bearbeiter) und setzt die Zähler in docProps/app.xml neu. Danach
-prüft er die Arbeitskopie wie pruefen.py. Rückgabewert 0, 1 bei einem Fehler in einem Eintrag (dann ist nichts
-geschrieben), einem Fund der Prüfung, offener oder vom Nutzer gespeicherter Arbeitskopie, 2 bei falschem Aufruf.
+Reihenfolge: erst reparieren und uebernehmen, dann Inhalte, zuletzt backup, verschieben, loeschen. Ergebnis: die
+Arbeitskopie, die geänderten Bereiche und die Seiten der geänderten und neuen Folien im PDF (ausgeblendete fehlen
+dort). Mit --vergleich zusätzlich <Stamm> Vergleich.pptx im Themen-Ordner mit den Paaren vorher und nachher und den
+neuen Folien. Jeder Lauf entfernt den Änderungsverlauf (changesInfo mit Namen der Bearbeiter) und setzt die Zähler in
+docProps/app.xml neu. Danach prüft er die Arbeitskopie wie pruefen.py (Funde aus dem Original zählen nicht).
+Rückgabewert 0, 1 bei einem Fehler in einem Eintrag (dann ist nichts geschrieben), HALT, einem Fund der Prüfung oder
+offener Arbeitskopie, 2 bei falschem Aufruf.
 """
 import copy
-import hashlib
 import json
 import os
 import runpy
-import shutil
 import sys
 import uuid
 
@@ -54,94 +52,51 @@ from pptx.util import Cm, Pt
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pruefen  # noqa: E402
+import stand  # noqa: E402
 import uebernehmen  # noqa: E402
-from gemeinsam import offen_in_office, sha256  # noqa: E402
 from lesen import (ABSCHNITTE_URI, EMU_CM, NOTIZ_PLATZHALTER, NS, absatz_text, kurz, notizen,  # noqa: E402
                    platzhalter, q)
 from uebernehmen import Fehler  # noqa: E402
 
 SICHTBAR = {"text", "absaetze", "zelle", "lage", "farbe"}  # Arten, die im Vergleich als Paar erscheinen
-STRUKTUR = {"backup", "verschieben", "loeschen"}  # wirken nach allen Inhalten, Nummern bleiben die der Basis
+STRUKTUR = {"backup", "verschieben", "loeschen"}  # wirken nach allen Inhalten, Nummern bleiben die vor dem Lauf
+VORWEG = {"uebernehmen", "reparieren"}
 FUELLUNGEN = ("a:solidFill", "a:noFill", "a:gradFill", "a:pattFill", "a:blipFill", "a:grpFill")
 VERGLEICH = " Vergleich.pptx"
 
 
-class Halt(Exception):
-    """Lauf endet ohne zu schreiben, Rückgabewert 1 (offene oder vom Nutzer gespeicherte Arbeitskopie)."""
-
-
-# ---------- Zustand ----------
-class Zustand:
-    """Prüfsummen und Basis zu einer Arbeitskopie im Zustandsordner, Name aus der Prüfsumme ihres Pfads."""
-
-    def __init__(self, ordner: str, ziel: str):
-        schluessel = hashlib.sha256(os.path.realpath(ziel).encode("utf-8")).hexdigest()[:16]
-        self.json = os.path.join(ordner, schluessel + ".json")
-        self.basis = os.path.join(ordner, schluessel + ".basis.pptx")
-        self.ordner = ordner
-
-    def lesen(self) -> dict:
-        try:
-            with open(self.json, encoding="utf-8") as f:
-                daten = json.load(f)
-            return daten if isinstance(daten, dict) else {}
-        except (OSError, ValueError):
-            return {}
-
-    def schreiben(self, daten: dict):
-        os.makedirs(self.ordner, exist_ok=True)
-        tmp = self.json + ".neu"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(daten, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, self.json)
-
-    def basis_aus(self, ziel: str):
-        os.makedirs(self.ordner, exist_ok=True)
-        shutil.copyfile(ziel, self.basis)
-
-    def vergessen(self):
-        for pfad in (self.json, self.basis):
-            if os.path.isfile(pfad):
-                os.remove(pfad)
-
-
-def basis_holen(original: str, ziel: str, z: Zustand) -> tuple:
-    """(Basis, Zustand) für diesen Lauf. Basis ist das Original oder eine Fassung der Arbeitskopie vom Nutzer."""
-    if offen_in_office(ziel):
-        raise Halt(f"{os.path.basename(ziel)} ist in PowerPoint offen. Den Nutzer bitten, das Fenster zu schließen "
-                   "(Speichern macht die Arbeitskopie zur neuen Basis), dann erneut anwenden. Nichts geschrieben.")
-    zustand = z.lesen()
-    sha_o, sha_k = sha256(original), sha256(ziel)
-    if zustand.get("original") != original or not zustand.get("arbeitskopie"):
-        if sha_k != sha_o:  # erster Lauf, die Arbeitskopie hat schon Änderungen (oder das Original änderte sich)
-            z.basis_aus(ziel)
-            print("HINWEIS  Arbeitskopie weicht vom Original ab, sie ist die Basis dieser Runde")
-            return z.basis, {"original": original, "sha": sha_o, "basis": z.basis}
-        return original, {"original": original, "sha": sha_o}
-    if sha_k == sha_o and zustand.get("sha") != sha_o:  # übertragen (Original neu) oder frisch geholt (Kopie neu)
-        z.vergessen()
-        raise Halt("Arbeitskopie gleicht dem Original (übertragen oder frisch geholt), eine neue Runde beginnt. "
-                   "Nichts geschrieben. Liste nur mit den neuen Wünschen anlegen, Foliennummern wie folien_lesen "
-                   "auf der Arbeitskopie, dann erneut anwenden.")
-    if sha_k != zustand["arbeitskopie"]:
-        if zustand.get("sha") != sha_o:
-            raise Halt("Original und Arbeitskopie sind beide seit dem letzten Lauf geändert. Mit dem Nutzer klären, "
-                       "welcher Stand gilt. Nichts geschrieben.")
-        z.basis_aus(ziel)
-        zustand.update(basis=z.basis, arbeitskopie=sha_k)
-        z.schreiben(zustand)
-        raise Halt("Arbeitskopie vom Nutzer gespeichert, sie ist ab jetzt die Basis. Nichts geschrieben. Liste nur mit "
-                   "den neuen Wünschen anlegen, Foliennummern wie folien_lesen auf der Arbeitskopie, dann erneut "
-                   "anwenden.")
-    if zustand.get("basis") and os.path.isfile(zustand["basis"]):
-        if zustand.get("sha") != sha_o:
-            raise Halt("Original seit dem letzten Lauf geändert, Basis ist aber die gespeicherte Fassung des Nutzers. "
-                       "Mit dem Nutzer klären, welcher Stand gilt. Nichts geschrieben.")
-        return zustand["basis"], zustand
-    if zustand.get("sha") != sha_o:
-        print("HINWEIS  Original seit dem letzten Lauf geändert, Liste wird auf den neuen Stand angewendet. "
-              "Übertragen bricht ab, bis die Arbeitskopie frisch geholt ist")
-    return original, {"original": original, "sha": sha_o}
+# ---------- Reparieren ----------
+def reparieren(prs) -> str:
+    """Eingebettete Schriften ohne Datei entfernen (leere oder unbekannte Verweise, Ziel fehlt). Bleibt keine, fallen
+    die Liste und embedTrueTypeFonts weg. Gültig eingebettete Schriften bleiben."""
+    pres = prs.part._element
+    lst = pres.find(q("p:embeddedFontLst"))
+    if lst is None:
+        return "Reparieren: keine eingebetteten Schriften, nichts zu tun ([trash]/ fällt beim Schreiben weg)"
+    weg = []
+    for schrift in list(lst.findall(q("p:embeddedFont"))):
+        font = schrift.find(q("p:font"))
+        name = (font.get("typeface") if font is not None else "") or "ohne Namen"
+        for art in pruefen.SCHRIFT_ARTEN:
+            el = schrift.find(q(f"p:{art}"))
+            if el is None:
+                continue
+            rid = el.get(q("r:id")) or ""
+            rel = prs.part.rels.get(rid) if rid else None
+            if rel is None or rel.is_external:
+                schrift.remove(el)
+                weg.append(name)
+        if not any(schrift.find(q(f"p:{a}")) is not None for a in pruefen.SCHRIFT_ARTEN):
+            lst.remove(schrift)
+    if not len(lst):
+        pres.remove(lst)
+        for attr in ("embedTrueTypeFonts", "saveSubsetFonts"):
+            pres.attrib.pop(attr, None)
+        return ("Reparieren: eingebettete Schriften ohne Datei entfernt (" + ", ".join(dict.fromkeys(weg)) + "), Liste "
+                "und embedTrueTypeFonts weg. In PowerPoint Schriftarten in die Datei einbetten für dieses Deck "
+                "ausschalten") if weg else "Reparieren: leere Liste der Schriften entfernt"
+    return ("Reparieren: Schriften ohne Datei entfernt (" + ", ".join(dict.fromkeys(weg)) + "), gültig eingebettete "
+            "bleiben") if weg else "Reparieren: eingebettete Schriften in Ordnung, nichts zu tun"
 
 
 # ---------- Inhalte ----------
@@ -543,9 +498,9 @@ def pruefseiten(prs, ids: set) -> list:
 
 # ---------- Ablauf ----------
 def aufruf(argv: list):
-    """(original, ziel, zustand, vergleich, liste) oder None bei falschem Aufruf."""
-    mit_vergleich = "--vergleich" in argv
-    rest, werte = [a for a in argv if a != "--vergleich"], {}
+    """(original, ziel, zustand, vergleich, ueberschreiben, liste) oder None bei falschem Aufruf."""
+    mit_vergleich, ueberschreiben = "--vergleich" in argv, "--ueberschreiben" in argv
+    rest, werte = [a for a in argv if a not in ("--vergleich", "--ueberschreiben")], {}
     for name in ("--original", "--ziel", "--zustand"):
         if name in rest:
             i = rest.index(name)
@@ -555,7 +510,35 @@ def aufruf(argv: list):
             del rest[i:i + 2]
     if len(rest) != 1 or not rest[0].endswith(".json") or len(werte) != 3:
         return None
-    return werte["--original"], werte["--ziel"], werte["--zustand"], mit_vergleich, os.path.abspath(rest[0])
+    return (werte["--original"], werte["--ziel"], werte["--zustand"], mit_vergleich, ueberschreiben,
+            os.path.abspath(rest[0]))
+
+
+def anwenden(prs, eintraege: list, liste: str) -> tuple:
+    """Alle Einträge auf prs. (Protokoll, Fehler, sichtbar geänderte Nummern, folien, sld_ids)."""
+    folien = dict(enumerate(prs.slides, 1))
+    sld_ids = dict(enumerate(prs.slides._sldIdLst, 1))
+    protokoll, fehler, sichtbar, quellen = [], [], set(), {}
+    phase = lambda ke: 0 if ke[1].get("art") in VORWEG else 2 if ke[1].get("art") in STRUKTUR else 1  # noqa: E731
+    for k, e in sorted(enumerate(eintraege, 1), key=phase):
+        try:
+            if e.get("art") == "reparieren":
+                protokoll.append(reparieren(prs))
+            elif e.get("art") == "uebernehmen":
+                protokoll.append(uebernahme(prs, e, folien, sld_ids, quellen))
+            elif e.get("art") in STRUKTUR:
+                if e.get("folie") not in folien:
+                    raise Fehler(f"Folie {e.get('folie')} gibt es nicht")
+                protokoll.append(struktur(prs, e, sld_ids, folien[e["folie"]]))
+            else:
+                zeile, nummern = inhalt(e, prs, folien, liste)
+                protokoll.append(zeile)
+                sichtbar |= nummern if e.get("art") in SICHTBAR | {"skript"} else set()
+        except Fehler as x:
+            fehler.append(f"Eintrag {k} ({e.get('art')}): {x}")
+        except (KeyError, TypeError, ValueError) as x:
+            fehler.append(f"Eintrag {k} ({e.get('art')}): Angabe fehlt oder falsch ({x})")
+    return protokoll, fehler, sichtbar, folien, sld_ids
 
 
 def main() -> int:
@@ -563,7 +546,7 @@ def main() -> int:
     if teile is None:
         print(__doc__.split("\n\n")[2], file=sys.stderr)
         return 2
-    original, ziel, zustand_ordner, mit_vergleich, liste = teile
+    original, ziel, zustand_ordner, mit_vergleich, ueberschreiben, liste = teile
     try:
         with open(liste, encoding="utf-8") as f:
             daten = json.load(f)
@@ -578,50 +561,61 @@ def main() -> int:
     except (OSError, ValueError, KeyError, TypeError, Fehler) as fehler:
         print(f"Liste {os.path.basename(liste)}: {fehler}", file=sys.stderr)
         return 2
-    z = Zustand(zustand_ordner, ziel)
     try:
-        basis, zustand = basis_holen(original, ziel, z)
-    except Halt as x:
+        runde = stand.Runde(ziel, zustand_ordner, original)
+    except stand.Halt as x:
         print(f"HALT  {x}", file=sys.stderr)
         return 1
-    prs = Presentation(basis)
-    folien = dict(enumerate(prs.slides, 1))
-    sld_ids = dict(enumerate(prs.slides._sldIdLst, 1))
-    protokoll, fehler, sichtbar, quellen = [], [], set(), {}
-    phase = lambda ke: 0 if ke[1].get("art") == "uebernehmen" else 2 if ke[1].get("art") in STRUKTUR else 1  # noqa: E731
-    for k, e in sorted(enumerate(eintraege, 1), key=phase):
-        try:
-            if e.get("art") == "uebernehmen":
-                protokoll.append(uebernahme(prs, e, folien, sld_ids, quellen))
-            elif e.get("art") in STRUKTUR:
-                if e.get("folie") not in folien:
-                    raise Fehler(f"Folie {e.get('folie')} gibt es nicht")
-                protokoll.append(struktur(prs, e, sld_ids, folien[e["folie"]]))
-            else:
-                zeile, nummern = inhalt(e, prs, folien, liste)
-                protokoll.append(zeile)
-                sichtbar |= nummern if e.get("art") in SICHTBAR | {"skript"} else set()
-        except Fehler as x:
-            fehler.append(f"Eintrag {k} ({e.get('art')}): {x}")
-        except (KeyError, TypeError, ValueError) as x:
-            fehler.append(f"Eintrag {k} ({e.get('art')}): Angabe fehlt oder falsch ({x})")
+    try:
+        return runde_ausfuehren(runde, original, ziel, eintraege, liste, mit_vergleich, ueberschreiben)
+    finally:
+        runde.aufraeumen()
+
+
+UPDATE_HALT = ("Erste Runde nach dem Update: folien_aendern wendet die Liste jetzt auf den aktuellen Stand der "
+               "Arbeitskopie an, nicht mehr auf das Original. Nichts geschrieben. Mit folien_lesen die Arbeitskopie "
+               "lesen, dann nur die neuen Wünsche mit den Foliennummern von jetzt schicken. Frühere Einträge stecken "
+               "schon in der Datei, erneut angewendet träfen verschieben, backup, loeschen und uebernehmen andere "
+               "Folien.")
+
+
+def runde_ausfuehren(runde, original: str, ziel: str, eintraege: list, liste: str, mit_vergleich: bool,
+                     ueberschreiben: bool) -> int:
+    if runde.nach_update and any(e.get("art") in STRUKTUR | {"uebernehmen"} for e in eintraege):
+        runde.merken()  # einmalig: die nächste Liste läuft
+        print(f"HALT  {UPDATE_HALT}", file=sys.stderr)
+        return 1
+    for zeile in runde.meldung_hand():
+        print(zeile)
+    if runde.hand:
+        print()
+    prs = Presentation(runde.arbeit)
+    protokoll, fehler, sichtbar, folien, sld_ids = anwenden(prs, eintraege, liste)
     for zeile in protokoll:
         print(zeile)
     if fehler:
+        runde.merken()
         print("\nNICHTS geschrieben, erst beheben:\n" + "\n".join(fehler), file=sys.stderr)
         return 1
     aufraeumen(prs)
-    prs.save(ziel)
+    prs.save(runde.arbeit)
+    erlaubt = {"Deck!*#schriften"} if any(e.get("art") == "reparieren" for e in eintraege) else set()
+    try:
+        code, zeilen = runde.abschliessen(ueberschreiben, erlaubt)
+    except stand.Halt as x:
+        print(f"HALT  {x}", file=sys.stderr)
+        return 1
+    print("\n" + "\n".join(zeilen), file=sys.stderr if code else sys.stdout)
+    if code:
+        return code
     paare = sorted((n, sld_ids[n].get("id")) for n in sichtbar
                    if isinstance(n, int) and n in folien and sld_ids[n].getparent() is not None)
     neue = [(als, sid.get("id")) for als, sid in sld_ids.items() if isinstance(als, str) and sid.getparent() is not None]
     vergleich_pfad = os.path.join(os.path.dirname(ziel), os.path.splitext(os.path.basename(ziel))[0] + VERGLEICH)
     if mit_vergleich and (paare or neue):
-        vergleich(basis, paare, neue, ziel, vergleich_pfad)
-    zustand["arbeitskopie"] = sha256(ziel)
-    z.schreiben(zustand)
-    print(f"\nArbeitskopie: {ziel} ({len(prs.slides)} Folien, Original unverändert"
-          + (", Basis ist die Fassung des Nutzers" if basis != original else "") + ")")
+        vergleich(runde.davor, paare, neue, ziel, vergleich_pfad)
+    zahl = len(prs.slides)
+    print(f"\nArbeitskopie: {ziel} ({zahl} Folie{'' if zahl == 1 else 'n'}, Original unverändert)")
     seiten = pruefseiten(prs, {i for _n, i in paare} | {i for _a, i in neue})
     print("Prüfseiten im PDF der Arbeitskopie: " + (", ".join(map(str, seiten)) if seiten else "keine (nichts Sichtbares)"))
     if mit_vergleich and (paare or neue):
@@ -629,7 +623,7 @@ def main() -> int:
             ([f"Folien {', '.join(str(n) for n, _i in paare)} vorher und nachher"] if paare else [])
             + ([f"neu {', '.join(a for a, _i in neue)}"] if neue else [])) + ")")
     print()
-    if pruefen.pruefe(ziel, basis):
+    if pruefen.pruefe(ziel, original if os.path.isfile(original) else None):
         print("NICHT übertragen: Funde oben beheben")
         return 1
     return 0

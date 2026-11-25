@@ -1,10 +1,16 @@
 """PowerPoint-Fallen, die eine XSD-Prüfung nicht meldet, danach auf Wunsch die XSD-Prüfung mit validate.py aus dem
-Skill pptx von Anthropic, wenn motor.pptx_validate in der config.json von office darauf zeigt (der Server reicht den
-Pfad als KITS_PPTX_VALIDATE weiter). Ohne den Pfad fehlt nur die XSD-Prüfung.
+Skill pptx von Anthropic. Den Pfad reicht der Server als KITS_PPTX_VALIDATE weiter (motor.pptx_validate in der
+config.json von office, leer sucht der Server den Skill am Mac selbst). Ohne den Pfad fehlt nur die XSD-Prüfung.
 
 Aufruf: python3 -I pruefen.py <datei.pptx> [--original <draft.pptx>] [--ohne-xsd]
 
-Findet Markierungen von Add-ins (p:custDataLst), die sich mehrere Formen teilen, Teile (Markierungen, Diagramme,
+Prüft in dieser Reihenfolge, woran PowerPoint beim Öffnen scheitert: Zip lesbar, jedes XML-Teil wohlgeformt, jedes
+Teil mit Inhaltstyp in [Content_Types].xml, jeder Verweis (r:id, r:embed, r:link, r:pict und alle anderen Attribute im
+Namensraum der Beziehungen) in allen XML-Teilen mit Eintrag in der .rels des Teils, leere Verweise dort, wo PowerPoint
+ein Ziel braucht (ZIEL_NOETIG, anderswo erlaubt sie der Standard), jede interne Beziehung mit vorhandenem Ziel,
+eingebettete Schriften (p:embeddedFontLst) mit Dateien unter ppt/fonts/.
+Einträge unter [trash]/ legt PowerPoint für Mac selbst an, sie sind harmlos und zählen nie.
+Dazu Markierungen von Add-ins (p:custDataLst), die sich mehrere Formen teilen, Teile (Markierungen, Diagramme,
 SmartArt), auf die mehrere Folien zeigen, mehrere Füllungen in einem Element und Altlasten aus Referenzdecks: einen
 Änderungsverlauf (changesInfo mit Namen der Bearbeiter) und Zähler in docProps/app.xml, die nicht zum Deck passen.
 Formen in mc:AlternateContent (Choice und Fallback beschreiben dieselbe Form) zählen einmal. Mit --original zählen
@@ -16,24 +22,45 @@ import posixpath
 import subprocess
 import sys
 import zipfile
+from urllib.parse import unquote
 
 try:
-    from defusedxml.ElementTree import fromstring
+    from defusedxml.ElementTree import ParseError, fromstring
 except ImportError:  # ohne defusedxml: expat löst keine externen Entitäten auf
-    from xml.etree.ElementTree import fromstring
+    from xml.etree.ElementTree import ParseError, fromstring
 
 sys.dont_write_bytecode = True
 
 P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A = "http://schemas.openxmlformats.org/drawingml/2006/main"
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+R_STRIKT = "http://purl.oclc.org/ooxml/officeDocument/relationships"
 REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+CT = "http://schemas.openxmlformats.org/package/2006/content-types"
 APP = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
 VALIDATE = "KITS_PPTX_VALIDATE"
+TRASH = "[trash]/"  # legt PowerPoint für Mac selbst an, ohne Inhaltstyp, harmlos
 # Je Folie eine eigene Kopie nötig. Eingebettete Objekte teilt PowerPoint selbst, oft eins auf vielen Folien
 GETEILT = ("ppt/tags/", "ppt/charts/", "ppt/diagrams/")
+SCHRIFT_ARTEN = ("regular", "bold", "italic", "boldItalic")
+# Leere Verweise erlaubt der Standard an vielen Stellen (Aktions-Links, SmartArt-Layouts, Bilder ohne Inhalt). Ein
+# Fehler sind sie nur dort, wo PowerPoint ein Ziel braucht. Eine unbekannte Id ist überall ein Fehler.
+ZIEL_NOETIG = {"sldId", "sldMasterId", "notesMasterId", "handoutMasterId", "sldLayoutId", "tags", "chart", "oleObj",
+               "relIds", "externalData", "control", "contentPart", "custData"}
+SCHRIFT_HINWEIS = "Eingebettete Schriften fehlen, PowerPoint kann die Datei nicht öffnen"
+LISTE_MAX = 6
 
 ABHILFE = {
+    "zip": "Keine lesbare PowerPoint-Datei (beschädigt, altes Format oder nur in der Cloud). Bei einer "
+           "Arbeitskopie mit arbeitskopie holen und neu frisch holen",
+    "xml": "PowerPoint kann die Datei so nicht öffnen. Das Teil stammt aus der letzten Änderung, sie zurücknehmen",
+    "inhaltstyp": "PowerPoint meldet ein Problem mit dem Inhalt. Eintrag in [Content_Types].xml fehlt",
+    "verweis": "PowerPoint meldet ein Problem mit dem Inhalt oder kann die Datei nicht reparieren. Das Element "
+               "verweist auf keine Beziehung des Teils",
+    "ziel-fehlt": "PowerPoint meldet ein Problem mit dem Inhalt. Die Beziehung zeigt auf ein Teil, das fehlt",
+    "schriften": "Behebung: folien_aendern mit {\"art\": \"reparieren\"} entfernt die Liste und embedTrueTypeFonts. "
+                 "Der Nutzer schaltet in PowerPoint für dieses Deck Schriftarten in die Datei einbetten aus "
+                 "(Einstellungen > Speichern), sonst schreibt PowerPoint die leere Liste beim nächsten Speichern neu",
     "tag-mehrfach": "PowerPoint öffnet die Datei dann nicht. Formen nicht mit Markierung kopieren",
     "teil-geteilt": "Änderungen an einer Folie träfen die andere. Folien mit uebernehmen kopieren, nicht mit "
                     "add_slide.py",
@@ -107,40 +134,186 @@ def funde_teil(teil: str, root, rels: dict) -> list:
     return funde
 
 
-def lade_rels(z: zipfile.ZipFile, teil: str) -> dict:
+def rels_name(teil: str) -> str:
+    return posixpath.join(posixpath.dirname(teil), "_rels", posixpath.basename(teil) + ".rels")
+
+
+def ziel_pfad(teil: str, ziel: str) -> str:
+    """Ziel einer internen Beziehung als Paketpfad, ohne Sprungmarke."""
+    ziel = ziel.split("#", 1)[0]
+    if ziel.startswith("/"):
+        return posixpath.normpath(ziel.lstrip("/"))
+    return posixpath.normpath(posixpath.join(posixpath.dirname(teil), ziel))
+
+
+class Paket:
+    """Zip einer .pptx ohne [trash]/, XML-Teile werden einmal gelesen. Nicht lesbare Teile landen in defekt."""
+
+    def __init__(self, z: zipfile.ZipFile):
+        self.z = z
+        self.namen = {n for n in z.namelist() if not n.startswith(TRASH) and not n.endswith("/")}
+        self._xml, self._rels, self.defekt = {}, {}, {}
+
+    def xml(self, name: str):
+        if name not in self._xml:
+            try:
+                self._xml[name] = fromstring(self.z.read(name))
+            except (ParseError, ValueError, KeyError, zipfile.BadZipFile) as x:
+                self._xml[name] = None
+                self.defekt[name] = str(x) or type(x).__name__
+        return self._xml[name]
+
+    def alle_rels(self, teil: str) -> dict:
+        """{rId: (Typ, Ziel, extern)} aller Beziehungen eines Teils, Ziel bei internen als Paketpfad. Ein Ziel NULL
+        schreibt PowerPoint für leere Verweise selbst, es zählt wie ein externes."""
+        if teil not in self._rels:
+            rels, name = {}, rels_name(teil)
+            wurzel = self.xml(name) if name in self.namen else None
+            for r in (wurzel.iter(q(REL, "Relationship")) if wurzel is not None else ()):
+                ziel, extern = r.get("Target") or "", r.get("TargetMode") == "External"
+                extern = extern or ziel == "NULL"
+                rels[r.get("Id") or ""] = (r.get("Type") or "", ziel if extern else ziel_pfad(teil, ziel), extern)
+            self._rels[teil] = rels
+        return self._rels[teil]
+
+
+def lade_rels(paket: Paket, teil: str) -> dict:
     """{rId: (Typ, Ziel als Paketpfad)} der internen Beziehungen eines Teils."""
-    name = posixpath.join(posixpath.dirname(teil), "_rels", posixpath.basename(teil) + ".rels")
-    if name not in z.namelist():
-        return {}
-    rels = {}
-    for r in fromstring(z.read(name)).iter(q(REL, "Relationship")):
-        ziel = r.get("Target") or ""
-        if r.get("TargetMode") != "External" and ziel != "NULL":
-            rels[r.get("Id")] = (r.get("Type") or "", ziel.lstrip("/") if ziel.startswith("/") else
-                                 posixpath.normpath(posixpath.join(posixpath.dirname(teil), ziel)))
-    return rels
+    return {k: (t, z_) for k, (t, z_, extern) in paket.alle_rels(teil).items() if not extern}
+
+
+def vorhanden(paket: Paket, pfad: str) -> bool:
+    return pfad in paket.namen or unquote(pfad) in paket.namen
+
+
+def mehr(liste: list) -> str:
+    return ", ".join(liste[:LISTE_MAX]) + (f" und {len(liste) - LISTE_MAX} weitere" if len(liste) > LISTE_MAX else "")
+
+
+def inhaltstypen(paket: Paket) -> list:
+    """Teile ohne Inhaltstyp (weder Default nach Endung noch Override nach Name)."""
+    if "[Content_Types].xml" not in paket.namen:
+        return [fund("inhaltstyp", "[Content_Types].xml", "", 1, "[Content_Types].xml fehlt")]
+    ct = paket.xml("[Content_Types].xml")
+    if ct is None:
+        return []
+    endungen = {(d.get("Extension") or "").lower() for d in ct.iter(q(CT, "Default"))}
+    namen = {(o.get("PartName") or "").lstrip("/").lower() for o in ct.iter(q(CT, "Override"))}
+    def endung(n):  # auch für _rels/.rels, das splitext als Datei ohne Endung liest
+        name = posixpath.basename(n)
+        return name.rsplit(".", 1)[1].lower() if "." in name else ""
+    ohne = sorted(n for n in paket.namen if n != "[Content_Types].xml" and n.lower() not in namen
+                  and unquote(n).lower() not in namen and endung(n) not in endungen)
+    if not ohne:
+        return []
+    return [fund("inhaltstyp", "[Content_Types].xml", "", len(ohne), f"{len(ohne)} Teile ohne Inhaltstyp "
+                 f"({mehr(ohne)})")]
+
+
+def kurzname(tag: str) -> str:
+    ns, _, lokal = tag[1:].partition("}") if tag.startswith("{") else ("", "", tag)
+    praefix = {P: "p", A: "a", R: "r", R_STRIKT: "r", A.replace("/main", "/chart"): "c",
+               A.replace("/main", "/diagram"): "dgm"}.get(ns)
+    if praefix is None:
+        praefix = ns.rstrip("/").rsplit("/", 1)[-1] if ns else ""
+    return f"{praefix}:{lokal}" if praefix else lokal
+
+
+def verweise(paket: Paket) -> list:
+    """Je Teil ein Fund für Verweise ohne Beziehung (leer oder unbekannte Id), je .rels ein Fund für interne Ziele,
+    die fehlen. Die Liste der eingebetteten Schriften prüft schriften()."""
+    funde = []
+    for n in sorted(paket.namen):
+        if n.endswith(".rels"):
+            teil = "" if n == "_rels/.rels" else posixpath.join(posixpath.dirname(posixpath.dirname(n)),
+                                                                 posixpath.basename(n)[:-5])
+            fehlt = sorted({ziel for _t, ziel, extern in paket.alle_rels(teil).values()
+                            if not extern and not vorhanden(paket, ziel)})
+            if fehlt:
+                funde.append(fund("ziel-fehlt", n, "", len(fehlt), f"{len(fehlt)} Beziehungen zeigen auf fehlende "
+                                  f"Teile ({mehr(fehlt)})"))
+            continue
+        if not n.endswith(".xml") or n == "[Content_Types].xml":
+            continue
+        wurzel = paket.xml(n)
+        if wurzel is None:
+            continue
+        ids = paket.alle_rels(n)
+        schriften_ = {id(e) for lst in wurzel.iter(q(P, "embeddedFontLst")) for e in lst.iter()}
+        falsch = []
+        for el in wurzel.iter():
+            if id(el) in schriften_:
+                continue
+            for attr, wert in el.attrib.items():
+                if not wert and (not isinstance(el.tag, str) or el.tag.rsplit("}", 1)[-1] not in ZIEL_NOETIG):
+                    continue
+                if attr.startswith(("{%s}" % R, "{%s}" % R_STRIKT)) and wert not in ids:
+                    falsch.append(f"{kurzname(el.tag)} {kurzname(attr)}=\"{wert}\" "
+                                  + ("leer" if not wert else "unbekannt"))
+        if falsch:
+            funde.append(fund("verweis", n, "", len(falsch), f"{len(falsch)} Verweise ohne Beziehung "
+                              f"({mehr(list(dict.fromkeys(falsch)))})"))
+    return funde
+
+
+def schriften(paket: Paket, pres) -> list:
+    """p:embeddedFontLst mit Schriften, aber leeren oder unbekannten Verweisen oder ohne Dateien unter ppt/fonts/.
+    PowerPoint schreibt das, wenn es Schriften einbetten soll, die nicht eingebettet werden dürfen."""
+    lst = pres.find(q(P, "embeddedFontLst"))
+    if lst is None:
+        return []
+    rels, betroffen, schnitte = paket.alle_rels("ppt/presentation.xml"), [], 0
+    for schrift in lst.findall(q(P, "embeddedFont")):
+        font = schrift.find(q(P, "font"))
+        name = (font.get("typeface") if font is not None else "") or "ohne Namen"
+        for art in SCHRIFT_ARTEN:
+            el = schrift.find(q(P, art))
+            if el is None:
+                continue
+            schnitte += 1
+            ziel = rels.get(el.get(q(R, "id")) or "")
+            if ziel is None or ziel[2] or not vorhanden(paket, ziel[1]):
+                betroffen.append(name)
+    dateien = any(n.startswith("ppt/fonts/") for n in paket.namen)
+    if not betroffen and (dateien or not schnitte):
+        return []
+    namen = list(dict.fromkeys(betroffen)) or ["keine Dateien unter ppt/fonts/"]
+    return [fund("schriften", "ppt/presentation.xml", "", 1, f"{SCHRIFT_HINWEIS} ({', '.join(namen)})")]
 
 
 def analyse(pfad: str):
     """(Info-Zeilen, Funde) einer .pptx."""
     funde, nutzer = [], {}
-    with zipfile.ZipFile(pfad) as z:
-        namen = set(z.namelist())
-        pres_rels = lade_rels(z, "ppt/presentation.xml")
-        pres = fromstring(z.read("ppt/presentation.xml"))
+    try:
+        z = zipfile.ZipFile(pfad)
+    except (zipfile.BadZipFile, OSError) as x:
+        return ["Datei nicht lesbar"], [fund("zip", os.path.basename(pfad), "", 1, f"keine Zip-Datei ({x})")]
+    with z:
+        paket = Paket(z)
+        try:
+            defekt = z.testzip()
+        except (zipfile.BadZipFile, OSError, RuntimeError, EOFError) as x:
+            defekt = str(x)
+        if defekt:
+            return ["Datei nicht lesbar"], [fund("zip", os.path.basename(pfad), "", 1, f"Zip-Teil defekt: {defekt}")]
+        pres = paket.xml("ppt/presentation.xml") if "ppt/presentation.xml" in paket.namen else None
+        if pres is None:
+            return ["Datei nicht lesbar"], [fund("xml", "ppt/presentation.xml", "", 1, "fehlt oder nicht lesbar")]
+        pres_rels = lade_rels(paket, "ppt/presentation.xml")
         folien = [pres_rels[s.get(q(R, "id"))][1] for s in pres.iter(q(P, "sldId")) if s.get(q(R, "id")) in pres_rels]
         notizen = versteckt = 0
-        for n in sorted(namen):
+        funde += inhaltstypen(paket) + verweise(paket) + schriften(paket, pres)
+        for n in sorted(paket.namen):
             if not n.endswith(".xml") or "/_rels/" in n:
                 continue
             if n.startswith(("ppt/slides/", "ppt/slideLayouts/", "ppt/slideMasters/", "ppt/notesSlides/",
                              "ppt/charts/")):
-                rels = lade_rels(z, n)
+                rels = lade_rels(paket, n)
                 for _typ, ziel in rels.values():
                     if ziel.startswith(GETEILT) and not n.startswith("ppt/notesSlides/"):
                         nutzer.setdefault(ziel, set()).add(n)
-                if not n.startswith("ppt/charts/"):
-                    root = fromstring(z.read(n))
+                root = None if n.startswith("ppt/charts/") else paket.xml(n)
+                if root is not None:
                     funde += funde_teil(n, root, {k: v[1] for k, v in rels.items()})
                     if n in folien:
                         versteckt += root.get("show") == "0"
@@ -149,16 +322,18 @@ def analyse(pfad: str):
             if len(quellen) > 1:
                 funde.append(fund("teil-geteilt", ziel, "", len(quellen),
                                   f"{len(quellen)} Teile zeigen darauf ({', '.join(sorted(quellen)[:5])})"))
-        verlauf = [z_ for t, z_ in pres_rels.values() if t.endswith("/changesInfo") and z_ in namen]
+        verlauf = [z_ for t, z_ in pres_rels.values() if t.endswith("/changesInfo") and z_ in paket.namen]
         for v in verlauf:
             funde.append(fund("aenderungsverlauf", v, "", 1, f"Änderungsverlauf, {z.getinfo(v).file_size // 1024} KB"))
-        if "docProps/app.xml" in namen:
-            app = fromstring(z.read("docProps/app.xml"))
+        app = paket.xml("docProps/app.xml") if "docProps/app.xml" in paket.namen else None
+        if app is not None:
             ist = {"Slides": len(folien), "Notes": notizen, "HiddenSlides": versteckt}
             falsch = [f"{k} {app.findtext(q(APP, k))} statt {v}" for k, v in ist.items()
                       if app.find(q(APP, k)) is not None and (app.findtext(q(APP, k)) or "").strip() != str(v)]
             if falsch:
                 funde.append(fund("app-zaehler", "docProps/app.xml", "", 1, "Zähler " + ", ".join(falsch)))
+        for n, grund in sorted(paket.defekt.items()):
+            funde.append(fund("xml", n, "", 1, f"XML nicht wohlgeformt ({grund})"))
     return [f"{len(folien)} Folie{'n' if len(folien) != 1 else ''}, davon {versteckt} ausgeblendet"], funde
 
 
@@ -172,12 +347,14 @@ def xsd(pfad: str, original, ausgabe) -> int:
     """validate.py ohne -P aufrufen, sonst fehlen seine Module helpers und validators. 1 bei Fehlern."""
     v = validate_py()
     if not v:
-        ausgabe("  INFO     XSD-Prüfung aus (motor.pptx_validate in der config.json von office fehlt)")
+        ausgabe("  INFO     XSD-Prüfung aus (Skill pptx am Mac nicht gefunden, motor.pptx_validate in der config.json "
+                "von office nennt den Pfad zu validate.py)")
         return 0
     if not os.path.isfile(v):
         ausgabe(f"  WARNUNG  validate.py nicht gefunden ({v}), XSD-Prüfung fehlt")
         return 0
-    cmd = [sys.executable, v, os.path.abspath(pfad)] + (["--original", os.path.abspath(original)] if original else [])
+    cmd = [sys.executable, "-B", v, os.path.abspath(pfad)] + (["--original", os.path.abspath(original)] if original
+                                                              else [])
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(v), timeout=240)
     except subprocess.TimeoutExpired:
@@ -187,6 +364,12 @@ def xsd(pfad: str, original, ausgabe) -> int:
         ausgabe(f"  WARNUNG  validate.py nicht startbar ({e.strerror or e}), XSD-Prüfung fehlt")
         return 0
     zeilen = [z for z in (r.stdout + r.stderr).splitlines() if z.strip()]
+    fehlt = next((z.split("No module named", 1)[1].strip(" '\"") for z in zeilen if "No module named" in z), "")
+    if r.returncode != 0 and fehlt:
+        pip = os.path.join(os.path.dirname(sys.executable), "pip")
+        ausgabe(f"  INFO     XSD-Prüfung aus, optional: Paket {fehlt} fehlt in der .venv des Motors. Alle anderen "
+                f"Prüfungen laufen. Einmal im Terminal: \"{pip}\" install {fehlt}")
+        return 0
     if r.returncode == 0:
         ausgabe("  OK       XSD (validate.py" + (", nur neue Fehler gegenüber dem Original)" if original else ")"))
         return 0

@@ -346,6 +346,37 @@ class MotorArgumente(MotorBasis):
         umbau = Path(liste["aenderungen"][0]["datei"])
         self.assertEqual(umbau.parent, self.daten / "zwischen" / "listen")
         self.assertIn("def umbau", umbau.read_text())
+        self.assertNotIn("--ueberschreiben", args)
+        self.rufe("folien_aendern", {"bereich": "arbeit", "thema": "T", "datei": "Deck.pptx", "ueberschreiben": True,
+                                     "liste": {"aenderungen": []}})
+        self.assertEqual(self.motor[-1][1][-2], "--ueberschreiben")
+
+    def test_zuruecknehmen(self):
+        self.assertFalse(self.rufe("arbeitskopie", {"aktion": "zuruecknehmen", "bereich": "arbeit", "thema": "T",
+                                                    "datei": "Liste.xlsx"})[0])
+        self.assertEqual(self.motor[-1], ("stand.py", ["zuruecknehmen", str(self.ablage / "T" / "Liste.xlsx"),
+                                                       "--zustand", str(self.daten / "zwischen" / "zustand")]))
+        for falsch in ({"datei": "Brief.docx"}, {"datei": ""}, {"bereich": "x"}):
+            self.motor.clear()
+            args = {"aktion": "zuruecknehmen", "bereich": "arbeit", "thema": "T", "datei": "Deck.pptx", **falsch}
+            self.assertTrue(self.rufe("arbeitskopie", args)[0], falsch)
+            self.assertEqual(self.motor, [])
+
+    def test_xsd_mit_pfad_aus_oder_skill_am_mac(self):
+        self.assertEqual(server.validate_pfad(self.cfg), "/x/validate.py")
+        self.assertEqual(server.validate_pfad({"motor": {"pptx_validate": "aus"}}), "")
+        heim = self.tmp / "heim"
+        with mock.patch.object(mb, "HEIM", heim):
+            self.assertEqual(server.validate_pfad({}), "")
+            pfade = []
+            for app, sitzung in (("Claude", "a/b"), ("Parall/Claude Zwei", "c/d")):
+                p = heim / "Library/Application Support" / app / "local-agent-mode-sessions/skills-plugin" / sitzung \
+                    / "skills/pptx/scripts/office/validate.py"
+                p.parent.mkdir(parents=True)
+                p.write_text("")
+                pfade.append(p)
+            os.utime(pfade[0], (1, 1))
+            self.assertEqual(server.validate_pfad({"motor": {"pptx_validate": ""}}), str(pfade[1]), "der neueste")
 
     def test_aendern_grenzen(self):
         basis = {"bereich": "arbeit", "thema": "T", "datei": "Deck.pptx"}
@@ -367,8 +398,15 @@ class MotorArgumente(MotorBasis):
         args = {"bereich": "arbeit", "thema": "T", "datei": "Liste.xlsx"}
         self.assertFalse(self.rufe("excel_skript", {**args, "code": "import sys\nprint(sys.argv[1])"})[0])
         name, argv = self.motor[-1]
-        self.assertTrue(name.startswith("Liste-") and name.endswith("_excel.py"), name)
-        self.assertEqual(argv, [str(self.ablage / "T" / "Liste.xlsx")])
+        self.assertEqual(name, "excel.py")
+        code = Path(argv[1])
+        self.assertTrue(code.name.startswith("Liste-") and code.name.endswith("_excel.py"), code)
+        self.assertEqual(code.parent, self.daten / "zwischen" / "listen")
+        self.assertEqual(argv[:1] + argv[2:], ["skript", str(self.ablage / "T" / "Liste.xlsx"), "--zustand",
+                                               str(self.daten / "zwischen" / "zustand"), "--original",
+                                               "/o/Liste.xlsx"])
+        self.rufe("excel_skript", {**args, "code": "x", "ueberschreiben": True})
+        self.assertEqual(self.motor[-1][1][-1], "--ueberschreiben")
         self.assertFalse(self.rufe("excel_fertig", {**args, "nachrechnen": True})[0])
         self.assertEqual(self.auf.aufrufe[-1][:2], ("office.py", ["nachrechnen", "--bereich=arbeit", "--thema=T", "--",
                                                                   "Liste.xlsx"]))
@@ -489,13 +527,21 @@ class MotorEcht(MotorBasis):
         self.assertEqual(self.original.read_bytes(), vorher, "Original unangetastet")
         self.assertIn("Punkt neu", self.rufe("folien_lesen", {"datei": str(self.kopie), "folien": "1"})[1])
         self.assertEqual(sorted(p.name for p in (self.ablage / "T").iterdir()), ["Status.pptx"], "keine Hilfsdateien")
-        self.assertTrue(list((self.daten / "zwischen" / "zustand").glob("*.json")))
+        self.assertTrue(list((self.daten / "zwischen" / "zustand").glob("*.stand.json")))
+        self.assertIn("GEÄNDERT in dieser Runde", aus)
         profil = (self.tmp / "bin" / "profil.sb").read_text()
         self.assertIn("(deny network*)", profil)
         shutil.copy(self.kopie, self.original)  # übertragen: Original gleich der Arbeitskopie
         fehler, aus, _ = self.rufe("folien_aendern", args)
-        self.assertTrue(fehler)
-        self.assertIn("neue Runde", aus)
+        self.assertTrue(fehler, "die alte Liste nie erneut abspielen")
+        self.assertIn("Text nicht gefunden", aus)
+        args["liste"] = {"aenderungen": [{"art": "text", "folie": 1, "alt": "Punkt neu", "neu": "Punkt drei"}]}
+        fehler, aus, _ = self.rufe("folien_aendern", args)
+        self.assertFalse(fehler, aus)
+        fehler, aus, _ = self.rufe("arbeitskopie", {"aktion": "zuruecknehmen", "bereich": "arbeit", "thema": "T",
+                                                    "datei": "Status.pptx"})
+        self.assertFalse(fehler, aus)
+        self.assertEqual(self.kopie.read_bytes(), self.original.read_bytes(), "Stand vor der letzten Runde")
 
     def test_pruefen_und_finden(self):
         fehler, aus, _ = self.rufe("folien_pruefen", {"datei": str(self.kopie), "original": str(self.original)})
@@ -517,6 +563,8 @@ class MotorEcht(MotorBasis):
         fehler, aus, _ = self.rufe("excel_skript", {**args, "code": code})
         self.assertFalse(fehler, aus)
         self.assertIn("geschrieben", aus)
+        self.assertIn("Blatt Liste: Werte A1", aus)
+        self.assertEqual(sorted(p.name for p in (self.ablage / "T").iterdir()), ["Liste.xlsx", "Status.pptx"])
         fehler, aus, _ = self.rufe("excel_fertig", args)
         self.assertFalse(fehler, aus)
         self.assertIn("Blätter (1): Liste", aus)

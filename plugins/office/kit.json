@@ -5,6 +5,6 @@
     "connectoren": [],
     "macos": [],
     "programme": ["open", "sandbox-exec", "soffice", "pdftoppm", "fc-list"],
-    "python": {".venv/bin/python3": ["pptx", "openpyxl", "lxml"]}
+    "python": {".venv/bin/python3": ["pptx", "openpyxl", "lxml", "defusedxml"]}
   }
 }

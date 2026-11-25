@@ -169,13 +169,13 @@ Nur mit dem Plugin `office`. Ohne Motor holt Claude Arbeitskopien, überträgt s
 
    ```bash
    /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv "$HOME/Library/Application Support/Claude Kits/office/.venv"
-   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/pip" install python-pptx openpyxl lxml
+   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/pip" install python-pptx openpyxl lxml defusedxml
    ```
 
 3. **Prüfen.** Einfügen, Enter:
 
    ```bash
-   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/python3" -c "import pptx, openpyxl, lxml" && ls /Applications/LibreOffice.app >/dev/null && echo "Motor ok"
+   "$HOME/Library/Application Support/Claude Kits/office/.venv/bin/python3" -c "import pptx, openpyxl, lxml, defusedxml" && ls /Applications/LibreOffice.app >/dev/null && echo "Motor ok"
    ```
 
    Steht da `Motor ok`, Claude mit **Cmd+Q** beenden und neu öffnen.

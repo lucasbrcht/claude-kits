@@ -2,6 +2,17 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.2.0 (25.11.2026)
+
+`office` 8.1.0, `basis` 8.1.1 (Befehl für den Motor), die anderen Plugins bleiben. Zwei Befunde aus dem Alltag mit Decks und Mappen.
+
+- **Eigene Änderungen bleiben erhalten (office):** Ändert der Nutzer die Arbeitskopie zwischen zwei Runden selbst (Füllfarbe, Formate, Bänderung, Text), meldet die nächste Runde von `excel_skript` und `folien_aendern` das als VON HAND und überschreibt es nicht. Würde der Code eine solche Stelle ändern, schreibt das Werkzeug nichts (HALT), `ueberschreiben` nur nach Ja des Nutzers. Jede Runde nennt die geänderten Bereiche für die Übergabe. Excel stoppt auch, wenn openpyxl beim Speichern Inhalte verlieren würde (Bilder, Makros, bedingte Formatierung neuerer Art). Liest der Code nur, bleibt die Datei unberührt.
+- **folien_aendern arbeitet auf dem aktuellen Stand (office):** Die Liste enthält nur noch die neuen Wünsche, Foliennummern wie `folien_lesen` sie jetzt zeigt. Bis 8.0 spielte jeder Lauf die ganze Liste erneut auf das Original ab, eine Liste mit nur neuen Wünschen hätte frühere Runden verworfen. Rücknahme der letzten Runde jetzt mit `arbeitskopie` und `aktion` zuruecknehmen.
+- **folien_pruefen findet, woran PowerPoint scheitert (office):** Verweise ohne Beziehung in allen Teilen (auch Layouts und Master), Beziehungen auf fehlende Teile, Teile ohne Inhaltstyp, kaputte Zip- oder XML-Teile ohne Absturz. Eigener Fund für eingebettete Schriften ohne Datei (PowerPoint: "found a problem with content", die XSD-Prüfung merkt es nicht), Behebung mit der neuen Art `reparieren` in `folien_aendern`. `[trash]/` von PowerPoint für Mac zählt nie. Skill `folien` mit Abschnitt "Datei lässt sich nicht öffnen".
+- **XSD-Prüfung ohne Einstellung (office):** Ist `motor.pptx_validate` leer, sucht der Server `validate.py` des Skills pptx, den Cowork am Mac ablegt. Dafür braucht die `.venv` `defusedxml`, fehlt es, nennt die Prüfung den Befehl.
+- **Skills `dateien`, `excel`, `folien`:** Jede Runde beginnt mit dem aktuellen Stand der Arbeitskopie, Änderungen des Nutzers gelten, nur der neue Auftrag wird umgesetzt, frühere Skripte nie erneut abspielen, die Übergabe nennt die geänderten Bereiche.
+- **Update:** Claude einmal mit Cmd+Q beenden und neu öffnen, für laufende Arbeit an Decks einen neuen Chat beginnen. Einstellungen bleiben. Schickt ein alter Chat die frühere Liste mit verschieben, backup, loeschen oder uebernehmen erneut, hält die erste Runde einmal an, statt andere Folien zu treffen. `defusedxml` ist optional, ohne fehlt nur die XSD-Prüfung, `folien_pruefen` nennt dann den Befehl.
+
 ## v8.1.0 (23.11.2026)
 
 `apple` 8.1.0, `basis` 8.1.0, `chat` 7.0.3 (Hinweise in den Skills), `pflege` 7.1.3 (Hinweis zu ZIPs), `office` und `service` bleiben. Befunde aus einer Einrichtung bei einer neuen Nutzerin.
