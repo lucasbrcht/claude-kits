@@ -346,6 +346,16 @@ class Gate(Basis):
         # die neuesten Zeilen bleiben, die ältesten fallen weg
         self.assertIn("Zeile 29999 ", [x for x in z if x["art"] == "zeile"][-1]["t"])
 
+    def test_container_log_zeitfenster_auch_ohne_docker(self):
+        """Das falsche docker beachtet --since und --until nicht, wie der Log-Treiber von Synology: gate.sh filtert."""
+        code, aus, _err = self.gate("lesen", "container_log", "name=homeassistant", "seit=2026-11-24T10:10:02Z",
+                                    "bis=2026-11-24T10:10:05Z")
+        texte = [x["t"] for x in self.zeilen(aus) if x["art"] == "zeile"]
+        self.assertEqual([t[:30] for t in texte], ["2026-11-24T10:10:02.000000000Z", "2026-11-24T10:10:03.000000000Z",
+                                                   "2026-11-24T10:10:04.000000000Z", "2026-11-24T10:10:05.000000000Z"])
+        aufruf = [a for a in self.docker_aufrufe() if a[:1] == ["logs"]][-1]
+        self.assertNotIn("--tail", aufruf)
+
     def test_container_log_suche_und_zeit(self):
         self.gate("lesen", "container_log", "name=homeassistant", "seit=2026-11-24T10:00Z", "bis=30m", "suche=SIGTERM")
         aufruf = [a for a in self.docker_aufrufe() if a[:1] == ["logs"]][-1]

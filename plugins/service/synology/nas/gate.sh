@@ -507,14 +507,18 @@ v_container_details() {
 v_container_log() {
   pruefe_args "name:NAME seit:ZEITD bis:ZEITD zeilen:ZAHL suche:WORT"
   docker_pfad
-  local seit bis
+  local seit bis von="" bis_awk=""
   container_name
   seit=$(wert seit)
   bis=$(wert bis)
-  set -- logs --timestamps --tail "$ROH_ZEILEN"
-  if [ -n "$seit" ]; then set -- "$@" --since "$seit"; fi
+  # Der Log-Treiber von Synology (db) beachtet --since und --until nicht. Deshalb filtert awk zusätzlich auf den
+  # Zeitstempel am Zeilenanfang (UTC), und mit Zeitraum gilt keine Grenze der Zeilen, sonst fehlte ein altes Fenster.
+  case $seit in *Z) von=${seit%Z} ;; esac
+  case $bis in *Z) bis_awk=${bis%Z} ;; esac
+  set -- logs --timestamps
+  if [ -n "$seit" ]; then set -- "$@" --since "$seit"; else set -- "$@" --tail "$ROH_ZEILEN"; fi
   if [ -n "$bis" ]; then set -- "$@" --until "$bis"; fi
-  mit_zeit "$ZEIT" "$DOCKER" "$@" "$NAME" 2>&1 | zeilen_json "" "" "$(wert suche | tr 'A-Z' 'a-z')" "$(wert zeilen 200)"
+  mit_zeit "$ZEIT" "$DOCKER" "$@" "$NAME" 2>&1 | zeilen_json "$von" "$bis_awk" "$(wert suche | tr 'A-Z' 'a-z')" "$(wert zeilen 200)"
   [ "${PIPESTATUS[0]}" = 0 ] || ende 3
   ende 0
 }
