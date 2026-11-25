@@ -7,6 +7,14 @@
     "homeassistant-lesen": {
       "command": "/Library/Developer/CommandLineTools/usr/bin/python3",
       "args": ["${CLAUDE_PLUGIN_ROOT}/ha_start.py", "--lesen"]
+    },
+    "synology": {
+      "command": "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "args": ["-B", "${CLAUDE_PLUGIN_ROOT}/synology_server.py"]
+    },
+    "synology-lesen": {
+      "command": "/Library/Developer/CommandLineTools/usr/bin/python3",
+      "args": ["-B", "${CLAUDE_PLUGIN_ROOT}/synology_server.py", "--lesen"]
     }
   }
 }

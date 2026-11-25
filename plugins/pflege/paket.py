@@ -73,12 +73,15 @@ SKILL_KB = 8
 # Liegen gleich in apple, chat und office und als Kopie in Plugins eigener Marketplaces (eigene_plugins der
 # Einrichtung), nur zusammen ändern. --pruefen vergleicht alle Stellen, die diese Instanz
 # lesen kann.
-GLEICHE_PLUGINS = ("apple", "chat", "office")
-GLEICHE_DATEIEN = ("kit_basis.py", "mcp_basis.py", "tests/test_kit_basis.py", "tests/test_mcp_basis.py")
+GLEICHE_PLUGINS = ("apple", "chat", "office", "service")
+GLEICHE_DATEIEN = ("kit_basis.py", "mcp_basis.py", "tests/test_kit_basis.py", "tests/test_mcp_basis.py",
+                   "tests/test_doku.py")
 # Gefahren und Gegenmaßnahmen im Hauptordner. Jedes Werkzeug der Stufe nachfrage aus den Plugins mit Server steht dort,
 # deren Doku-Test (tests/test_doku.py: jedes Werkzeug in genau einer Werkzeugtabelle) läuft bei --pruefen mit.
 SICHERHEIT = "SICHERHEIT.md"
-SERVER_PLUGINS = ("apple", "chat", "office")
+# Plugin: Datei des Servers mit den Aufrufen Werkzeug(...). service hat dazu ha_start.py, das ist kein eigener Server.
+SERVER_DATEIEN = {"apple": "server.py", "chat": "server.py", "office": "server.py", "service": "synology_server.py"}
+SERVER_PLUGINS = tuple(SERVER_DATEIEN)
 DOKU_TEST = "tests/test_doku.py"
 DOKU_ZEIT = 120
 
@@ -483,14 +486,14 @@ def werkzeuge_mit_stufe(server_py: Path) -> dict:
 
 
 def sicherheit_pruefung() -> list:
-    """SICHERHEIT.md im Hauptordner vorhanden und jedes Werkzeug der Stufe nachfrage aus apple, chat und office darin
-    genannt (in Backticks)."""
+    """SICHERHEIT.md im Hauptordner vorhanden und jedes Werkzeug der Stufe nachfrage aus den Servern in SERVER_DATEIEN
+    darin genannt (in Backticks)."""
     datei = PAKET / SICHERHEIT
     if not datei.is_file():
         return [("FEHLER", f"{SICHERHEIT} fehlt im Hauptordner (Gefahren und Gegenmaßnahmen je Werkzeug)")]
     text = datei.read_text(encoding="utf-8")
-    nachfrage = sorted(name for pl in SERVER_PLUGINS if (PLUGINS / pl / "server.py").is_file()
-                       for name, stufe in werkzeuge_mit_stufe(PLUGINS / pl / "server.py").items() if stufe == "nachfrage")
+    nachfrage = sorted(name for pl, s in SERVER_DATEIEN.items() if (PLUGINS / pl / s).is_file()
+                       for name, stufe in werkzeuge_mit_stufe(PLUGINS / pl / s).items() if stufe == "nachfrage")
     fehlt = [n for n in nachfrage if f"`{n}`" not in text]
     if fehlt:
         return [("FEHLER", f"{SICHERHEIT}: Werkzeug der Stufe nachfrage ohne Zeile: {', '.join(fehlt)}")]
@@ -499,10 +502,10 @@ def sicherheit_pruefung() -> list:
 
 def doku_pruefung() -> list:
     """Doku-Test der Plugins mit Server als Unterprozess: jedes Werkzeug in genau einer Werkzeugtabelle mit der Stufe aus
-    server.py. Fehlt der Test oder schlägt er fehl, ein FEHLER mit der letzten Zeile der Ausgabe."""
+    dem Server. Fehlt der Test oder schlägt er fehl, ein FEHLER mit der letzten Zeile der Ausgabe."""
     msgs, ok = [], []
-    for pl in SERVER_PLUGINS:
-        if not (PLUGINS / pl / "server.py").is_file():
+    for pl, s in SERVER_DATEIEN.items():
+        if not (PLUGINS / pl / s).is_file():
             continue
         test = PLUGINS / pl / DOKU_TEST
         if not test.is_file():

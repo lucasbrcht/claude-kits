@@ -1,4 +1,4 @@
-"""Tests für mcp_basis.py. Die Datei liegt gleich in apple, chat und office, wie mcp_basis.py selbst."""
+"""Tests für mcp_basis.py. Die Datei liegt gleich in apple, chat, office und service, wie mcp_basis.py selbst."""
 import json
 import os
 import subprocess

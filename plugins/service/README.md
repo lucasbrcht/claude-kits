@@ -20,8 +20,13 @@ In Cowork: Seitenleiste oben > Plugins (nicht Einstellungen > Plugins) > Add mar
 | `skills/homeassistant/SKILL.md` | Home Assistant über den MCP-Server `homeassistant`, Adresse und Eigenheiten des Zuhauses stehen im Kontextordner (`zuhause.md`) |
 | `ha_start.py`, `.mcp.json` | Starter für die MCP-Server `homeassistant` und `homeassistant-lesen` (mit `--lesen`, Schreiben gesperrt): Adresse aus `config.json`, Token aus dem Schlüsselbund, Vorgaben und erlaubte Schalter, dann ha-mcp per `uvx`. Mit `--rauchtest` Prüfung einer Version |
 | `ha_regeln.md` | Hausregeln, die der Starter ha-mcp als eigene Instruktionen mitgibt (`HAMCP_CUSTOM_INSTRUCTIONS`), sie gelten auch ohne geladenen Skill |
-| `kit.json` | Steckbrief: Abhängigkeiten (curl, node, pdftoppm, uvx, python3.12 mit numpy, Pillow, reportlab), keine Sperren |
-| `tests/test_roadbook.py` | Syntax, Skill und Doku, Öffnungszeiten, Tagesgrenze, Eingaben, die Skripte mit erfundener Strecke im Temp-Ordner |
+| `skills/synology/SKILL.md` | DiskStation über die MCP-Server `synology` und `synology-lesen`, Leitfaden zur Diagnose und die Vorlagen in `references/` |
+| `synology_server.py`, `synology_regeln.md` | MCP-Server für die DiskStation (mit `--lesen` nur Lesewerkzeuge, ohne Schreibschlüssel). Ruft über `/usr/bin/ssh` mit festen Optionen das Prüfskript auf, Hausregeln als Instruktionen |
+| `synology_start.py` | Einrichtung (`--einrichten`) und Prüfung (`--pruefen`) im Terminal |
+| `synology/nas/` | Prüfskript für die DiskStation: `eingang.sh` (erzwungener Befehl), `gate.sh` (Positivliste, als root über sudo), `install.sh`, `VERSION` |
+| `mcp_basis.py`, `kit_basis.py` | Unterbau, gleich in apple, chat, office und service |
+| `kit.json` | Steckbrief: Abhängigkeiten (curl, node, pdftoppm, uvx, ssh, python3.12 mit numpy, Pillow, reportlab), Sperre des Ordners `ssh/` im Datenordner für Read und Edit |
+| `tests/` | Roadbook, Starter für Home Assistant, Server und Prüfskript der DiskStation (mit falschen Programmen in einer erfundenen Welt), Unterbau und Doku |
 
 ## Voraussetzungen
 
@@ -41,6 +46,17 @@ Der Starter nimmt nie `latest`. Ohne `paket` in der `config.json` gilt `PAKET_ST
 ```
 
 Er startet die Version einmal normal und einmal lesend, prüft die Hausregeln in den Instruktionen, die Pflichtwerkzeuge, dass der Lesemodus `ha_call_service` versteckt, und ruft `ha_get_overview` auf. Erst bei "Rauchtest bestanden" `paket` in der `config.json` oder `PAKET_STANDARD` heben, danach beide Server neu verbinden.
+
+## DiskStation einrichten
+
+Der Server spricht per SSH mit einem eigenen Benutzer `claude`, dessen Schlüssel auf der DiskStation nur das Prüfskript erreichen. Lesen und Schreiben haben getrennte Schlüssel. Einmal je DiskStation:
+
+1. In DSM: Benutzer `claude` anlegen (Gruppe administrators, sonst erlaubt DSM kein SSH), Zugriff auf Apps und Ordner verweigern, starkes Passwort, das nur der Nutzer kennt. Unter Benutzer > Erweitert den Benutzer-Home-Dienst aktivieren. Unter Terminal SSH aktivieren, in der Firewall nur aus dem Heimnetz.
+2. Im Terminal am Mac, außerhalb der Sandbox: `/Library/Developer/CommandLineTools/usr/bin/python3 "<Plugin-Ordner>/synology_start.py" --einrichten`. Fragt Adresse, Port, eigenes Admin-Konto und Heimnetz, erzeugt die Schlüssel mit Passphrase im Schlüsselbund, pinnt den Host-Schlüssel und zeigt zwei Befehle.
+3. Die zwei Befehle im Terminal ausführen: Der erste kopiert den Ordner `claude-gate-neu` ins eigene Home auf der DiskStation, der zweite startet `install.sh` mit sudo (fragt das eigene Passwort).
+4. `synology_start.py --pruefen`, danach in der Claude-App die Server `synology` und `synology-lesen` neu verbinden.
+
+Nach einem DSM-Update meldet `nas_status`, wenn sudoers oder das Prüfskript fehlen. Dann Schritt 2 und 3 wiederholen, vorhandene Schlüssel bleiben. Rückbau steht im Kopf von `install.sh`.
 
 ## Tests
 

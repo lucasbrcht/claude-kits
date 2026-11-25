@@ -1,10 +1,13 @@
 {
-  "_hinweis": "Steckbrief des Plugins service, nicht im ZIP. Keine Sperren: Die Roadbook-Skripte laufen in der Sandbox aus dem Skill-Ordner (python3.12 wegen numpy, Pillow, reportlab), Home Assistant über die MCP-Server homeassistant und homeassistant-lesen (Starter ha_start.py, Hausregeln ha_regeln.md). abhaengigkeiten nennt, was das Plugin am Mac braucht.",
-  "verbote": [],
+  "_hinweis": "Steckbrief des Plugins service, nicht im ZIP. Die Roadbook-Skripte laufen in der Sandbox aus dem Skill-Ordner (python3.12 wegen numpy, Pillow, reportlab), Home Assistant über die MCP-Server homeassistant und homeassistant-lesen (Starter ha_start.py, Hausregeln ha_regeln.md), die DiskStation über synology und synology-lesen (synology_server.py, Hausregeln synology_regeln.md). verbote sperren die SSH-Schlüssel der DiskStation im Datenordner für Read und Edit, Edit sperrt damit auch das Schreiben der Bash-Sandbox. abhaengigkeiten nennt, was das Plugin am Mac braucht.",
+  "verbote": [
+    "Read(~/Library/Application Support/Claude Kits/service/ssh/**)",
+    "Edit(~/Library/Application Support/Claude Kits/service/ssh/**)"
+  ],
   "abhaengigkeiten": {
     "connectoren": ["BROWSER", "HOMEASSISTANT"],
     "macos": [],
-    "programme": ["curl", "node", "pdftoppm", "git", "uvx"],
+    "programme": ["curl", "node", "pdftoppm", "git", "uvx", "ssh", "ssh-keygen", "ssh-keyscan", "ssh-add"],
     "python": {"python3.12": ["numpy", "PIL", "reportlab"]}
   }
 }

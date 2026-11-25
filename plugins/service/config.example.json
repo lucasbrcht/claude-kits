@@ -1,10 +1,18 @@
 {
-  "_hinweis": "Vorlage für config.json: kopieren nach ~/Library/Application Support/Claude Kits/service/config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Die Vorgaben fürs Roadbook stehen unter skill_werte, der Skill roadbook liest sie direkt. Eine Strecke bekommt ihre roadbook.json im Arbeitsordner. Den Block homeassistant liest ha_start.py: Adresse, Paket mit fester Version, Name des Eintrags im Schlüsselbund mit dem Token (anlegen mit security add-generic-password -s <Dienst> -a claude -w), optional der Pfad zu uvx und unter optionen Schalter von ha-mcp (erlaubt: READ_ONLY_MODE, REDACT_SECRETS, DISABLED_TOOLS, BACKUP_READ_ONLY, ENABLE_SNAPSHOT_DELETE, ENABLE_AUTO_BACKUP, HA_MCP_DISABLE_SETTINGS_UI, HA_MCP_DISABLE_UPDATE_CHECK). Ohne optionen gelten die Vorgaben des Starters: keine Settings-Seite im Hintergrund, Geheimnisse geschwärzt. Ohne den Block startet der Server ohne Werkzeuge.",
+  "_hinweis": "Vorlage für config.json: kopieren nach ~/Library/Application Support/Claude Kits/service/config.json und die Werte in spitzen Klammern ersetzen. config.json ist persönlich und steht nicht im Git. Die Vorgaben fürs Roadbook stehen unter skill_werte, der Skill roadbook liest sie direkt. Eine Strecke bekommt ihre roadbook.json im Arbeitsordner. Den Block homeassistant liest ha_start.py: Adresse, Paket mit fester Version, Name des Eintrags im Schlüsselbund mit dem Token (anlegen mit security add-generic-password -s <Dienst> -a claude -w), optional der Pfad zu uvx und unter optionen Schalter von ha-mcp (erlaubt: READ_ONLY_MODE, REDACT_SECRETS, DISABLED_TOOLS, BACKUP_READ_ONLY, ENABLE_SNAPSHOT_DELETE, ENABLE_AUTO_BACKUP, HA_MCP_DISABLE_SETTINGS_UI, HA_MCP_DISABLE_UPDATE_CHECK). Ohne optionen gelten die Vorgaben des Starters: keine Settings-Seite im Hintergrund, Geheimnisse geschwärzt. Ohne den Block startet der Server ohne Werkzeuge. Den Block synology schreibt synology_start.py --einrichten im Terminal: Adresse und SSH-Port der DiskStation, Benutzer des Prüfskripts (claude), das eigene Admin-Konto nur für die angezeigten Befehle, das Heimnetz für authorized_keys und der Stop-Timeout in Sekunden für Stopp und Neustart. Keine Geheimnisse: Die Schlüssel liegen in ssh/ im Datenordner, die Passphrase im Schlüsselbund.",
   "homeassistant": {
     "url": "http://<host>:8123",
     "paket": "ha-mcp@9.2.0",
     "schluesselbund": "homeassistant-claude",
     "optionen": {}
+  },
+  "synology": {
+    "host": "<Adresse der DiskStation>",
+    "port": 22,
+    "benutzer": "claude",
+    "admin": "<eigenes Admin-Konto>",
+    "netz": "<Heimnetz wie 192.168.1.0/24>",
+    "stop_timeout": 120
   },
   "skill_werte": {
     "ROADBOOK_VORGABEN": [

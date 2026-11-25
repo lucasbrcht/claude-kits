@@ -1,6 +1,6 @@
 """Gemeinsamer Unterbau der lokalen MCP-Server: Protokoll über stdio, Werkzeuge mit Stufe, Aufruf der Skripte.
 
-Die Datei liegt gleich in den Plugins apple, chat und office (wie kit_basis.py). Ändern nur
+Die Datei liegt gleich in den Plugins apple, chat, office und service (wie kit_basis.py). Ändern nur
 zusammen, die Tests in tests/test_mcp_basis.py ebenso, paket.py --pruefen vergleicht alle Stellen. Nur
 Standardbibliothek, läuft ab Python 3.9.
 

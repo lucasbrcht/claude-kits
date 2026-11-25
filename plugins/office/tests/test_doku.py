@@ -1,6 +1,7 @@
-"""Doku-Test: Jedes Werkzeug der Server apple, chat und office steht in genau einer Werkzeugtabelle eines Skills im
-Paket, mit der Stufe aus server.py. Tabellen haben die Kopfzeile | Werkzeug | Zweck | Stufe |, die Stufe nachfrage heißt
-dort fragt. Liegt gleich in apple, chat und office, jedes Plugin prüft seine eigenen Werkzeuge und alle Tabellen.
+"""Doku-Test: Jedes Werkzeug der Server apple, chat, office und service (synology_server.py) steht in genau einer
+Werkzeugtabelle eines Skills im Paket, mit der Stufe aus dem Server. Tabellen haben die Kopfzeile | Werkzeug | Zweck |
+Stufe |, die Stufe nachfrage heißt dort fragt. Liegt gleich in apple, chat, office und service, jedes Plugin prüft seine
+eigenen Werkzeuge und alle Tabellen.
 
 Aufruf im Plugin-Ordner: python3 -B -m unittest discover tests
 """
@@ -13,7 +14,9 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 PLUGIN = Path(__file__).resolve().parent.parent
 PLUGINS = PLUGIN.parent
-SERVER_PLUGINS = ("apple", "chat", "office")
+# Plugin: Datei des Servers mit den Aufrufen Werkzeug(...)
+SERVER_DATEIEN = {"apple": "server.py", "chat": "server.py", "office": "server.py", "service": "synology_server.py"}
+SERVER_DATEI = PLUGIN / next((d for d in sorted(set(SERVER_DATEIEN.values())) if (PLUGIN / d).is_file()), "server.py")
 KOPF = ("werkzeug", "zweck", "stufe")
 STUFE_IN_TABELLE = {"lesen": "lesen", "schreiben": "schreiben", "fragt": "nachfrage"}
 NAME_RE = re.compile(r"^`([a-z][a-z0-9_]*)`$")
@@ -76,9 +79,9 @@ def abweichungen(eintraege: list, eigene: dict, alle: dict) -> list:
 
 def alle_werkzeuge(plugins: Path = PLUGINS) -> dict:
     alle = {}
-    for pl in SERVER_PLUGINS:
-        if (plugins / pl / "server.py").is_file():
-            alle.update(werkzeuge_aus_quelltext(plugins / pl / "server.py"))
+    for pl, datei in SERVER_DATEIEN.items():
+        if (plugins / pl / datei).is_file():
+            alle.update(werkzeuge_aus_quelltext(plugins / pl / datei))
     return alle
 
 
@@ -120,15 +123,16 @@ class Paket(unittest.TestCase):
     """Das echte Paket: Werkzeuge dieses Plugins und alle Tabellen."""
 
     def test_quelltext_wie_import(self):
+        import importlib
         sys.path.insert(0, str(PLUGIN))
         try:
-            import server
+            server = importlib.import_module(SERVER_DATEI.stem)
         finally:
             sys.path.remove(str(PLUGIN))
-        self.assertEqual(werkzeuge_aus_quelltext(PLUGIN / "server.py"), {w.name: w.stufe for w in server.WERKZEUGE})
+        self.assertEqual(werkzeuge_aus_quelltext(SERVER_DATEI), {w.name: w.stufe for w in server.WERKZEUGE})
 
     def test_jedes_werkzeug_in_genau_einer_tabelle(self):
-        eigene = werkzeuge_aus_quelltext(PLUGIN / "server.py")
+        eigene = werkzeuge_aus_quelltext(SERVER_DATEI)
         self.assertTrue(eigene)
         self.assertEqual(abweichungen(tabellen(), eigene, alle_werkzeuge()), [])
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests für kit_basis.py. Die Datei liegt gleich in apple und chat, wie kit_basis.py selbst
+"""Tests für kit_basis.py. Die Datei liegt gleich in apple, chat, office und service, wie kit_basis.py selbst
 (paket.py --pruefen vergleicht sie). Ändern nur zusammen.
 
 Aufruf: python3 tests/test_kit_basis.py
