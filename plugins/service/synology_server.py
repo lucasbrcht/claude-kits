@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Lokaler MCP-Server synology aus dem Plugin service: die Synology-DiskStation lesen (System, Speicher, Platten, Logs,
-Aufgaben, Pakete, Container).
+Aufgaben, Pakete, Sicherheit, Container) und Container neu starten, starten und stoppen. Diese drei sind Stufe
+nachfrage: vorher ein Dialog am Mac (mcp_basis.bestaetigen), eine Zeile im Audit des Datenordners, sonst keine Aktion,
+und auf der DiskStation höchstens 10 je Stunde. Löschen gibt es nicht.
 
 Start über .mcp.json mit dem Python der Command Line Tools (ab 3.9, nur Standardbibliothek), zwei Einträge:
   synology         alle Werkzeuge seiner Stufen,
@@ -534,6 +536,72 @@ def docker_images(a: dict) -> tuple:
     return lesen("docker_images")
 
 
+def nas_sicherheit(a: dict) -> tuple:
+    return lesen("nas_sicherheit")
+
+
+# ---------- Stufe nachfrage: Audit und Aktionen ----------
+
+AUDIT = "synology-audit.jsonl"
+
+
+def audit(**eintrag) -> None:
+    """Eine Zeile ins Audit im Datenordner, ohne Inhalte der DiskStation. Datei mit 600, ohne einem Verweis zu folgen.
+    Wirft OSError, dann läuft eine Aktion nicht (Muster aus atom2ueki/mcp-server-synology, MIT, audit.py)."""
+    zeile = json.dumps({"zeit": dt.datetime.now().astimezone().isoformat(timespec="seconds"), **eintrag},
+                       ensure_ascii=False) + "\n"
+    pfad = datenordner() / AUDIT
+    fd = os.open(pfad, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    try:
+        os.write(fd, zeile.encode("utf-8"))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+AKTIONEN = {"container_neustart": "Neustart", "container_starten": "Start", "container_stoppen": "Stopp"}
+
+
+def aktion(verb: str, a: dict) -> tuple:
+    name = container(a)
+    sekunden = zahl(a, "sekunden", 10, 600)
+    if verb == "container_starten" and sekunden is not None:
+        raise Fehler("sekunden gibt es nur bei Neustart und Stopp.")
+    if verb != "container_starten" and sekunden is None:
+        sekunden = VERBINDUNG.cfg["stop_timeout"]
+    woerter = [verb, f"name={name}", *([f"sekunden={sekunden}"] if sekunden else [])]
+    try:
+        audit(werkzeug=verb, name=name, sekunden=sekunden, ereignis="absicht")
+    except OSError as e:
+        return 1, f"Nicht ausgeführt: Audit im Datenordner nicht schreibbar ({e.strerror or e}). Ohne Audit keine Aktion."
+    code, eintraege, meldung = VERBINDUNG("schreiben", woerter, schreibend=True)
+    try:
+        audit(werkzeug=verb, name=name, ereignis="ergebnis", code=code)
+    except OSError:
+        pass  # die Aktion ist gelaufen, eine fehlende Zeile ändert das Ergebnis nicht
+    return antwort(verb, code, eintraege, meldung)
+
+
+def aktion_vorschau(verb: str):
+    def vorschau(a: dict) -> str:
+        sek = a.get("sekunden") or (VERBINDUNG.cfg["stop_timeout"] if VERBINDUNG and verb != "container_starten" else None)
+        return mb.angaben(("Container", a.get("name")), ("Aktion", AKTIONEN[verb]),
+                          ("Wartezeit bis zum harten Ende", f"{sek} Sekunden" if sek else ""))
+    return vorschau
+
+
+def container_neustart(a: dict) -> tuple:
+    return aktion("container_neustart", a)
+
+
+def container_starten(a: dict) -> tuple:
+    return aktion("container_starten", a)
+
+
+def container_stoppen(a: dict) -> tuple:
+    return aktion("container_stoppen", a)
+
+
 S = {"type": "string"}
 I = {"type": "integer"}
 
@@ -592,6 +660,27 @@ WERKZEUGE = [
     Werkzeug("docker_images", "Docker: Images",
              "Images mit Größe und ob ein Container sie nutzt, dazu der Platz, den Container Manager freigeben könnte. "
              "Löscht nichts.", "lesen", {}, docker_images),
+    Werkzeug("nas_sicherheit", "DiskStation: Sicherheit",
+             "Mitglieder der Gruppe administrators, ob SSH und Telnet laufen, wichtige Optionen von sshd und die letzten "
+             "Anmeldungen und Fehlversuche aus dem Systemlog.", "lesen", {}, nas_sicherheit),
+    Werkzeug("container_neustart", "Container neu starten",
+             "Startet einen Container neu (docker restart), mit Wartezeit bis zum harten Ende. Nur nach Ja des Nutzers "
+             "für genau diesen Container, danach fragt ein Dialog am Mac. Antwortet die DiskStation nicht, erst "
+             "container_liste lesen, nicht blind wiederholen.", "nachfrage",
+             {"name": P_NAME, "sekunden": d(I, "Wartezeit bis zum harten Ende, 10 bis 600, Vorgabe aus der "
+                                               "Einrichtung (120)")},
+             container_neustart, pflicht=("name",), vorschau=aktion_vorschau("container_neustart")),
+    Werkzeug("container_starten", "Container starten",
+             "Startet einen gestoppten Container (docker start). Nur nach Ja des Nutzers für genau diesen Container, "
+             "danach fragt ein Dialog am Mac.", "nachfrage", {"name": P_NAME}, container_starten, pflicht=("name",),
+             vorschau=aktion_vorschau("container_starten")),
+    Werkzeug("container_stoppen", "Container stoppen",
+             "Stoppt einen Container sauber (docker stop) mit Wartezeit bis zum harten Ende, damit etwa Home Assistant "
+             "seine Datenbank schließt. Nur nach Ja des Nutzers für genau diesen Container, danach fragt ein Dialog am "
+             "Mac.", "nachfrage",
+             {"name": P_NAME, "sekunden": d(I, "Wartezeit bis zum harten Ende, 10 bis 600, Vorgabe aus der "
+                                               "Einrichtung (120)")},
+             container_stoppen, pflicht=("name",), vorschau=aktion_vorschau("container_stoppen")),
 ]
 
 
@@ -618,7 +707,14 @@ def server(argv: list = None) -> mb.Server:
         return mb.Server(name, VERSION, [], f"Die DiskStation ist nicht verfügbar: {g}")
     VERBINDUNG = Verbindung(cfg)
     werkzeuge = WERKZEUGE
-    if lesemodus or mb.nur_lesen(PLUGIN):
+    ohne_schreiben = False
+    try:
+        schluessel_da("schreiben")
+    except Grund:
+        ohne_schreiben = True
+    # Werkzeuge außerhalb der Stufe gar nicht anbieten (Muster aus atom2ueki und Mrquj): Lesemodus, Modus lesen des
+    # Pakets oder kein Schreibschlüssel
+    if lesemodus or mb.nur_lesen(PLUGIN) or ohne_schreiben:
         werkzeuge = [w for w in WERKZEUGE if w.stufe == "lesen"]
     return mb.Server(name, VERSION, werkzeuge, anleitung(lesemodus))
 

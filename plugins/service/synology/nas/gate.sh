@@ -3,8 +3,9 @@
 #
 # Aufruf nur über sudo aus eingang.sh:   gate.sh <rolle> <verb> [schluessel=wert ...]
 #
-# - Rolle lesen erreicht nur die Leseverben. Rolle schreiben erreicht dieselben Verben, die Verben mit Wirkung
-#   (Neustart, Start, Stopp) kommen erst in einer späteren Version dazu.
+# - Rolle lesen erreicht nur die Leseverben. Rolle schreiben erreicht dazu Neustart, Start und Stopp eines Containers,
+#   höchstens 10 je Stunde (Notbremse auf der DiskStation, nicht am Mac). Löschen, Images, Updates und freie Befehle
+#   gibt es in keiner Rolle.
 # - Jedes Verb hat einen festen Befehl. Argumente sind nur Werte nach engen Mustern aus einer festen Liste von
 #   Schlüsseln je Verb. Kein eval, keine Shell auf fremdem Text, kein Globbing (set -f).
 # - Container gibt es nur über ihren exakten Namen aus der aktuellen Liste, nie über eine ID.
@@ -40,8 +41,9 @@ ZEIT=50                 # Sekunden je Befehl, der Mac wartet 60
 VERSION=$(head -c 40 "$ORT/VERSION" 2>/dev/null | tr -cd '0-9.')
 [ -n "$VERSION" ] || VERSION=unbekannt
 
-LESEVERBEN="nas_status nas_speicher nas_platten nas_log nas_aufgaben nas_pakete container_liste container_details container_log container_ereignisse docker_images"
-SCHREIBVERBEN=""
+LESEVERBEN="nas_status nas_speicher nas_platten nas_log nas_aufgaben nas_pakete nas_sicherheit container_liste container_details container_log container_ereignisse docker_images"
+SCHREIBVERBEN="container_neustart container_starten container_stoppen"
+SCHREIB_PRO_STUNDE=10   # Notbremse: so viele Aktionen der Rolle schreiben je Stunde, Zähler unter $ORT_FEST/zustand
 LOGS="messages kern docker scemd dmesg"
 
 # ---------- Hilfen ----------
@@ -199,6 +201,7 @@ muster() {
     ZEITL) printf '%s' '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}(:[0-9]{2}(:[0-9]{2})?)?)?$' ;;
     ZAHL)  printf '%s' '^[0-9]{1,4}$' ;;
     WORT)  printf '%s' '^[A-Za-z0-9_.-]{1,40}$' ;;
+    SEK)   printf '%s' '^[0-9]{1,3}$' ;;
     LOG)   printf '%s' '^(messages|kern|docker|scemd|dmesg)$' ;;
     *)     printf '%s' '^$' ;;
   esac
@@ -211,6 +214,7 @@ erklaerung() {
     ZEITL) printf 'Ortszeit der DiskStation wie 2026-01-31T10:00 oder 2026-01-31' ;;
     ZAHL)  printf 'Zahl von 1 bis %s' "$MAX_ZEILEN" ;;
     WORT)  printf 'ein Wort aus A-Z, 0-9, _ . - mit höchstens 40 Zeichen' ;;
+    SEK)   printf 'Sekunden von 10 bis 600' ;;
     LOG)   printf 'eins von: %s' "$LOGS" ;;
   esac
 }
@@ -238,6 +242,9 @@ pruefe_args() {
     [[ $v =~ $m ]] || abbruch 2 argument "Wert für $k passt nicht: $(erklaerung "$typ")"
     if [ "$typ" = ZAHL ] && { [ "$v" -lt 1 ] || [ "$v" -gt "$MAX_ZEILEN" ]; }; then
       abbruch 2 argument "Wert für $k passt nicht: $(erklaerung ZAHL)"
+    fi
+    if [ "$typ" = SEK ] && { [ "$v" -lt 10 ] || [ "$v" -gt 600 ]; }; then
+      abbruch 2 argument "Wert für $k passt nicht: $(erklaerung SEK)"
     fi
   done
 }
@@ -391,7 +398,9 @@ log_pfad() {
   case $1 in
     messages) finde_datei /var/log/messages ;;
     kern)     finde_datei /var/log/kern.log ;;
-    docker)   finde_datei /var/packages/ContainerManager/var/docker.log /var/log/docker.log \
+    # DSM 7.4 schreibt dockerd nicht ins Systemlog, Kandidaten für Container Manager
+    docker)   finde_datei /var/log/packages/ContainerManager.log /var/packages/ContainerManager/var/docker.log \
+                /var/packages/ContainerManager/var/log/docker.log /var/log/docker.log \
                 /var/packages/Docker/var/docker.log ;;
     scemd)    finde_datei /var/log/scemd.log ;;
   esac
@@ -537,6 +546,70 @@ v_docker_images() {
   alle_container "$VORLAGE_GENUTZT"
   mit_zeit "$ZEIT" "$DOCKER" system df --format "$VORLAGE_DF" 2>&1 | docker_zeilen 20
   ende 0
+}
+
+v_nas_sicherheit() {
+  pruefe_args ""
+  local admins ssh_an=false telnet_an=false p wert
+  admins=$(awk -F: '$1 == "administrators" { print $4 }' "$W/etc/group" 2>/dev/null)
+  printf '{"art":"sicherheit","administratoren":%s}\n' "$(js "$admins")"
+  pgrep -x sshd >/dev/null 2>&1 && ssh_an=true
+  pgrep -x telnetd >/dev/null 2>&1 && telnet_an=true
+  printf '{"art":"dienste","ssh":%s,"telnet":%s}\n' "$ssh_an" "$telnet_an"
+  for p in PermitRootLogin PasswordAuthentication PubkeyAuthentication PermitUserEnvironment AllowTcpForwarding; do
+    wert=$(awk -v p="$p" 'tolower($1) == tolower(p) { w = $2 } END { print w }' "$W/etc/ssh/sshd_config" 2>/dev/null)
+    printf '{"art":"sshd","option":"%s","wert":%s}\n' "$p" "$(js "${wert:-Vorgabe}")"
+  done
+  # Anmeldungen per SSH und an DSM aus dem Systemlog, die letzten 30
+  log_lesen "$(log_pfad messages)" 2>/dev/null \
+    | grep -E 'Accepted (publickey|password)|Failed password|authentication failure|Invalid user|logged in|failed to log in' \
+    | zeilen_json "" "" "" 30
+  ende 0
+}
+
+# Notbremse für die Rolle schreiben: höchstens SCHREIB_PRO_STUNDE Aktionen je Stunde. Der Eintrag entsteht vor der
+# Aktion, eine gescheiterte zählt mit.
+notbremse() {
+  local ordner=$W$ORT_FEST/zustand jetzt datei
+  mkdir -p "$ordner" 2>/dev/null || abbruch 3 zustand "Zustand der Notbremse nicht schreibbar, nichts ausgeführt"
+  datei=$ordner/schreiben
+  jetzt=$(date +%s)
+  touch "$datei" 2>/dev/null || abbruch 3 zustand "Zustand der Notbremse nicht schreibbar, nichts ausgeführt"
+  awk -v grenze=$((jetzt - 3600)) '$1 + 0 > grenze' "$datei" > "$datei.neu" && mv -f "$datei.neu" "$datei"
+  if [ "$(wc -l < "$datei" | tr -d ' ')" -ge "$SCHREIB_PRO_STUNDE" ]; then
+    abbruch 2 notbremse "Schon $SCHREIB_PRO_STUNDE Aktionen in der letzten Stunde. Notbremse der DiskStation, später erneut"
+  fi
+  printf '%s %s %s\n' "$jetzt" "$VERB" "$NAME" >> "$datei"
+}
+
+# Aktion an einem Container: nur über den Namen aus der Liste, danach der neue Zustand
+aktion() {  # aktion <docker-befehl> [mit_timeout]
+  local sek rc
+  pruefe_args "name:NAME sekunden:SEK"
+  docker_pfad
+  container_name
+  notbremse
+  sek=$(wert sekunden 120)
+  if [ "${2:-}" = mit_timeout ]; then
+    mit_zeit $((sek + 30)) "$DOCKER" "$1" -t "$sek" "$NAME" > /dev/null 2>"$W$ORT_FEST/zustand/fehler" ; rc=$?
+  else
+    mit_zeit "$ZEIT" "$DOCKER" "$1" "$NAME" > /dev/null 2>"$W$ORT_FEST/zustand/fehler" ; rc=$?
+  fi
+  printf '{"art":"aktion","befehl":"%s","name":%s,"sekunden":%s,"code":%d}\n' "$1" "$(js "$NAME")" \
+    "$([ "${2:-}" = mit_timeout ] && echo "$sek" || echo null)" "$rc"
+  if [ "$rc" != 0 ]; then
+    head -c 500 "$W$ORT_FEST/zustand/fehler" | text_json
+    ende 3
+  fi
+  mit_zeit 20 "$DOCKER" inspect --type container --format "$VORLAGE_LISTE" "$NAME" 2>&1 | docker_zeilen 5
+  ende 0
+}
+
+v_container_neustart() { aktion restart mit_timeout; }
+v_container_stoppen() { aktion stop mit_timeout; }
+v_container_starten() {
+  [ -z "$(wert sekunden)" ] || abbruch 2 argument "sekunden gibt es nur bei Neustart und Stopp"
+  aktion start
 }
 
 # ---------- Ablauf ----------

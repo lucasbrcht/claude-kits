@@ -103,6 +103,8 @@ elif a[:1] == ["logs"]:
         out.write(b"2026-11-24T10:10:06.000000000Z kaputt \xff\xfe utf8\n")
         out.write(b"2026-11-24T10:10:07.000000000Z " + b"L" * 5000 + b"\n")
         out.write(b"2026-11-24T10:13:00.000000000Z Received signal SIGTERM, stopping\n")
+elif a[:1] in (["restart"], ["stop"], ["start"]):
+    print(a[-1])
 elif a[:1] == ["events"]:
     print(json.dumps({"art": "ereignis", "zeit": 1763979000, "aktion": "die", "name": "homeassistant", "exit": "137"}))
     print("Error response from daemon: Kaputt\n", file=sys.stderr)
@@ -169,6 +171,8 @@ def welt(w: Path) -> None:
                                               'displayname="Container Manager"\n',
         "var/packages/ContainerManager/enabled": "",
         "var/packages/HyperBackup/INFO": 'package="HyperBackup"\nversion="4.1.0"\ndisplayname="Hyper Backup"\n',
+        "etc/group": "administrators:x:101:admin,Claude\nusers:x:100:\n",
+        "etc/ssh/sshd_config": "#PermitRootLogin yes\nPermitRootLogin no\nPasswordAuthentication yes\n",
     }.items():
         (w / pfad).parent.mkdir(parents=True, exist_ok=True)
         (w / pfad).write_text(inhalt, encoding="utf-8")
@@ -277,7 +281,7 @@ class Eingang(Basis):
 class Gate(Basis):
     LESEN = {
         "nas_status": [], "nas_speicher": [], "nas_platten": [], "nas_log": [], "nas_aufgaben": [],
-        "nas_pakete": [], "container_liste": [], "container_details": ["name=homeassistant"],
+        "nas_pakete": [], "nas_sicherheit": [], "container_liste": [], "container_details": ["name=homeassistant"],
         "container_log": ["name=homeassistant"], "docker_images": [],
         "container_ereignisse": ["seit=2026-11-24T10:00Z", "bis=2026-11-24T11:00Z"],
     }
@@ -403,6 +407,59 @@ class Gate(Basis):
         z = self.zeilen(self.gate("lesen", "nas_pakete")[1])
         pakete = {x["name"]: (x["version"], x["aktiv"]) for x in z if x["art"] == "paket"}
         self.assertEqual(pakete, {"ContainerManager": ("24.0.2-1543", True), "HyperBackup": ("4.1.0", False)})
+
+    def test_sicherheit(self):
+        z = self.zeilen(self.gate("lesen", "nas_sicherheit")[1])
+        self.assertEqual(next(x for x in z if x["art"] == "sicherheit")["administratoren"], "admin,Claude")
+        sshd = {x["option"]: x["wert"] for x in z if x["art"] == "sshd"}
+        self.assertEqual((sshd["PermitRootLogin"], sshd["PasswordAuthentication"], sshd["AllowTcpForwarding"]),
+                         ("no", "yes", "Vorgabe"))
+
+    def notbremse_leeren(self):
+        shutil.rmtree(self.w / "volume1/@claude-gate/zustand", ignore_errors=True)
+
+    def test_schreiben_nur_mit_rolle_schreiben(self):
+        self.notbremse_leeren()
+        for verb in ("container_neustart", "container_starten", "container_stoppen"):
+            with self.subTest(verb=verb):
+                code, aus, _err = self.gate("lesen", verb, "name=homeassistant")
+                self.assertEqual(code, 2)
+                self.assertIn("braucht die Rolle schreiben", aus)
+        self.assertEqual([a for a in self.docker_aufrufe() if a[0] in ("restart", "stop", "start")], [])
+
+    def test_neustart_stopp_start(self):
+        self.notbremse_leeren()
+        code, aus, err = self.gate("schreiben", "container_neustart", "name=homeassistant")
+        self.assertEqual(code, 0, aus + err)
+        z = self.zeilen(aus)
+        self.assertEqual(next(x for x in z if x["art"] == "aktion")["sekunden"], 120)
+        self.assertTrue(any(x["art"] == "container" for x in z))
+        self.gate("schreiben", "container_stoppen", "name=pihole", "sekunden=300")
+        self.gate("schreiben", "container_starten", "name=pihole")
+        aktionen = [a for a in self.docker_aufrufe() if a[0] in ("restart", "stop", "start")]
+        self.assertEqual(aktionen, [["restart", "-t", "120", "homeassistant"], ["stop", "-t", "300", "pihole"],
+                                    ["start", "pihole"]])
+        log = (self.w / "logger.txt").read_text()
+        self.assertIn("rolle=schreiben verb=container_stoppen args=name=pihole sekunden=300 code=0", log)
+
+    def test_schreiben_falsche_angaben(self):
+        self.notbremse_leeren()
+        for args in (["name=homeassistant", "sekunden=5"], ["name=homeassistant", "sekunden=601"],
+                     ["name=" + IDS[0]], ["name=gibtsnicht"], []):
+            with self.subTest(args=args):
+                self.assertEqual(self.gate("schreiben", "container_neustart", *args)[0], 2)
+        self.assertEqual(self.gate("schreiben", "container_starten", "name=pihole", "sekunden=30")[0], 2)
+        self.assertEqual([a for a in self.docker_aufrufe() if a[0] in ("restart", "stop", "start")], [])
+
+    def test_notbremse(self):
+        self.notbremse_leeren()
+        for _ in range(10):
+            self.assertEqual(self.gate("schreiben", "container_starten", "name=pihole")[0], 0)
+        code, aus, _err = self.gate("schreiben", "container_starten", "name=pihole")
+        self.assertEqual(code, 2)
+        self.assertIn("Notbremse", aus)
+        self.assertEqual(len([a for a in self.docker_aufrufe() if a[0] == "start"]), 10)
+        self.notbremse_leeren()
 
     def test_zu_viele_argumente(self):
         code, aus, _err = self.gate("lesen", "nas_status", *["a=b"] * 8)

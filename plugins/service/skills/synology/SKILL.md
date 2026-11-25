@@ -13,7 +13,7 @@ DiskStation des Nutzers über den Server `synology` aus diesem Plugin, in Cowork
 
 | Server | Wofür |
 |---|---|
-| `synology` | Lesen, ab einer späteren Version Container neu starten, starten und stoppen mit Dialog am Mac |
+| `synology` | Lesen, dazu Container neu starten, starten und stoppen mit Dialog am Mac |
 | `synology-lesen` | Nur lesen, kennt den Schreibschlüssel nicht: für geplante Aufgaben, Routinen und Analysen |
 
 - Werkzeuge laden je nach Oberfläche verzögert: gebündelt mit `ToolSearch` und `+synology`, für den Lesemodus `+synology-lesen`.
@@ -35,6 +35,17 @@ DiskStation des Nutzers über den Server `synology` aus diesem Plugin, in Cowork
 | `container_log` | Log eines Containers im Zeitraum, mit Suchwort und Zählung | lesen |
 | `container_ereignisse` | Docker-Ereignisse (die, kill, oom, stop, start, create, destroy) im Zeitraum | lesen |
 | `docker_images` | Images mit Größe, ungenutzte markiert, freigebbarer Platz | lesen |
+| `nas_sicherheit` | Admins, SSH und Telnet, Optionen von sshd, letzte Anmeldungen | lesen |
+| `container_neustart` | Container neu starten, mit Wartezeit bis zum harten Ende | fragt |
+| `container_starten` | Gestoppten Container starten | fragt |
+| `container_stoppen` | Container sauber stoppen, mit Wartezeit bis zum harten Ende | fragt |
+
+## Neustart, Start, Stopp
+
+- Nur nach Ja des Nutzers für genau diesen Container, auch wenn eine Diagnose es nahelegt. Danach fragt der Dialog am Mac noch einmal, Claude sieht ihn nicht.
+- Wartezeit (`sekunden`) großzügig lassen: Home Assistant und Datenbanken brauchen sie, um sauber zu schließen. Die Vorgabe steht in der Einrichtung (120).
+- Antwortet die DiskStation nicht, kann die Aktion trotzdem gelaufen sein: erst `container_liste`, dann entscheiden. Auf der DiskStation gilt eine Notbremse von 10 Aktionen je Stunde.
+- Jede Aktion steht im Audit am Mac (`synology-audit.jsonl` im Datenordner) und im Systemlog der DiskStation (`claude-gate`).
 
 ## Zeiten
 

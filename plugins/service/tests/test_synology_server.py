@@ -62,7 +62,7 @@ class Basis(unittest.TestCase):
         self.daten = self.tmp / "daten"
         self.daten.mkdir()
         for p in (mock.patch.dict(os.environ, {"KITS_DATENORDNER": str(self.daten), "KITS_FEHLERPROTOKOLL": "aus",
-                                               "KITS_NUR_LESEN": ""}),):
+                                               "KITS_NUR_LESEN": "", "KITS_DIALOG": "nein"}),):
             p.start()
             self.addCleanup(p.stop)
         self.zaehler = self.tmp / "ssh-aufrufe"
@@ -125,14 +125,26 @@ class Start(Basis):
         voll, lesen = self.server(), self.server("--lesen")
         self.assertEqual(voll.name, "synology")
         self.assertEqual(lesen.name, "synology-lesen")
-        self.assertEqual(len(voll.werkzeuge), 11)
+        self.assertEqual(len(voll.werkzeuge), 15)
+        self.assertEqual(len(lesen.werkzeuge), 12)
         self.assertLessEqual(len(ss.WERKZEUGE), GRENZE_WERKZEUGE)
         self.assertEqual({w.stufe for w in lesen.werkzeuge.values()}, {"lesen"})
+        self.assertEqual({w.name for w in ss.WERKZEUGE if w.stufe == "nachfrage"},
+                         {"container_neustart", "container_starten", "container_stoppen"})
+        self.assertEqual({w.stufe for w in ss.WERKZEUGE}, {"lesen", "nachfrage"})  # keine Stufe schreiben
+        with mock.patch.dict(os.environ, {"KITS_NUR_LESEN": "1"}):
+            self.assertEqual({w.stufe for w in self.server().werkzeuge.values()}, {"lesen"})
+
         self.assertIn("Hausregeln für die DiskStation", lesen.anleitung)
         self.assertIn("kennt den Schreibschlüssel nicht", lesen.anleitung)
         for w in ss.WERKZEUGE:
             a = w.annotationen()
             self.assertEqual(a["readOnlyHint"], w.stufe == "lesen", w.name)
+            self.assertEqual(a["destructiveHint"], w.stufe == "nachfrage", w.name)
+
+    def test_ohne_schreibschluessel_nur_lesen(self):
+        self.einrichten(schluessel=("lesen",))
+        self.assertEqual({w.stufe for w in self.server().werkzeuge.values()}, {"lesen"})
 
     def test_version_wie_plugin(self):
         plugin = json.loads((ORDNER / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
@@ -176,9 +188,9 @@ class Werkzeuge(Basis):
     def test_jedes_werkzeug_liefert(self):
         faelle = {"nas_status": {}, "nas_speicher": {}, "nas_platten": {}, "nas_log": {}, "nas_aufgaben": {},
                   "nas_pakete": {}, "container_liste": {}, "container_details": {"name": "homeassistant"},
-                  "container_log": {"name": "homeassistant"}, "docker_images": {},
+                  "container_log": {"name": "homeassistant"}, "docker_images": {}, "nas_sicherheit": {},
                   "container_ereignisse": {"seit": "2026-11-24 10:00", "bis": "2026-11-24 11:00"}}
-        self.assertEqual(set(faelle), {w.name for w in ss.WERKZEUGE})
+        self.assertEqual(set(faelle), {w.name for w in ss.WERKZEUGE if w.stufe == "lesen"})
         for name, args in faelle.items():
             with self.subTest(name=name):
                 fehler, text = self.aufruf(name, **args)
@@ -241,6 +253,61 @@ class Werkzeuge(Basis):
         fehler, text = self.aufruf("docker_images")
         self.assertIn("Images nutzt kein Container", text)
         self.assertIn("löscht nichts", text)
+
+
+class Aktionen(Basis):
+    def setUp(self):
+        super().setUp()
+        self.einrichten()
+        shutil.rmtree(self.welt / "volume1/@claude-gate/zustand", ignore_errors=True)
+
+    def audit(self) -> list:
+        datei = self.daten / ss.AUDIT
+        return [json.loads(z) for z in datei.read_text().splitlines()] if datei.is_file() else []
+
+    def test_dialog_abgelehnt_nichts_passiert(self):
+        fehler, text = self.aufruf("container_neustart", name="homeassistant")
+        self.assertTrue(fehler)
+        self.assertIn("Dialog am Mac", text)
+        self.assertEqual(self.ssh_zahl(), 0)
+        self.assertEqual(self.audit(), [])
+
+    def test_dialog_frei_mit_audit_und_rolle_schreiben(self):
+        with mock.patch.dict(os.environ, {"KITS_DIALOG": "ja"}):
+            fehler, text = self.aufruf("container_stoppen", name="homeassistant")
+        self.assertFalse(fehler, text)
+        self.assertIn("homeassistant | running", text)
+        aufruf = [json.loads(z) for z in (self.welt / "aufrufe.txt").read_text().splitlines()][-2]
+        self.assertEqual(aufruf, ["stop", "-t", "120", "homeassistant"])
+        self.assertEqual([(a["ereignis"], a["werkzeug"], a["name"]) for a in self.audit()],
+                         [("absicht", "container_stoppen", "homeassistant"),
+                          ("ergebnis", "container_stoppen", "homeassistant")])
+        self.assertEqual(self.audit()[1]["code"], 0)
+        self.assertEqual(oct((self.daten / ss.AUDIT).stat().st_mode & 0o777), "0o600")
+        sudo = (self.welt / "sudo.txt").read_text().splitlines()[-1]
+        self.assertIn("gate.sh schreiben container_stoppen name=homeassistant sekunden=120", sudo)
+
+    def test_ohne_audit_keine_aktion(self):
+        (self.daten / ss.AUDIT).mkdir()  # nicht als Datei schreibbar
+        with mock.patch.dict(os.environ, {"KITS_DIALOG": "ja"}):
+            fehler, text = self.aufruf("container_neustart", name="homeassistant")
+        self.assertTrue(fehler)
+        self.assertIn("Ohne Audit keine Aktion", text)
+        self.assertEqual(self.ssh_zahl(), 0)
+
+    def test_vorschau_und_angaben(self):
+        s = self.server()
+        w = s.werkzeuge["container_neustart"]
+        text = mb.dialog_text(w, {"name": "homeassistant"}, w.vorschau({"name": "homeassistant"}))
+        self.assertIn("Container: homeassistant", text)
+        self.assertIn("Wartezeit bis zum harten Ende: 120 Sekunden", text)
+        with mock.patch.dict(os.environ, {"KITS_DIALOG": "ja"}):
+            for args in ({"name": "homeassistant", "sekunden": 5}, {"name": "a;b"}):
+                fehler, text = s.aufrufen("container_neustart", args)
+                self.assertTrue(fehler)
+            fehler, text = s.aufrufen("container_starten", {"name": "pihole", "sekunden": 30})
+            self.assertTrue(fehler)
+        self.assertEqual(self.ssh_zahl(), 0)
 
 
 class Verbindung(Basis):
