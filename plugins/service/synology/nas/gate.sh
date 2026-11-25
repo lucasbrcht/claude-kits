@@ -42,7 +42,7 @@ VERSION=$(head -c 40 "$ORT/VERSION" 2>/dev/null | tr -cd '0-9.')
 [ -n "$VERSION" ] || VERSION=unbekannt
 
 LESEVERBEN="nas_status nas_speicher nas_platten nas_log nas_aufgaben nas_pakete nas_sicherheit container_liste container_details container_log container_ereignisse docker_images"
-SCHREIBVERBEN="container_neustart container_starten container_stoppen"
+SCHREIBVERBEN="container_neustart container_starten container_stoppen projekt_aktualisieren"
 SCHREIB_PRO_STUNDE=10   # Notbremse: so viele Aktionen der Rolle schreiben je Stunde, Zähler unter $ORT_FEST/zustand
 LOGS="messages kern docker scemd dmesg"
 
@@ -606,6 +606,56 @@ aktion() {  # aktion <docker-befehl> [mit_timeout]
     ende 3
   fi
   mit_zeit 20 "$DOCKER" inspect --type container --format "$VORLAGE_LISTE" "$NAME" 2>&1 | docker_zeilen 5
+  ende 0
+}
+
+# Projekt von Container Manager (Compose) aktualisieren: Images holen, dann neu anlegen, was sich geändert hat. Ordner
+# und Compose-Datei kommen aus den Labels der Container des Projekts, die Docker selbst setzt, und müssen unter
+# /volumeN liegen. Container aus docker run haben diese Labels nicht und lassen sich so nicht aktualisieren.
+PFAD_RE='^/volume[0-9]+/[A-Za-z0-9._/-]{1,200}$'
+
+v_projekt_aktualisieren() {
+  local projekt ordner dateien datei sek rc compose
+  pruefe_args "name:NAME sekunden:SEK"
+  docker_pfad
+  projekt=$(wert name)
+  [ -n "$projekt" ] || abbruch 2 argument "name fehlt: Name des Projekts wie in container_liste (Label com.docker.compose.project)"
+  ordner=$(mit_zeit 20 "$DOCKER" ps -a --filter "label=com.docker.compose.project=$projekt" \
+    --format '{{index .Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u)
+  dateien=$(mit_zeit 20 "$DOCKER" ps -a --filter "label=com.docker.compose.project=$projekt" \
+    --format '{{index .Labels "com.docker.compose.project.config_files"}}' 2>/dev/null | sort -u)
+  [ -n "$ordner" ] || abbruch 2 projekt "Kein Projekt von Container Manager mit diesem Namen. Container aus docker run lassen sich so nicht aktualisieren"
+  [ "$(printf '%s\n' "$ordner" | wc -l | tr -d ' ')" = 1 ] && [ "$(printf '%s\n' "$dateien" | wc -l | tr -d ' ')" = 1 ] \
+    || abbruch 3 projekt "Das Projekt hat Container mit verschiedenen Ordnern, nichts ausgeführt"
+  [[ $ordner =~ $PFAD_RE ]] && [[ $ordner != *..* ]] || abbruch 3 projekt "Ordner des Projekts liegt nicht unter /volumeN, nichts ausgeführt"
+  set -- compose --project-directory "$ordner" -p "$projekt"
+  IFS=,
+  for datei in $dateien; do
+    [[ $datei =~ $PFAD_RE ]] && [[ $datei != *..* ]] && [ -f "$W$datei" ] \
+      || { unset IFS; abbruch 3 projekt "Compose-Datei des Projekts fehlt oder liegt nicht unter /volumeN, nichts ausgeführt"; }
+    set -- "$@" -f "$datei"
+  done
+  unset IFS
+  compose=("$@")
+  mit_zeit 20 "$DOCKER" compose version >/dev/null 2>&1 || abbruch 4 programm "docker compose fehlt"
+  NAME=$projekt  # für den Eintrag der Notbremse
+  notbremse
+  sek=$(wert sekunden 120)
+  printf '{"art":"aktion","befehl":"pull","name":%s,"sekunden":null,"code":null}\n' "$(js "$projekt")"
+  mit_zeit 280 "$DOCKER" "${compose[@]}" pull 2>&1 | text_json
+  rc=${PIPESTATUS[0]}
+  if [ "$rc" != 0 ]; then
+    printf '{"art":"aktion","befehl":"pull","name":%s,"sekunden":null,"code":%d}\n' "$(js "$projekt")" "$rc"
+    ende 3
+  fi
+  mit_zeit $((sek + 120)) "$DOCKER" "${compose[@]}" up -d -t "$sek" 2>&1 | text_json
+  rc=${PIPESTATUS[0]}
+  printf '{"art":"aktion","befehl":"up","name":%s,"sekunden":%s,"code":%d}\n' "$(js "$projekt")" "$sek" "$rc"
+  [ "$rc" = 0 ] || ende 3
+  mit_zeit 20 "$DOCKER" ps -aq --no-trunc --filter "label=com.docker.compose.project=$projekt" 2>/dev/null \
+    | tr -cd '0-9a-f\n' | while IFS= read -r id; do
+        [ -n "$id" ] && mit_zeit 20 "$DOCKER" inspect --format "$VORLAGE_LISTE" "$id" 2>&1 | docker_zeilen 5
+      done
   ende 0
 }
 

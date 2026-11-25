@@ -1,8 +1,8 @@
 {
   "name": "service",
   "displayName": "Service",
-  "version": "7.1.0",
-  "description": "Dienste für Alltag und Unterwegs: Verpflegungs-Roadbook für Rad-Events aus einer GPX und das Smart Home mit Home Assistant (lokaler MCP-Server, Token aus dem Schlüsselbund).",
+  "version": "7.2.0",
+  "description": "Dienste für Alltag und Unterwegs: Verpflegungs-Roadbook für Rad-Events aus einer GPX, das Smart Home mit Home Assistant (lokaler MCP-Server, Token aus dem Schlüsselbund) und die Synology-DiskStation (lokaler MCP-Server, SSH auf ein Prüfskript mit Positivliste).",
   "author": {
     "name": "Lucas Bracht"
   }

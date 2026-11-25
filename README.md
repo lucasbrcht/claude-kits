@@ -21,7 +21,7 @@ Sechs Plugins nach Thema und Zielgruppe (seit 8.0):
 | `apple` | `mail`, `kalender`, `notizen`, `erinnerungen` | Apple Mail, Kalender, Notizen, Erinnerungen, Kontakte, PDF aus HTML, ein Server, Brücke vom Mail-Connector | alle mit Mac, auch Kollegen |
 | `office` | `dateien`, `folien`, `excel` | Arbeitskopien von Dokumenten, Rückweg ins Original, Sprache von Folien, mit Motor PowerPoint und Excel finden, ändern, prüfen, Vorschau, ein Server | wer Dokumente bearbeiten lässt, auch Kollegen |
 | `chat` | `whatsapp`, `imessage` | lesen, Entwürfe öffnen, iMessage senden nur auf "senden" | nur Privat, die Arbeit installiert es nicht |
-| `service` | `roadbook`, `homeassistant` | Verpflegungs-Roadbook für Rad-Events, Smart Home | wer es will |
+| `service` | `roadbook`, `homeassistant`, `synology` | Verpflegungs-Roadbook für Rad-Events, Smart Home, Synology-DiskStation lesen und Container steuern über ein Prüfskript auf dem NAS | wer es will |
 | `pflege` | `paket`, `rueckmeldungen` | `paket.py` (Einstellungen, Prüfung, ZIPs), Rückmeldungen als Issues, Output-Style Assistent | nur der Betreuer im Code-Tab |
 
 Drei Teile je Installation: Die Plugins bringen das Können (in Cowork über die lokalen MCP-Server), Instructions for Claude und der Kontextordner das Wissen über die Person, der Dialog von macOS vor allem, was andere sehen, die Grenze. Im Code-Tab schreibt `plugins/pflege/paket.py` die `CLAUDE.md` der Instanz und die wenigen Rechte für die Pflege.

@@ -44,7 +44,7 @@ from mcp_basis import Fehler, Werkzeug, text, zahl
 
 NAME = "synology"
 PLUGIN = "service"
-VERSION = "7.1.0"  # gleich der Version in .claude-plugin/plugin.json
+VERSION = "7.2.0"  # gleich der Version in .claude-plugin/plugin.json
 ORDNER = Path(__file__).resolve().parent
 NAS_ORDNER = ORDNER / "synology" / "nas"
 REGELN = ORDNER / "synology_regeln.md"
@@ -139,19 +139,19 @@ class Verbindung:
                 "-o", "RequestTTY=no", "-o", "LogLevel=ERROR", "-T",
                 f"{self.cfg['benutzer']}@{self.cfg['host']}", "--", " ".join(woerter)]
 
-    def __call__(self, rolle: str, woerter: list, schreibend: bool = False) -> tuple:
+    def __call__(self, rolle: str, woerter: list, schreibend: bool = False, zeit: int = SSH_ZEIT) -> tuple:
         """(Code, [Einträge], Meldung). Code wie gate.sh (0 gut, 2 abgelehnt, 3 gescheitert, 4 Programm fehlt) oder
         5 für Fehler der Verbindung. Meldung ist leer oder ein Satz für Claude."""
         if self.gesperrt:
             return 5, [], self.gesperrt
         env = {"PATH": "/usr/bin:/bin", "HOME": str(mb.HEIM), "LANG": "C.UTF-8"}  # ohne SSH_AUTH_SOCK: kein Agent
         try:
-            lauf = subprocess.run(self.befehl(rolle, woerter), capture_output=True, timeout=SSH_ZEIT, env=env,
+            lauf = subprocess.run(self.befehl(rolle, woerter), capture_output=True, timeout=zeit, env=env,
                                   stdin=subprocess.DEVNULL, start_new_session=True)
         except subprocess.TimeoutExpired:
             offen = (" Die Aktion kann trotzdem ausgeführt worden sein: erst container_liste lesen, dann entscheiden, "
                      "ob ein zweiter Versuch nötig ist." if schreibend else " Ein zweiter Versuch ist möglich.")
-            return 5, [], f"Keine Antwort der DiskStation nach {SSH_ZEIT} Sekunden.{offen}"
+            return 5, [], f"Keine Antwort der DiskStation nach {zeit} Sekunden.{offen}"
         except OSError as e:
             return 5, [], f"ssh nicht startbar: {e.strerror or e}."
         aus = lauf.stdout.decode("utf-8", "replace")
@@ -559,7 +559,9 @@ def audit(**eintrag) -> None:
         os.close(fd)
 
 
-AKTIONEN = {"container_neustart": "Neustart", "container_starten": "Start", "container_stoppen": "Stopp"}
+AKTIONEN = {"container_neustart": "Neustart", "container_starten": "Start", "container_stoppen": "Stopp",
+            "projekt_aktualisieren": "Images holen und geänderte Container neu anlegen (Compose-Projekt)"}
+PROJEKT_ZEIT = 900  # Sekunden für projekt_aktualisieren: Holen bis 280, Neuanlage bis Wartezeit plus 120 auf der DiskStation
 
 
 def aktion(verb: str, a: dict) -> tuple:
@@ -574,7 +576,8 @@ def aktion(verb: str, a: dict) -> tuple:
         audit(werkzeug=verb, name=name, sekunden=sekunden, ereignis="absicht")
     except OSError as e:
         return 1, f"Nicht ausgeführt: Audit im Datenordner nicht schreibbar ({e.strerror or e}). Ohne Audit keine Aktion."
-    code, eintraege, meldung = VERBINDUNG("schreiben", woerter, schreibend=True)
+    code, eintraege, meldung = VERBINDUNG("schreiben", woerter, schreibend=True,
+                                          zeit=PROJEKT_ZEIT if verb == "projekt_aktualisieren" else SSH_ZEIT)
     try:
         audit(werkzeug=verb, name=name, ereignis="ergebnis", code=code)
     except OSError:
@@ -585,7 +588,8 @@ def aktion(verb: str, a: dict) -> tuple:
 def aktion_vorschau(verb: str):
     def vorschau(a: dict) -> str:
         sek = a.get("sekunden") or (VERBINDUNG.cfg["stop_timeout"] if VERBINDUNG and verb != "container_starten" else None)
-        return mb.angaben(("Container", a.get("name")), ("Aktion", AKTIONEN[verb]),
+        was = "Projekt" if verb == "projekt_aktualisieren" else "Container"
+        return mb.angaben((was, a.get("name")), ("Aktion", AKTIONEN[verb]),
                           ("Wartezeit bis zum harten Ende", f"{sek} Sekunden" if sek else ""))
     return vorschau
 
@@ -600,6 +604,10 @@ def container_starten(a: dict) -> tuple:
 
 def container_stoppen(a: dict) -> tuple:
     return aktion("container_stoppen", a)
+
+
+def projekt_aktualisieren(a: dict) -> tuple:
+    return aktion("projekt_aktualisieren", a)
 
 
 S = {"type": "string"}
@@ -681,6 +689,15 @@ WERKZEUGE = [
              {"name": P_NAME, "sekunden": d(I, "Wartezeit bis zum harten Ende, 10 bis 600, Vorgabe aus der "
                                                "Einrichtung (120)")},
              container_stoppen, pflicht=("name",), vorschau=aktion_vorschau("container_stoppen")),
+    Werkzeug("projekt_aktualisieren", "Compose-Projekt aktualisieren",
+             "Aktualisiert ein Projekt von Container Manager (Compose): holt neue Images und legt geänderte Container "
+             "neu an, mit Wartezeit bis zum harten Ende. Name ist das Projekt (Label com.docker.compose.project in "
+             "container_liste). Container aus docker run gehen so nicht. Kann einige Minuten dauern. Nur nach Ja des "
+             "Nutzers für genau dieses Projekt, danach fragt ein Dialog am Mac.", "nachfrage",
+             {"name": d(S, "Name des Compose-Projekts wie im Label com.docker.compose.project"),
+              "sekunden": d(I, "Wartezeit bis zum harten Ende je Container, 10 bis 600, Vorgabe aus der Einrichtung "
+                               "(120)")},
+             projekt_aktualisieren, pflicht=("name",), vorschau=aktion_vorschau("projekt_aktualisieren")),
 ]
 
 

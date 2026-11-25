@@ -39,10 +39,12 @@ DiskStation des Nutzers über den Server `synology` aus diesem Plugin, in Cowork
 | `container_neustart` | Container neu starten, mit Wartezeit bis zum harten Ende | fragt |
 | `container_starten` | Gestoppten Container starten | fragt |
 | `container_stoppen` | Container sauber stoppen, mit Wartezeit bis zum harten Ende | fragt |
+| `projekt_aktualisieren` | Compose-Projekt von Container Manager: Images holen, geänderte Container neu anlegen | fragt |
 
-## Neustart, Start, Stopp
+## Neustart, Start, Stopp, Aktualisieren
 
 - Nur nach Ja des Nutzers für genau diesen Container, auch wenn eine Diagnose es nahelegt. Danach fragt der Dialog am Mac noch einmal, Claude sieht ihn nicht.
+- `projekt_aktualisieren` nur für Projekte von Container Manager (Label `com.docker.compose.project` in `container_liste`). Container aus `docker run` aktualisiert der Nutzer in Container Manager oder ein Update-Dienst. Vorher sagen, welche Container neu angelegt werden und dass der Dienst kurz weg ist. Das Holen großer Images kann Minuten dauern.
 - Wartezeit (`sekunden`) großzügig lassen: Home Assistant und Datenbanken brauchen sie, um sauber zu schließen. Die Vorgabe steht in der Einrichtung (120).
 - Antwortet die DiskStation nicht, kann die Aktion trotzdem gelaufen sein: erst `container_liste`, dann entscheiden. Auf der DiskStation gilt eine Notbremse von 10 Aktionen je Stunde.
 - Jede Aktion steht im Audit am Mac (`synology-audit.jsonl` im Datenordner) und im Systemlog der DiskStation (`claude-gate`).

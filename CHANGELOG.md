@@ -2,6 +2,17 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.4.0 (25.11.2026)
+
+`service` 7.2.0, `pflege` 7.1.4, die anderen Plugins bleiben (in `apple`, `chat` und `office` nur Kommentare und der Doku-Test). Die Synology-DiskStation zu Hause lesen und Ausfälle von Containern diagnostizieren, ohne DSM-Admin-Passwort und ohne fremden Server.
+
+- **DiskStation lesen (service):** Neue MCP-Server `synology` und `synology-lesen` mit Skill `synology`. Zwölf Lesewerkzeuge: Überblick, Speicher, Platten (SMART), Systemlog samt gedrehter Fassungen, geplante Aufgaben, Pakete, Sicherheit, Container mit Exit-Code, OOMKilled und Neustarts, Details mit Umgebung nur als Namen, Container-Logs und Ereignisse im Zeitraum, Images. Logs zählen auffällige Wörter mit erstem und letztem Zeitpunkt. Ein Leitfaden zur Diagnose von "stopped unexpectedly" liegt im Skill.
+- **Container steuern (service):** `container_neustart`, `container_starten` und `container_stoppen` nur mit Dialog am Mac, vorher eine Zeile im Audit (`synology-audit.jsonl` im Datenordner), Wartezeit bis zum harten Ende einstellbar (Vorgabe 120 Sekunden, damit etwa Home Assistant sauber schließt). `projekt_aktualisieren` holt für ein Compose-Projekt von Container Manager neue Images und legt geänderte Container neu an, ebenso mit Dialog. Löschen, Images aufräumen, DSM-Updates und Neustart der DiskStation gibt es nicht.
+- **Die Grenze liegt auf der DiskStation:** SSH mit eigenem Benutzer, getrennten Schlüsseln für lesen und schreiben (Passphrase im Schlüsselbund) und erzwungenem Befehl. Ein Prüfskript (`synology/nas/gate.sh`) lässt als root nur feste Befehle mit geprüften Argumenten zu, höchstens 10 Aktionen je Stunde, jede Anfrage im Systemlog. Geheimnisse werden geschwärzt. Öffentliche Server waren Vorlage, `references/vorlagen.md` im Skill nennt sie.
+- **Einrichtung:** einmal im Terminal mit `synology_start.py --einrichten` und `install.sh` auf der DiskStation, Schritte in der README von `service`. Der Ordner `ssh/` im Datenordner ist für Claude gesperrt.
+- **Pflege:** `paket.py --pruefen` vergleicht `kit_basis.py`, `mcp_basis.py` und `test_doku.py` jetzt auch in `service` und prüft `SICHERHEIT.md` und den Doku-Test für `synology_server.py`.
+- **Update:** Claude einmal mit Cmd+Q beenden und neu öffnen. Ohne Einrichtung zeigen `synology` und `synology-lesen` keine Werkzeuge und nennen den Grund. Im Code-Tab einmal `paket.py --apply` im Terminal, damit die Sperre des Ordners `ssh/` greift.
+
 ## v8.3.0 (25.11.2026)
 
 `office` 8.2.0, die anderen Plugins bleiben. Befund aus einem OnePager in einer Firmenvorlage: Die zweite Runde baute das Deck neu, Aufzählungen waren getippt, Sprache und Prüfung fehlten, Text lag in Textfeldern über den Formen.

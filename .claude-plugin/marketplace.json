@@ -28,7 +28,7 @@
     {
       "name": "service",
       "source": "./plugins/service",
-      "description": "Roadbook für Rad-Events und Home Assistant"
+      "description": "Roadbook für Rad-Events, Home Assistant und Synology-DiskStation"
     },
     {
       "name": "pflege",

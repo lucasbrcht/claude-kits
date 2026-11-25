@@ -125,12 +125,12 @@ class Start(Basis):
         voll, lesen = self.server(), self.server("--lesen")
         self.assertEqual(voll.name, "synology")
         self.assertEqual(lesen.name, "synology-lesen")
-        self.assertEqual(len(voll.werkzeuge), 15)
+        self.assertEqual(len(voll.werkzeuge), 16)
         self.assertEqual(len(lesen.werkzeuge), 12)
         self.assertLessEqual(len(ss.WERKZEUGE), GRENZE_WERKZEUGE)
         self.assertEqual({w.stufe for w in lesen.werkzeuge.values()}, {"lesen"})
         self.assertEqual({w.name for w in ss.WERKZEUGE if w.stufe == "nachfrage"},
-                         {"container_neustart", "container_starten", "container_stoppen"})
+                         {"container_neustart", "container_starten", "container_stoppen", "projekt_aktualisieren"})
         self.assertEqual({w.stufe for w in ss.WERKZEUGE}, {"lesen", "nachfrage"})  # keine Stufe schreiben
         with mock.patch.dict(os.environ, {"KITS_NUR_LESEN": "1"}):
             self.assertEqual({w.stufe for w in self.server().werkzeuge.values()}, {"lesen"})
@@ -286,6 +286,20 @@ class Aktionen(Basis):
         self.assertEqual(oct((self.daten / ss.AUDIT).stat().st_mode & 0o777), "0o600")
         sudo = (self.welt / "sudo.txt").read_text().splitlines()[-1]
         self.assertIn("gate.sh schreiben container_stoppen name=homeassistant sekunden=120", sudo)
+
+    def test_projekt_aktualisieren(self):
+        s = self.server()
+        w = s.werkzeuge["projekt_aktualisieren"]
+        self.assertIn("Projekt: matter-server", w.vorschau({"name": "matter-server"}))
+        with mock.patch.dict(os.environ, {"KITS_DIALOG": "ja"}), \
+                mock.patch.object(ss.Verbindung, "__call__", autospec=True,
+                                  side_effect=ss.Verbindung.__call__) as aufruf:
+            fehler, text = s.aufrufen("projekt_aktualisieren", {"name": "matter-server"})
+        self.assertFalse(fehler, text)
+        self.assertEqual(aufruf.call_args.kwargs["zeit"], ss.PROJEKT_ZEIT)
+        self.assertIn("Container matter-server  Recreated done", text)
+        sudo = (self.welt / "sudo.txt").read_text().splitlines()[-1]
+        self.assertIn("gate.sh schreiben projekt_aktualisieren name=matter-server sekunden=120", sudo)
 
     def test_ohne_audit_keine_aktion(self):
         (self.daten / ss.AUDIT).mkdir()  # nicht als Datei schreibbar

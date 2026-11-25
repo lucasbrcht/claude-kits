@@ -1,6 +1,6 @@
 # Plugin service
 
-Dienste für Alltag und Unterwegs: das Verpflegungs-Roadbook für Ultra- und Gravel-Events (aus einer GPX oder einem Komoot-Link Stopps im Stundentakt, Öffnungszeiten zur geplanten Durchfahrt aus OpenStreetMap, mit Google Maps gegengeprüft, ein Sticker für den Vorbau als PDF und ein Wallpaper fürs iPhone) und das Smart Home mit Home Assistant.
+Dienste für Alltag und Unterwegs: das Verpflegungs-Roadbook für Ultra- und Gravel-Events (aus einer GPX oder einem Komoot-Link Stopps im Stundentakt, Öffnungszeiten zur geplanten Durchfahrt aus OpenStreetMap, mit Google Maps gegengeprüft, ein Sticker für den Vorbau als PDF und ein Wallpaper fürs iPhone), das Smart Home mit Home Assistant und die Synology-DiskStation (System, Speicher, Platten, Logs, Container lesen und Ausfälle diagnostizieren, Container neu starten, starten und stoppen mit Dialog, über SSH auf ein Prüfskript, das auf der DiskStation nur feste Befehle zulässt).
 
 ## Installation
 

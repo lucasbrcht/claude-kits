@@ -68,7 +68,20 @@ _dumps = json.dumps
 json.dumps = lambda o: _dumps(o, separators=(",", ":"))  # so kompakt wie {{json}} in docker
 namen, ids = daten["namen"], daten["ids"]
 fmt = a[a.index("--format") + 1] if "--format" in a else ""
-if a[:1] == ["ps"]:
+projekt = next((x.split("=", 2)[2] for x in a if x.startswith("label=com.docker.compose.project=")), None)
+ORDNER = {"matter-server": "/volume1/docker/matter-server", "boese": "/volume1/docker/../../etc"}
+if a[:1] == ["ps"] and projekt is not None:
+    if projekt in ORDNER and "-aq" in a:
+        print(ids[3])
+    elif projekt in ORDNER and "working_dir" in fmt:
+        print(ORDNER[projekt])
+    elif projekt in ORDNER and "config_files" in fmt:
+        print(ORDNER[projekt] + "/compose.yaml")
+elif a[:2] == ["compose", "version"]:
+    print("Docker Compose version v2.20.1")
+elif a[:1] == ["compose"]:
+    print(("Pulling matter-server" if a[-1] == "pull" else "Container matter-server  Recreated") + " \x1b[32mdone\x1b[0m")
+elif a[:1] == ["ps"]:
     if "-aq" in a:
         print("\n".join(ids))
     elif fmt == "{{.Names}}":
@@ -182,6 +195,8 @@ def welt(w: Path) -> None:
     for d in ("dev/sata1", "dev/sata2"):
         (w / d).write_text("", encoding="utf-8")
     (w / "volume1/@claude-gate").mkdir(parents=True)
+    (w / "volume1/docker/matter-server").mkdir(parents=True)
+    (w / "volume1/docker/matter-server/compose.yaml").write_text("services: {}\n", encoding="utf-8")
 
 
 class Basis(unittest.TestCase):
@@ -460,6 +475,30 @@ class Gate(Basis):
                 self.assertEqual(self.gate("schreiben", "container_neustart", *args)[0], 2)
         self.assertEqual(self.gate("schreiben", "container_starten", "name=pihole", "sekunden=30")[0], 2)
         self.assertEqual([a for a in self.docker_aufrufe() if a[0] in ("restart", "stop", "start")], [])
+
+    def test_projekt_aktualisieren(self):
+        self.notbremse_leeren()
+        code, aus, err = self.gate("schreiben", "projekt_aktualisieren", "name=matter-server", "sekunden=90")
+        self.assertEqual(code, 0, aus + err)
+        z = self.zeilen(aus)
+        self.assertEqual([(x["befehl"], x["code"]) for x in z if x["art"] == "aktion"], [("pull", None), ("up", 0)])
+        self.assertNotIn("\x1b", aus)
+        compose = [a for a in self.docker_aufrufe() if a[:1] == ["compose"] and a[1] != "version"]
+        basis = ["compose", "--project-directory", "/volume1/docker/matter-server", "-p", "matter-server",
+                 "-f", "/volume1/docker/matter-server/compose.yaml"]
+        self.assertEqual(compose, [basis + ["pull"], basis + ["up", "-d", "-t", "90"]])
+        self.assertTrue(any(x["art"] == "container" for x in z))
+
+    def test_projekt_abgelehnt(self):
+        self.notbremse_leeren()
+        for rolle, args, teil in (("lesen", ["name=matter-server"], "Rolle schreiben"),
+                                  ("schreiben", ["name=homeassistant"], "docker run"),
+                                  ("schreiben", ["name=boese"], "/volumeN")):
+            with self.subTest(args=args):
+                code, aus, _err = self.gate(rolle, "projekt_aktualisieren", *args)
+                self.assertNotEqual(code, 0)
+                self.assertIn(teil, aus)
+        self.assertEqual([a for a in self.docker_aufrufe() if a[:1] == ["compose"] and a[1] != "version"], [])
 
     def test_notbremse(self):
         self.notbremse_leeren()
