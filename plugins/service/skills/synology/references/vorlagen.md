@@ -107,4 +107,20 @@ Stand: 2026-11-25. Öffentliche MCP-Server und ein Artikel, deren Code gelesen w
 
 ## DSM-Eigenheiten
 
-Wird in Phase 3 am echten Gerät ergänzt: Pfad von `docker`, OpenSSH-Version und `restrict`, `visudo`, `timeout`, Gerätenamen für `smartctl`, Befehle für Aufgaben, Pakete und Updates, Ort des Docker-Logs, was ein DSM-Update übersteht.
+Geprüft am 25.11.2026 an einer DiskStation mit DSM 7.4.1-90080 Update 1 und Container Manager 24.0.2.
+
+| Frage | Befund |
+|---|---|
+| Benutzername | DSM behält die Schreibweise aus der Anlage (etwa `Claude`) in `/etc/passwd`, sudoers und ssh brauchen genau diese. `install.sh` sucht ohne Unterschied von Groß und Klein |
+| OpenSSH | 8.2p1: kann `restrict` und `from=` mit Netzmaske. Bietet keinen Schlüsseltausch nach Post-Quanten-Verfahren, das OpenSSH des Macs warnt deshalb bei jeder Anmeldung des Admin-Kontos |
+| `visudo` | fehlt. `install.sh` schreibt die feste Form, `/etc/sudoers` liest `/etc/sudoers.d` ein |
+| `docker` | unter `/usr/local/bin/docker`, `{{json}}`, `split` und `index` in Vorlagen gehen |
+| `smartctl` | geht mit `/dev/sata1` und `-d sat` |
+| Temperatur | kein `/sys/class/thermal`, die Temperatur der Platten liefert `nas_platten` |
+| Aufgaben | `synoschedtask --get` zeigt Befehle mit Backslash vor jedem Zeichen, `CmdArgv` ist lesbar. Werte von Umgebungsangaben wie `-e NAME_PASSWORD` werden geschwärzt |
+| Pakete | `/var/packages/*/INFO` und `enabled` reichen, `synopkg` ist nicht nötig |
+| Systemlog | `/var/log/messages` in Ortszeit mit Zone (`2026-11-24T11:13:02+01:00`), gedrehte Fassungen werden gelesen. `dockerd` schreibt nicht hinein, nur die Web-API von Container Manager |
+| Docker-Log | nicht unter `/var/log/docker.log` oder `/var/packages/ContainerManager/var/docker.log`, weitere Kandidaten ab Prüfskript 1.1.0 |
+| Ereignisse | `docker events` ohne Inhalt für Tage zurück, wie erwartet. Belege kommen aus den Container-Logs |
+| ssh vom Mac | Die Passphrase aus dem Schlüsselbund greift ohne `BatchMode`, auch aus dem Prozess der Claude-App. `UserKnownHostsFile` braucht Anführungszeichen, weil der Pfad ein Leerzeichen hat |
+| DSM-Update | offen, ob `/etc/sudoers.d` und `/volume1/@claude-gate` ein Update überstehen. `nas_status` meldet es, wenn nicht |

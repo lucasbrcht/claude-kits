@@ -290,8 +290,10 @@ class Ausgabe(unittest.TestCase):
         self.assertEqual(ss.rein("a b c\x1b[31m‮d"), "a b cd")
 
     def test_labels_geschwaerzt(self):
-        self.assertEqual(ss.labels([["traefik.basicauth.users", "x:hash"], ["com.docker.compose.project", "ha"], None]),
-                         "traefik.basicauth.users=***, com.docker.compose.project=ha")
+        self.assertEqual(ss.labels([["traefik.basicauth.users", "x:hash"], ["com.docker.compose.project", "ha"], None,
+                                    ["org.opencontainers.image.authors", "Team"]]),
+                         "traefik.basicauth.users=***, com.docker.compose.project=ha, "
+                         "org.opencontainers.image.authors=Team")
 
     def test_zeitpunkt(self):
         jetzt = dt.datetime(2026, 11, 25, 12, 0).astimezone()

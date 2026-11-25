@@ -60,7 +60,7 @@ LOGS = ("messages", "kern", "docker", "scemd", "dmesg")
 ZEILEN_MAX = 5000
 ZEILEN_STANDARD = 200
 WARNUNG_PROZENT = 80
-GEHEIM_RE = re.compile(r"pass|token|secret|key|auth|cred|cert", re.I)
+GEHEIM_RE = re.compile(r"pass|token|secret|key|auth(?!or)|cred|cert", re.I)  # authors ist kein Geheimnis
 ZEILENTRENNER = re.compile("[  ]")
 
 
@@ -317,10 +317,15 @@ def zeile_container(e: dict) -> str:
     if e.get("oom"):
         teile.append("OOMKilled")
     teile.append(f"Neustarts {e.get('neustarts')}")
-    if e.get("richtlinie"):
-        teile.append(f"Richtlinie {rein(e['richtlinie'])}")
-    if e.get("health"):
-        teile.append(f"Health {rein(e['health'])}")
+    richtlinie, health = e.get("richtlinie"), e.get("health")  # in container_details als Objekt
+    if isinstance(richtlinie, dict):
+        richtlinie = richtlinie.get("Name")
+    if isinstance(health, dict):
+        health = health.get("status")
+    if richtlinie:
+        teile.append(f"Richtlinie {rein(richtlinie)}")
+    if health:
+        teile.append(f"Health {rein(health)}")
     teile += [f"gestartet {zeit_kurz(e.get('gestartet'))}", f"beendet {zeit_kurz(e.get('beendet')) or '-'}",
               f"Image {kurz(e.get('image'), 120)}"]
     if labels(e.get("labels")):
@@ -329,12 +334,12 @@ def zeile_container(e: dict) -> str:
 
 
 def details(e: dict) -> list:
-    z = [zeile_container(e)]
+    z = [zeile_container({**e, "labels": None})]  # Labels stehen unten in einer eigenen Zeile
     for k in ("image_id", "erstellt", "fehler", "stop_timeout", "stop_signal", "speichergrenze", "netz"):
         if e.get(k) not in (None, "", 0):
             z.append(f"{k}: {zeit_kurz(e[k]) if k == 'erstellt' else kurz(e[k], 200)}")
-    for k in ("richtlinie", "health", "healthcheck", "ports"):
-        if e.get(k):
+    for k in ("healthcheck", "ports"):
+        if e.get(k) and (k != "healthcheck" or any(e[k].values())):
             z.append(f"{k}: {kurz(json.dumps(e[k], ensure_ascii=False), 500)}")
     mounts = [f"{rein(m.get('quelle'))} -> {rein(m.get('ziel'))}{'' if m.get('rw') else ' (nur lesen)'}"
               for m in e.get("mounts") or [] if isinstance(m, dict)]
@@ -359,8 +364,9 @@ def formatieren(verb: str, eintraege: list) -> tuple:
             z.append(f"Modell {rein(e.get('modell'))}, DSM {rein(e.get('dsm'))}-{rein(e.get('build'))} Update "
                      f"{rein(e.get('update')) or '0'}, läuft seit {laufzeit(e.get('laufzeit_s'))}, "
                      f"Last {rein(e.get('last'))}, RAM {groesse(e.get('ram_kb'))} (verfügbar "
-                     f"{groesse(e.get('ram_verfuegbar_kb'))}), Temperatur {e.get('temperatur_c')} °C, "
-                     f"{rein(e.get('openssh'))}")
+                     f"{groesse(e.get('ram_verfuegbar_kb'))})"
+                     + (f", Temperatur {e['temperatur_c']} °C" if e.get("temperatur_c") is not None else "")
+                     + f", {rein(e.get('openssh'))}")
             gate_v, soll = rein(e.get("gate")), erwartete_version()
             if gate_v != soll:
                 warn.append(f"Prüfskript auf der DiskStation {gate_v}, das Plugin bringt {soll}: install.sh erneut "
