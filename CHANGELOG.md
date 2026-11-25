@@ -2,6 +2,14 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.4.1 (25.11.2026)
+
+`service` 7.2.1, Prüfskript 1.1.1, Befunde aus dem ersten Lauf an einer echten DiskStation.
+
+- **nas_sicherheit (service):** erkennt laufendes SSH und Telnet auch ohne `pgrep` (fehlt auf DSM) und liest Anmeldungen zusätzlich aus `auth.log`.
+- **Einrichtung (service):** Der Befehl zum Kopieren auf die DiskStation lässt die Attribute von macOS weg, DSM meldete sie bisher als unbekannte Kopfzeilen.
+- **Update:** Prüfskript 1.1.1 mit den zwei Befehlen aus `synology_start.py --einrichten` installieren, `nas_status` meldet die alte Version bis dahin.
+
 ## v8.4.0 (25.11.2026)
 
 `service` 7.2.0, `pflege` 7.1.4, die anderen Plugins bleiben (in `apple`, `chat` und `office` nur Kommentare und der Doku-Test). Die Synology-DiskStation zu Hause lesen und Ausfälle von Containern diagnostizieren, ohne DSM-Admin-Passwort und ohne fremden Server.

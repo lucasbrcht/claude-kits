@@ -49,7 +49,7 @@ PAKET_RE = re.compile(r"ha-mcp@\d+\.\d+\.\d+")
 URL_RE = re.compile(r"https?://[A-Za-z0-9.\-\[\]:]+(?::\d+)?/?")
 DIENST_RE = re.compile(r"[A-Za-z0-9._-]{1,100}")
 WERT_RE = re.compile(r"[A-Za-z0-9_,.\- ]{0,500}")
-VERSION = "7.2.0"  # gleich der Version in .claude-plugin/plugin.json
+VERSION = "7.2.1"  # gleich der Version in .claude-plugin/plugin.json
 
 # Feste Vorgaben, homeassistant.optionen darf sie überschreiben.
 VORGABEN = {

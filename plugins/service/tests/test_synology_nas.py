@@ -185,7 +185,8 @@ def welt(w: Path) -> None:
         "var/packages/ContainerManager/enabled": "",
         "var/packages/HyperBackup/INFO": 'package="HyperBackup"\nversion="4.1.0"\ndisplayname="Hyper Backup"\n',
         "etc/group": "administrators:x:101:admin,Claude\nusers:x:100:\n",
-        "etc/ssh/sshd_config": "#PermitRootLogin yes\nPermitRootLogin no\nPasswordAuthentication yes\n",
+        "proc/812/comm": "sshd\n", "proc/913/comm": "synoscgi\n",
+        "etc/ssh/sshd_config":"#PermitRootLogin yes\nPermitRootLogin no\nPasswordAuthentication yes\n",
     }.items():
         (w / pfad).parent.mkdir(parents=True, exist_ok=True)
         (w / pfad).write_text(inhalt, encoding="utf-8")
@@ -436,6 +437,7 @@ class Gate(Basis):
     def test_sicherheit(self):
         z = self.zeilen(self.gate("lesen", "nas_sicherheit")[1])
         self.assertEqual(next(x for x in z if x["art"] == "sicherheit")["administratoren"], "admin,Claude")
+        self.assertEqual(next(x for x in z if x["art"] == "dienste"), {"art": "dienste", "ssh": True, "telnet": False})
         sshd = {x["option"]: x["wert"] for x in z if x["art"] == "sshd"}
         self.assertEqual((sshd["PermitRootLogin"], sshd["PasswordAuthentication"], sshd["AllowTcpForwarding"]),
                          ("no", "yes", "Vorgabe"))

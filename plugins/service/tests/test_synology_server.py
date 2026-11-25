@@ -420,7 +420,7 @@ class Einrichtung(unittest.TestCase):
                          ["VERSION", "eingang.sh", "gate.sh", "install.sh", "lesen.pub", "netz"])
         self.assertEqual((ziel / "netz").read_text(), "192.168.1.0/24\n")
         kopie, start = synology_start.befehle(CFG, ziel)
-        self.assertTrue(kopie.startswith("COPYFILE_DISABLE=1 tar -C"))
+        self.assertTrue(kopie.startswith("COPYFILE_DISABLE=1 tar --no-xattrs -C"))
         self.assertIn("| ssh -p 2222 ich@192.0.2.10 'mkdir -p claude-gate-neu && tar -xf - -C claude-gate-neu'", kopie)
         self.assertEqual(start, "ssh -t -p 2222 ich@192.0.2.10 'sudo bash claude-gate-neu/install.sh'")
 

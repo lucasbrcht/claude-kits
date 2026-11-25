@@ -44,7 +44,7 @@ from mcp_basis import Fehler, Werkzeug, text, zahl
 
 NAME = "synology"
 PLUGIN = "service"
-VERSION = "7.2.0"  # gleich der Version in .claude-plugin/plugin.json
+VERSION = "7.2.1"  # gleich der Version in .claude-plugin/plugin.json
 ORDNER = Path(__file__).resolve().parent
 NAS_ORDNER = ORDNER / "synology" / "nas"
 REGELN = ORDNER / "synology_regeln.md"

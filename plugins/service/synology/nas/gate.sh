@@ -557,18 +557,28 @@ v_nas_sicherheit() {
   local admins ssh_an=false telnet_an=false p wert
   admins=$(awk -F: '$1 == "administrators" { print $4 }' "$W/etc/group" 2>/dev/null)
   printf '{"art":"sicherheit","administratoren":%s}\n' "$(js "$admins")"
-  pgrep -x sshd >/dev/null 2>&1 && ssh_an=true
-  pgrep -x telnetd >/dev/null 2>&1 && telnet_an=true
+  # DSM hat kein pgrep: Prozessnamen direkt aus /proc
+  prozess_laeuft sshd && ssh_an=true
+  prozess_laeuft telnetd && telnet_an=true
   printf '{"art":"dienste","ssh":%s,"telnet":%s}\n' "$ssh_an" "$telnet_an"
   for p in PermitRootLogin PasswordAuthentication PubkeyAuthentication PermitUserEnvironment AllowTcpForwarding; do
     wert=$(awk -v p="$p" 'tolower($1) == tolower(p) { w = $2 } END { print w }' "$W/etc/ssh/sshd_config" 2>/dev/null)
     printf '{"art":"sshd","option":"%s","wert":%s}\n' "$p" "$(js "${wert:-Vorgabe}")"
   done
-  # Anmeldungen per SSH und an DSM aus dem Systemlog, die letzten 30
-  log_lesen "$(log_pfad messages)" 2>/dev/null \
+  # Anmeldungen per SSH und an DSM aus Systemlog und auth.log, die letzten 30
+  { log_lesen "$(log_pfad messages)"; [ -f "$W/var/log/auth.log" ] && log_lesen "$W/var/log/auth.log"; } 2>/dev/null \
     | grep -E 'Accepted (publickey|password)|Failed password|authentication failure|Invalid user|logged in|failed to log in' \
     | zeilen_json "" "" "" 30
   ende 0
+}
+
+prozess_laeuft() {  # prozess_laeuft <name>: läuft ein Prozess genau mit diesem Namen
+  local rc
+  set +f
+  cat "$W"/proc/[0-9]*/comm 2>/dev/null | grep -qx "$1"
+  rc=$?
+  set -f
+  return $rc
 }
 
 # Notbremse für die Rolle schreiben: höchstens SCHREIB_PRO_STUNDE Aktionen je Stunde. Der Eintrag entsteht vor der

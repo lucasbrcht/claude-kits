@@ -120,7 +120,9 @@ Geprüft am 25.11.2026 an einer DiskStation mit DSM 7.4.1-90080 Update 1 und Con
 | Aufgaben | `synoschedtask --get` zeigt Befehle mit Backslash vor jedem Zeichen, `CmdArgv` ist lesbar. Werte von Umgebungsangaben wie `-e NAME_PASSWORD` werden geschwärzt |
 | Pakete | `/var/packages/*/INFO` und `enabled` reichen, `synopkg` ist nicht nötig |
 | Systemlog | `/var/log/messages` in Ortszeit mit Zone (`2026-11-24T11:13:02+01:00`), gedrehte Fassungen werden gelesen. `dockerd` schreibt nicht hinein, nur die Web-API von Container Manager |
-| Docker-Log | nicht unter `/var/log/docker.log` oder `/var/packages/ContainerManager/var/docker.log`, weitere Kandidaten ab Prüfskript 1.1.0 |
+| Docker-Log | `/var/log/packages/ContainerManager.log`: Starts und Stopps von dockerd, Updates von Container Manager, Aufrufe der Web-API |
+| Container-Logs | Der Log-Treiber von Synology (db) beachtet `--since` und `--until` nicht, `gate.sh` filtert den Zeitraum selbst |
+| Prozesse | kein `pgrep`, `gate.sh` liest `/proc/*/comm` |
 | Ereignisse | `docker events` ohne Inhalt für Tage zurück, wie erwartet. Belege kommen aus den Container-Logs |
 | ssh vom Mac | Die Passphrase aus dem Schlüsselbund greift ohne `BatchMode`, auch aus dem Prozess der Claude-App. `UserKnownHostsFile` braucht Anführungszeichen, weil der Pfad ein Leerzeichen hat |
 | DSM-Update | offen, ob `/etc/sudoers.d` und `/volume1/@claude-gate` ein Update überstehen. `nas_status` meldet es, wenn nicht |

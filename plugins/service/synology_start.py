@@ -147,7 +147,9 @@ def befehle(cfg: dict, ziel: Path) -> list:
     """Die zwei Befehle für das Terminal: Ordner kopieren, install.sh mit sudo starten."""
     dateien = " ".join(f.name for f in sorted(ziel.iterdir()))
     ssh = f"ssh -p {cfg['port']} {cfg['admin']}@{cfg['host']}"
-    return [f"COPYFILE_DISABLE=1 tar -C '{ziel}' -cf - {dateien} | {ssh} 'mkdir -p {BUENDEL} && tar -xf - -C {BUENDEL}'",
+    # --no-xattrs: sonst hängt der tar des Macs Attribute wie com.apple.provenance an, DSM meldet sie als unbekannt
+    return [f"COPYFILE_DISABLE=1 tar --no-xattrs -C '{ziel}' -cf - {dateien} | {ssh} "
+            f"'mkdir -p {BUENDEL} && tar -xf - -C {BUENDEL}'",
             f"ssh -t -p {cfg['port']} {cfg['admin']}@{cfg['host']} 'sudo bash {BUENDEL}/install.sh'"]
 
 
