@@ -55,7 +55,11 @@ def angaben_abfragen(alt: dict) -> dict:
     port = frage("SSH-Port der DiskStation", str(alt.get("port", 22)))
     if not port.isdigit() or not 1 <= int(port) <= 65535:
         raise Abbruch("Der Port ist eine Zahl von 1 bis 65535.")
-    admin = frage("Dein Admin-Konto auf der DiskStation (nur für die Befehle unten)", str(alt.get("admin", "")))
+    benutzer = frage("Benutzer für Claude auf der DiskStation, genau wie in DSM geschrieben",
+                     str(alt.get("benutzer", "claude")))
+    if not ss.BENUTZER_RE.fullmatch(benutzer) or benutzer.lower() != "claude":
+        raise Abbruch("Der Benutzer heißt claude, in beliebiger Schreibweise wie in DSM (install.sh sucht diesen Namen).")
+    admin = frage("Dein eigenes Admin-Konto auf der DiskStation (nur für die Befehle unten)", str(alt.get("admin", "")))
     if not ADMIN_RE.fullmatch(admin):
         raise Abbruch("Das ist kein Benutzername (Buchstaben, Ziffern, - _ . ohne Leerzeichen).")
     try:
@@ -65,7 +69,7 @@ def angaben_abfragen(alt: dict) -> dict:
     netz = frage("Heimnetz, aus dem der Mac kommt (etwa 192.168.1.0/24)", str(alt.get("netz", vorschlag)))
     if not NETZ_RE.fullmatch(netz):
         raise Abbruch("Das Heimnetz hat die Form 192.168.1.0/24, mehrere mit Komma.")
-    return {**alt, "host": host, "port": int(port), "benutzer": alt.get("benutzer", "claude"), "admin": admin,
+    return {**alt, "host": host, "port": int(port), "benutzer": benutzer, "admin": admin,
             "netz": netz, "stop_timeout": alt.get("stop_timeout", 120)}
 
 

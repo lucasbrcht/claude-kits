@@ -327,8 +327,12 @@ v_nas_status() {
   ende 0
 }
 
+# Erwarteter Inhalt von /etc/sudoers.d/claude-gate. SUDO_USER setzt sudo selbst auf den aufrufenden Benutzer, DSM
+# behält dessen Schreibweise aus der Anlage (etwa Claude).
 sudoers_text() {
-  printf 'Defaults:claude env_reset, !requiretty\nclaude ALL=(root) NOPASSWD: %s/gate.sh' "$ORT_FEST"
+  local n=${SUDO_USER:-claude}
+  [[ $n =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}$ ]] || n=claude
+  printf 'Defaults:%s env_reset, !requiretty\n%s ALL=(root) NOPASSWD: %s/gate.sh' "$n" "$n" "$ORT_FEST"
 }
 
 volumes() {  # Belegung von / und /volumeN in Prozent

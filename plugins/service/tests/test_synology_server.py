@@ -332,19 +332,23 @@ class Einrichtung(unittest.TestCase):
         self.assertEqual(start, "ssh -t -p 2222 ich@192.0.2.10 'sudo bash claude-gate-neu/install.sh'")
 
     def test_angaben_pruefen(self):
-        antworten = iter(["nas.test", "22", "ich", "10.0.0.0/24; rm"])
+        antworten = iter(["nas.test", "22", "claude", "ich", "10.0.0.0/24; rm"])
         with mock.patch("builtins.input", lambda _t: next(antworten)):
             with self.assertRaises(synology_start.Abbruch):
                 synology_start.angaben_abfragen({})
-        antworten = iter(["192.168.1.20", "", "Ich.Admin", ""])
+        antworten = iter(["192.168.1.20", "", "Claude", "Ich.Admin", ""])
         with mock.patch("builtins.input", lambda _t: next(antworten)):
             cfg = synology_start.angaben_abfragen({})
         self.assertEqual((cfg["port"], cfg["netz"], cfg["benutzer"], cfg["admin"]),
-                         (22, "192.168.1.0/24", "claude", "Ich.Admin"))
-        antworten = iter(["nas", "22", "ich admin"])
+                         (22, "192.168.1.0/24", "Claude", "Ich.Admin"))
+        antworten = iter(["192.168.1.20", "", "", "ich", ""])
         with mock.patch("builtins.input", lambda _t: next(antworten)):
-            with self.assertRaises(synology_start.Abbruch):
-                synology_start.angaben_abfragen({})
+            self.assertEqual(synology_start.angaben_abfragen({})["benutzer"], "claude")
+        for falsch in (["nas", "22", "claude", "ich admin"], ["nas", "22", "root"]):
+            antworten = iter(falsch)
+            with mock.patch("builtins.input", lambda _t: next(antworten)):
+                with self.assertRaises(synology_start.Abbruch):
+                    synology_start.angaben_abfragen({})
 
 
 if __name__ == "__main__":

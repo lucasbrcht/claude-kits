@@ -58,15 +58,20 @@ for f in eingang.sh gate.sh VERSION lesen.pub netz; do
   [ -f "$QUELLE/$f" ] || halt "$f fehlt neben install.sh ($QUELLE)."
 done
 
-ZEILE=$(awk -F: -v n="$NUTZER" '$1 == n' "$W/etc/passwd")
+# DSM übernimmt die Schreibweise aus der Anlage (etwa Claude). Gesucht wird ohne Unterschied von Groß und Klein, danach
+# gilt der genaue Name für sudoers, Gruppe und Selbsttest.
+ZEILE=$(awk -F: -v n="$NUTZER" 'tolower($1) == n' "$W/etc/passwd")
 [ -n "$ZEILE" ] || halt "Benutzer $NUTZER fehlt. In DSM unter Systemsteuerung > Benutzer anlegen."
+[ "$(printf '%s\n' "$ZEILE" | wc -l | tr -d ' ')" = 1 ] || halt "Mehrere Benutzer namens $NUTZER in verschiedener Schreibweise."
+NUTZER=$(printf '%s' "$ZEILE" | awk -F: '{ print $1 }')
+[[ $NUTZER =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}$ ]] || halt "Der Name des Benutzers hat unerwartete Zeichen."
 HEIM=$(printf '%s' "$ZEILE" | awk -F: '{ print $6 }')
 SCHALE=$(printf '%s' "$ZEILE" | awk -F: '{ print $7 }')
 case $SCHALE in
   /bin/sh|/bin/bash|/bin/ash) ;;
   *) halt "$NUTZER hat keine Shell ($SCHALE). DSM gibt sie Mitgliedern von administrators, Gruppe prüfen." ;;
 esac
-awk -F: -v n="$NUTZER" '$1 == "administrators" { k = split($4, m, ","); for (i = 1; i <= k; i++) if (m[i] == n) f = 1 }
+awk -F: -v n="$(printf '%s' "$NUTZER" | tr 'A-Z' 'a-z')" '$1 == "administrators" { k = split($4, m, ","); for (i = 1; i <= k; i++) if (tolower(m[i]) == n) f = 1 }
   END { exit f ? 0 : 1 }' "$W/etc/group" \
   || halt "$NUTZER ist nicht in der Gruppe administrators. DSM erlaubt SSH nur Admins."
 [ -n "$HEIM" ] && [ -d "$W$HEIM" ] || halt "Home von $NUTZER fehlt ($HEIM). In DSM den Benutzer-Home-Dienst aktivieren."
@@ -178,4 +183,4 @@ if [ "$(basename "$QUELLE")" = claude-gate-neu ]; then
   rmdir "$QUELLE" 2>/dev/null || true
 fi
 
-printf '\nFertig. Am Mac geht es mit synology_start.py --pruefen weiter.\n'
+printf '\nFertig. Benutzer auf der DiskStation: %s. Am Mac geht es mit synology_start.py --pruefen weiter.\n' "$NUTZER"

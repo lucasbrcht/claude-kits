@@ -52,7 +52,7 @@ AUSGABE_MAX = 60_000
 ROLLEN = ("lesen", "schreiben")
 
 HOST_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?")
-BENUTZER_RE = re.compile(r"[a-z_][a-z0-9_-]{0,31}")
+BENUTZER_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,31}")  # DSM behält die Schreibweise aus der Anlage
 # wie in gate.sh
 NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 WORT_RE = re.compile(r"[A-Za-z0-9_.-]{1,40}")

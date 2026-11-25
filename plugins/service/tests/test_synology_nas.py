@@ -288,7 +288,8 @@ class Gate(Basis):
                 code, aus, err = self.gate("lesen", verb, *args)
                 self.assertEqual(code, 0, aus + err)
                 z = self.zeilen(aus)
-                self.assertEqual(z[0], {"art": "kopf", "gate": "1.0.0", "rolle": "lesen", "verb": verb})
+                version = (NAS / "VERSION").read_text().strip()
+                self.assertEqual(z[0], {"art": "kopf", "gate": version, "rolle": "lesen", "verb": verb})
                 self.assertEqual(z[-1], {"art": "ende", "code": 0})
                 self.assertNotIn(GEHEIM, aus)
 
@@ -482,6 +483,19 @@ class Install(unittest.TestCase):
         keys = (self.w / "var/services/homes/claude/.ssh/authorized_keys").read_text().splitlines()
         self.assertEqual([k.split('"')[1] for k in keys], ["/volume1/@claude-gate/eingang.sh lesen",
                                                            "/volume1/@claude-gate/eingang.sh schreiben"])
+
+    def test_name_mit_grossbuchstaben(self):
+        """DSM behält die Schreibweise aus der Anlage: Claude statt claude gilt, sudoers nimmt den genauen Namen."""
+        (self.w / "etc/passwd").write_text("Claude:x:1030:100::/var/services/homes/Claude:/bin/sh\n", encoding="utf-8")
+        (self.w / "etc/group").write_text("administrators:x:101:lucas,Claude\n", encoding="utf-8")
+        (self.w / "var/services/homes/Claude").mkdir(parents=True, exist_ok=True)  # am Mac oft gleich mit claude
+        lauf = self.install(self.buendel())
+        self.assertEqual(lauf.returncode, 0, lauf.stderr)
+        self.assertEqual((self.w / "etc/sudoers.d/claude-gate").read_text(),
+                         "Defaults:Claude env_reset, !requiretty\n"
+                         "Claude ALL=(root) NOPASSWD: /volume1/@claude-gate/gate.sh\n")
+        self.assertTrue((self.w / "var/services/homes/Claude/.ssh/authorized_keys").is_file())
+        self.assertIn("Benutzer auf der DiskStation: Claude", lauf.stdout)
 
     def test_abbrueche(self):
         faelle = [
