@@ -47,6 +47,10 @@ Gelernte Fallstricke, die hier eingebaut sind:
 - open -g schreibt den Entwurf auch im Hintergrund in den Chat (getestet am 28.09.2026 bei geöffneter App). Deshalb
   ist entwurf_im_hintergrund an, auch wenn der Schlüssel in config.json fehlt: Ein Enter in der Claude-App kann so nie
   in WhatsApp landen.
+- Lief WhatsApp nicht, startete der Link die App, aber der Text kam nicht im Chat an, obwohl open Erfolg meldete
+  (Befund 26.11.2026). draft startet WhatsApp darum vorher im Hintergrund und wartet, bis die App in ihre Datenbank
+  schreibt (höchstens START_WARTEN Sekunden). Ob der Text im Chat steht, kann das Kit nicht nachsehen: Die Ausgabe sagt
+  übergeben, nicht geöffnet.
 - Gruppen und Kontakte ohne Nummer öffnet ein Link nur über die Chat-Auswahl von WhatsApp. Der Weg blieb ungetestet,
   draft öffnet sie nicht, der Text geht zum Kopieren an den Nutzer.
 - ZHIDDEN gilt als versteckter oder gesperrter Chat. Ob die Chat-Sperre dort landet, ist nicht belegt, der Test
@@ -74,7 +78,8 @@ from nachricht_basis import (APPLE_EPOCH, DATEN_HINWEIS, ID_MAX, LANGE_ZEILE, LI
                              TELEFON, TEXT_MAX, ZEILENTRENNER, absender, als_text, anzeigename, apple, auswahl,
                              bereinige, config_fehler, drucke, entwurfstext, erwaehnt, falscher_aufruf, falte,
                              fange_signale, fundstelle, kopie_ordner, kopiere_db, kuerze, maskiere,
-                             norm, positiv, raeume_alte_kopien_auf, standard, text_utf8, treffer_je_name,
+                             norm, positiv, raeume_alte_kopien_auf, standard, starte_app, startzeile, text_utf8,
+                             treffer_je_name,
                              varianten, varianten_suche, verbotene_zeichen, vor_sekunden, wert, zeit, zeitpunkt)
 from nachricht_basis import finde_chat as _finde_chat
 from nachricht_basis import lade_config as _lade_config
@@ -86,6 +91,10 @@ NACHRICHT_DATEI = DATEN_DIR / "nachricht.txt"  # einzige Entwurfsdatei, draft l�
 # Absolut, nie über PATH: ein fremdes open davor bekäme sonst jeden Entwurf (Prüfung 20.10.2026). Tests setzen in ihrer
 # Kopie des Skripts einen Ersatz ein, eine Umgebungsvariable gibt es nicht
 OPEN_BEFEHL = "/usr/bin/open"
+PGREP_BEFEHL = "/usr/bin/pgrep"
+APP_PROZESS, APP_ID = "WhatsApp", "net.whatsapp.WhatsApp"
+START_WARTEN = 15  # Sekunden höchstens, bis WhatsApp nach einem Kaltstart bereit ist
+START_RUHE = 2     # Sekunden nach dem ersten Schreiben in die Datenbank, bis der Link kommt
 STANDARD_ORDNER = "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared"
 KEIN_ZUGRIFF = (
     "Kein Zugriff auf die WhatsApp-Daten. Zwei mögliche Ursachen: "
@@ -705,6 +714,10 @@ def cmd_draft(cfg: dict, a: argparse.Namespace) -> None:
     if chat["entwurf"] and not a.replace:
         sys.exit(f"Nicht geöffnet: Im Chat mit {chat['name']} liegt ungesendeter Text, den der Entwurf ersetzen würde. "
                  "Erst in WhatsApp senden oder löschen, oder bewusst mit --replace direkt hinter dem Skript.")
+    # Kaltstart: erst starten und warten, sonst kommt der Link an, während WhatsApp noch lädt (Befund 26.11.2026)
+    quelle = Path(os.path.expanduser(cfg.get("database_dir") or STANDARD_ORDNER))
+    start = starte_app(OPEN_BEFEHL, PGREP_BEFEHL, APP_PROZESS, APP_ID, quelle / "ChatStorage.sqlite", START_WARTEN,
+                       START_RUHE)
     befehl = [OPEN_BEFEHL, "-g", url] if hintergrund else [OPEN_BEFEHL, url]
     try:
         r = subprocess.run(befehl, capture_output=True, timeout=20)
@@ -714,7 +727,13 @@ def cmd_draft(cfg: dict, a: argparse.Namespace) -> None:
         sys.exit(f"WhatsApp ließ sich nicht öffnen (Fehlercode {r.returncode}). Ist WhatsApp für Mac installiert?")
     if a.text_file:
         NACHRICHT_DATEI.unlink(missing_ok=True)
-    print(f"Entwurf für {ziel} in WhatsApp geöffnet{' im Hintergrund' if hintergrund else ''}, {len(text)} Zeichen.")
+    # Ehrlich melden: open bestätigt nur die Übergabe des Links, ob der Text im Chat steht, sieht das Kit nicht
+    print(f"Entwurf für {ziel} an WhatsApp übergeben, {len(text)} Zeichen.")
+    zustand = startzeile(start, "WhatsApp")
+    if zustand:
+        print(zustand)
+    print("Im Hintergrund geöffnet: Zum Prüfen und Abschicken WhatsApp nach vorne holen." if hintergrund
+          else "WhatsApp ist vorne geöffnet.")
     print("Gesendet wird nur, wenn du in WhatsApp selbst Enter drückst.")
 
 

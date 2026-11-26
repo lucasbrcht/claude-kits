@@ -7,7 +7,7 @@ effort: medium
 
 # homeassistant
 
-Home Assistant des Nutzers über ha-mcp aus diesem Plugin, in Cowork und im Code-Tab gleich. Fakten zum Zuhause stehen in `zuhause.md` im Kontextordner (in Cowork der Projektordner, sonst der Ordner, den der Kontext-Index der `CLAUDE.md` nennt): Adresse des Servers, Config-Ordner, Räume, Namensschema, wie der Nutzer mitarbeiten will. Vor Umbauten lesen und danach richten. Aufruf `/service:homeassistant $ARGUMENTS`.
+Home Assistant des Nutzers über ha-mcp aus diesem Plugin, in Cowork und im Code-Tab gleich. Fakten zum Zuhause stehen in `zuhause.md` im Kontextordner (in Cowork der Projektordner, sonst der Ordner, den der Kontext-Index der `CLAUDE.md` nennt): Adresse des Servers, Config-Ordner, Räume, Namensschema, Vorlieben. Vor Umbauten lesen und die Fakten übernehmen. Ein Auftrag im Chat geht immer vor: Was dort zur Arbeitsweise steht, ist eine Vorliebe für offene Fälle, keine Regel gegen einen konkreten Auftrag. Aufruf `/service:homeassistant $ARGUMENTS`.
 
 ## Zwei Server
 
@@ -23,6 +23,7 @@ Home Assistant des Nutzers über ha-mcp aus diesem Plugin, in Cowork und im Code
 
 ## Arbeitsweise
 
+- **Selbst umsetzen.** Beschreibt der Nutzer ein gewünschtes Verhalten (Auslöser, Bedingung, Wirkung), baut Claude es über die Werkzeuge: Vorschau in Worten und als YAML laut Hausregel, auf das OK anlegen, danach live prüfen (Zustand, Trace) und das Ergebnis zeigen. Eine Anleitung zum Selberklicken nur, wenn der Nutzer ausdrücklich danach fragt, auch wenn `zuhause.md` einen Modus zum Mitlernen nennt.
 - Vor dem ersten Umbau einer Session `ha_get_skill_guide` lesen und die Referenzdatei, auf die er für die Aufgabe zeigt. Die allgemeinen Best Practices (entity_id statt device_id, Modus der Automation, Helfer statt Templates) stehen dort, nicht hier.
 - Aktuelles immer live lesen (`ha_get_overview`, `ha_search`, `ha_get_state`), nie aus dem Gedächtnis.
 - Namen nach dem Schema in `zuhause.md`. Fehlt dort eines, das Schema der vorhandenen Geräte und Entitäten übernehmen.

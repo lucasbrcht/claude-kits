@@ -14,7 +14,7 @@ import mcp_basis as mb
 from mcp_basis import Fehler, Werkzeug, langtext, opt, schalter, text, textliste, zahl
 
 NAME = "chat"
-VERSION = "7.0.3"
+VERSION = "7.0.4"
 lauf = mb.Lauf(Path(__file__).resolve().parent, NAME)
 SKRIPT = {"whatsapp": "whatsapp.py", "imessage": "imessage.py"}
 

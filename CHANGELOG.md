@@ -2,6 +2,16 @@
 
 Je Version, was sich für Nutzer ändert. Behobene Rückmeldungen mit der Nummer des Issues.
 
+## v8.4.2 (26.11.2026)
+
+`chat` 7.0.4, `service` 7.2.2, `basis` 8.1.2, `pflege` 7.1.5, Befunde aus dem Alltag: Ein WhatsApp-Entwurf kam erst im zweiten Anlauf an, eine Automation kam als Klickanleitung statt angelegt.
+
+- **Entwurf bei geschlossener App (chat):** Lief WhatsApp nicht, startete der Link die App, der Text kam aber nicht im Chat an, obwohl das Werkzeug Erfolg meldete. `whatsapp_entwurf` startet WhatsApp jetzt vorher im Hintergrund und schickt den Link erst, wenn die App bereit ist (höchstens 15 Sekunden). `imessage_entwurf` macht es mit Nachrichten genauso.
+- **Ehrliche Meldung (chat):** Die Entwürfe melden "übergeben" statt "geöffnet", denn ob der Text im Chat steht, sieht das Kit nicht. Dazu der Zustand der App (lief schon, gestartet, nicht bereit) und der Hinweis, die App zum Abschicken nach vorne zu holen. Die Skills sagen nur das und rufen den Entwurf einmal erneut auf, wenn er fehlt, sonst gibt es den Text zum Kopieren. Der Entwurf öffnet weiter im Hintergrund: Ein Enter in der Claude-App darf nie in WhatsApp senden.
+- **Home Assistant (service):** Beschreibt der Nutzer ein Verhalten, legt Claude es nach Vorschau und OK selbst über die Werkzeuge an und prüft es live. Eine Anleitung zum Selberklicken nur auf ausdrücklichen Wunsch, auch wenn `zuhause.md` einen Modus zum Mitlernen nennt. Ein Auftrag im Chat geht vor Vorlieben aus `zuhause.md`. Gilt auch in den Hausregeln des Servers.
+- **Plugins oder Anpassen:** In manchen Versionen der Claude-App heißt der Punkt in der Seitenleiste oben Anpassen statt Plugins. `INSTALL.md`, die READMEs und die Texte der Einrichtung nennen beide Namen.
+- **Update:** Claude einmal mit Cmd+Q beenden und neu öffnen.
+
 ## v8.4.1 (25.11.2026)
 
 `service` 7.2.1, Prüfskript 1.1.1, Befunde aus dem ersten Lauf an einer echten DiskStation.

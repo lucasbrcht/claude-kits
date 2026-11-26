@@ -42,7 +42,7 @@ Auf die Antwort warten, vorher kein Werkzeug. Bleibt der Nutzer beim aktuellen M
 ## Plugins (Werkzeuge von apple fehlen)
 
 > Mir fehlen die Werkzeuge für Mail, Kalender und Notizen. So prüfst du die Plugins:
-> 1. In Claude links in der Seitenleiste ganz oben, über deinen Chats, auf **Plugins** klicken. **Nicht** über Einstellungen > Plugins: Der Weg ist in der aktuellen App unzuverlässig.
+> 1. In Claude links in der Seitenleiste ganz oben, über deinen Chats, auf **Plugins** klicken (in manchen Versionen der App heißt der Punkt **Anpassen**). **Nicht** über Einstellungen > Plugins: Der Weg ist in der aktuellen App unzuverlässig.
 > 2. Prüfen, ob **apple** und **basis** (für WhatsApp **chat**, für Dokumente **office**) installiert und eingeschaltet sind. Fehlt eins in der Liste, oben im Suchfeld den Namen eintippen, etwa `apple`: Oft findet nur die Suche es.
 > 3. Claude mit Cmd+Q beenden, neu öffnen und mich erneut aufrufen.
 

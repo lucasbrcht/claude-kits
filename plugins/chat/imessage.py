@@ -42,6 +42,8 @@ Gelernte Fallstricke, die hier eingebaut sind (Recherche vom 19.10.2026):
 - Eine Kontaktkarte kann zwei Personen tragen (Eltern mit zwei Nummern). Hat ein Chat mehrere Teilchats, gehen draft
   und send nur mit --id, read nennt die Teilchats. Nummern gelten nur genau gleich, nie über die letzten Ziffern.
 - SMS-Absender ohne Rufnummer (Firmen, Kurzwahlen, Codes) sind Art Dienst und standardmäßig ausgeblendet.
+- Läuft die Nachrichten-App nicht, startet draft sie vorher im Hintergrund und wartet, bis sie in chat.db schreibt
+  (höchstens START_WARTEN Sekunden). Bei WhatsApp kam der Text beim Kaltstart sonst nicht an (Befund 26.11.2026).
 - Chat- und Gruppennamen wählen andere. In Ausgaben sind sie auf 60 Zeichen gekürzt und eckige Klammern werden runde.
 """
 from __future__ import annotations
@@ -68,7 +70,8 @@ from nachricht_basis import (APPLE_EPOCH, DATEN_HINWEIS, ID_MAX, LANGE_ZEILE, ST
                              absender, als_text, anzeigename, apple, auswahl,
                              bereinige, config_fehler, drucke, entwurfstext, erwaehnt, falscher_aufruf, falte,
                              fange_signale, fundstelle, kopie_ordner, kopiere_db, kuerze, norm, positiv,
-                             raeume_alte_kopien_auf, standard, text_utf8, treffer_je_name, varianten,
+                             raeume_alte_kopien_auf, standard, starte_app, startzeile, text_utf8, treffer_je_name,
+                             varianten,
                              varianten_suche, verbotene_zeichen, vor_sekunden, wert, zeit, zeitpunkt)
 from nachricht_basis import finde_chat as _finde_chat
 from nachricht_basis import lade_config as _lade_config
@@ -81,6 +84,10 @@ NACHRICHT_DATEI = DATEN_DIR / "nachricht.txt"  # einzige Textdatei für draft un
 # Ersatzbefehle ein, Umgebungsvariablen gibt es nicht
 OSASCRIPT_BEFEHL = "/usr/bin/osascript"
 OPEN_BEFEHL = "/usr/bin/open"
+PGREP_BEFEHL = "/usr/bin/pgrep"
+APP_PROZESS, APP_ID = "Messages", "com.apple.MobileSMS"
+START_WARTEN = 8  # Sekunden höchstens, bis die Nachrichten-App nach einem Kaltstart bereit ist (wie bei whatsapp.py)
+START_RUHE = 1    # Sekunden nach dem ersten Schreiben in chat.db, bis der Link kommt
 PRUEF_WARTEN = (1, 1, 2, 3, 5, 8)  # Sekunden zwischen den Blicken in chat.db nach dem Senden, zusammen 20
 OSASCRIPT_ZEIT = 30  # Sekunden für die Nachrichten-App, unter den 120 s des Bash-Werkzeugs
 STANDARD_DB = "~/Library/Messages/chat.db"
@@ -1121,6 +1128,9 @@ def cmd_draft(cfg: dict, a: argparse.Namespace) -> None:
     url = vorlage.replace("{adresse}", urllib.parse.quote(teil["adresse"], safe="+@")).replace(
         "{text}", urllib.parse.quote(text, safe=""))
     hintergrund = block(cfg).get("entwurf_im_hintergrund", True)
+    # Kaltstart wie bei whatsapp.py: erst starten und warten, dann der Link (Befund 26.11.2026)
+    start = starte_app(OPEN_BEFEHL, PGREP_BEFEHL, APP_PROZESS, APP_ID,
+                       Path(os.path.expanduser(block(cfg).get("database") or STANDARD_DB)), START_WARTEN, START_RUHE)
     befehl = [OPEN_BEFEHL, "-g", url] if hintergrund else [OPEN_BEFEHL, url]
     try:
         r = subprocess.run(befehl, capture_output=True, timeout=20)
@@ -1130,8 +1140,14 @@ def cmd_draft(cfg: dict, a: argparse.Namespace) -> None:
         sys.exit(f"Die Nachrichten-App ließ sich nicht öffnen (Fehlercode {r.returncode}).")
     if a.text_file:
         NACHRICHT_DATEI.unlink(missing_ok=True)
-    print(f"Entwurf für {ziel_text(chat, teil)} in Nachrichten geöffnet{' im Hintergrund' if hintergrund else ''}, "
-          f"{len(text)} Zeichen. Gesendet wird nur, wenn du in Nachrichten selbst Enter drückst.")
+    # open bestätigt nur die Übergabe des Links, ob der Text im Chat steht, sieht das Kit nicht
+    print(f"Entwurf für {ziel_text(chat, teil)} an Nachrichten übergeben, {len(text)} Zeichen.")
+    zustand = startzeile(start, "Nachrichten")
+    if zustand:
+        print(zustand)
+    print("Im Hintergrund geöffnet: Zum Prüfen und Abschicken Nachrichten nach vorne holen." if hintergrund
+          else "Nachrichten ist vorne geöffnet.")
+    print("Gesendet wird nur, wenn du in Nachrichten selbst Enter drückst.")
 
 
 def cmd_send(cfg: dict, a: argparse.Namespace) -> None:

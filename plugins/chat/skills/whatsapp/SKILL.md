@@ -43,10 +43,11 @@ Je Nachricht `Datum Uhrzeit | Absender: Text`, Medien als `[Bild]`, `[Sprachnach
 1. Kanal: Steht bei der Person in der Personendatei `Kanal iMessage` oder sagt der Nutzer iMessage oder SMS, gilt der Skill `imessage`. Sonst WhatsApp.
 2. Chat auflösen und die letzten Nachrichten lesen (`chat_lesen` mit `limit` 15). Die id aus dem Kopf dieser Ausgabe gilt für den Entwurf.
 3. `chat_stilprofil` lesen, Text im Stil schreiben, Ton wie im bisherigen Chat.
-4. Text im Chat zeigen und direkt `whatsapp_entwurf` mit dieser `id` aufrufen, nie nur mit dem Namen. WhatsApp öffnet den Chat mit dem Text, das ist die Vorschau.
+4. Text im Chat zeigen und direkt `whatsapp_entwurf` mit dieser `id` aufrufen, nie nur mit dem Namen. Das Werkzeug übergibt den Text per Link an WhatsApp (im Hintergrund), läuft WhatsApp nicht, startet es die App vorher und wartet. Ob der Text im Chat steht, sieht es nicht.
 5. Meldet der Entwurf ungesendeten Text im Chat, fragen. Nur nach Ja erneut mit `ersetzen`, sonst geht der angefangene Text verloren.
 6. Gruppen und Kontakte ohne gespeicherte Nummer kann der Entwurf nicht öffnen: Text zum Kopieren geben.
-7. In einem Satz sagen: Entwurf ist offen, abschicken mit Enter in WhatsApp (ein Enter in der Claude-App sendet dort nichts).
+7. In einem Satz sagen, was das Werkzeug meldet, nie mehr: Der Entwurf liegt in WhatsApp bereit, WhatsApp nach vorne holen und mit Enter abschicken (ein Enter in der Claude-App sendet dort nichts). Meldet es, dass WhatsApp sich nach dem Start nicht bereit meldete, das dazusagen.
+8. Sagt der Nutzer, der Entwurf ist nicht da: einmal erneut `whatsapp_entwurf` mit derselben `id` und demselben Text (WhatsApp läuft jetzt). Meldet das Werkzeug dabei ungesendeten Text, kam der erste Entwurf doch an: fragen wie in Schritt 5. Fehlt der Text auch danach, ihn zum Kopieren geben.
 
 **Such:** `chat_suchen` mit 1 bis 3 Begriffen, auch Sonderzeichen wie C++ oder Emojis. Treffer als kurze Liste mit Datum, Chat und Halbsatz.
 

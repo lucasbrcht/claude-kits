@@ -124,18 +124,28 @@ class Grundlage(unittest.TestCase):
         fake_os.write_text(FAKE_OSASCRIPT.format(python=sys.executable, log=str(self.log), db=str(self.db),
                                                  modus=str(self.modus)), encoding="utf-8")
         fake_os.chmod(0o755)
-        fake_open = self.tmp / "fake-open.sh"
-        fake_open.write_text(f'#!/bin/sh\nprintf "%s\\n" "---" "$@" >> "{self.open_log}"\nexit 0\n')
+        self.laeuft = self.tmp / "laeuft"  # Nachrichten läuft, solange es diese Datei gibt (Ersatz für pgrep)
+        self.laeuft.touch()
+        fake_open = self.tmp / "fake-open.sh"  # open -g -b startet die App und legt laeuft an
+        fake_open.write_text(f'#!/bin/sh\nprintf "%s\\n" "---" "$@" >> "{self.open_log}"\n'
+                             f'[ "$2" = "-b" ] && touch "{self.laeuft}"\nexit 0\n')
         fake_open.chmod(0o755)
+        fake_pgrep = self.tmp / "fake-pgrep.sh"
+        fake_pgrep.write_text(f'#!/bin/sh\n[ -e "{self.laeuft}" ]\n')
+        fake_pgrep.chmod(0o755)
         quelle = SKRIPT.read_text(encoding="utf-8")
         kopie = (quelle.replace('OSASCRIPT_BEFEHL = "/usr/bin/osascript"', f"OSASCRIPT_BEFEHL = {str(fake_os)!r}", 1)
                  .replace('OPEN_BEFEHL = "/usr/bin/open"', f"OPEN_BEFEHL = {str(fake_open)!r}", 1)
+                 .replace('PGREP_BEFEHL = "/usr/bin/pgrep"', f"PGREP_BEFEHL = {str(fake_pgrep)!r}", 1)
+                 .replace("START_WARTEN = 8", "START_WARTEN = 1", 1).replace("START_RUHE = 1", "START_RUHE = 0", 1)
                  .replace("PRUEF_WARTEN = (1, 1, 2, 3, 5, 8)", "PRUEF_WARTEN = (0.05, 0.05, 0.05, 0.05)", 1)
                  # 3 s statt 1 s: Unter Last braucht schon der Start des Ersatzes über 1 s (Optimierung 21.10.2026)
                  .replace("OSASCRIPT_ZEIT = 30", "OSASCRIPT_ZEIT = 3", 1))
         self.assertEqual(kopie.count(str(fake_os)) + kopie.count(str(fake_open)), 2, "Ersatzbefehle nicht eingesetzt")
         self.assertIn("PRUEF_WARTEN = (0.05", kopie)
         self.assertIn("OSASCRIPT_ZEIT = 3", kopie)
+        for ersatz in (str(fake_pgrep), "START_WARTEN = 1 ", "START_RUHE = 0 "):
+            self.assertIn(ersatz, kopie, "Ersatz nicht im Skript eingesetzt")
         (self.kit / "imessage.py").write_text(kopie, encoding="utf-8")
         for basis in ("nachricht_basis.py", "kit_basis.py"):
             shutil.copy(KIT / basis, self.kit)
@@ -427,7 +437,8 @@ class Funktionen(unittest.TestCase):
     def test_programme_mit_absolutem_pfad(self):
         """Prüfung 20.10.2026 (whatsapp.py, hier ebenso): open und osascript nie über PATH. Die Tests ersetzen genau
         diese Zeilen (setUp), Senden und Entwurf rufen also nur diese Befehle auf."""
-        self.assertEqual((imessage.OSASCRIPT_BEFEHL, imessage.OPEN_BEFEHL), ("/usr/bin/osascript", "/usr/bin/open"))
+        self.assertEqual((imessage.OSASCRIPT_BEFEHL, imessage.OPEN_BEFEHL, imessage.PGREP_BEFEHL),
+                         ("/usr/bin/osascript", "/usr/bin/open", "/usr/bin/pgrep"))
 
     def test_vergleichstext(self):
         self.assertEqual(imessage.vergleichstext("  Grüße\n\n😀 ￼"), "Grüße 😀")
@@ -837,7 +848,9 @@ class Senden(Grundlage):
         self.imessage_block(entwurf_link="sms:{adresse}&body={text}")
         (self.kit / "nachricht.txt").write_text("Bis gleich, Grüße 😀", encoding="utf-8")
         out = self.im("draft", "--id", "1", "--text-file", "nachricht.txt")
-        self.assertIn("Entwurf für Anna Beispiel (Person, über Nummer, id 1) in Nachrichten geöffnet im Hintergrund", out)
+        self.assertIn("Entwurf für Anna Beispiel (Person, über Nummer, id 1) an Nachrichten übergeben", out)
+        self.assertIn("Im Hintergrund geöffnet: Zum Prüfen und Abschicken Nachrichten nach vorne holen.", out)
+        self.assertNotIn("lief nicht", out)
         aufruf = self.open_log.read_text(encoding="utf-8").split("---\n")[1].splitlines()
         self.assertEqual(aufruf, ["-g", "sms:+4917600000001&body=Bis%20gleich%2C%20Gr%C3%BC%C3%9Fe%20%F0%9F%98%80"])
         self.assertFalse((self.kit / "nachricht.txt").exists())

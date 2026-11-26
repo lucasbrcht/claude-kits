@@ -8,7 +8,7 @@ Was das Plugin bewusst nicht kann: löschen, neue Dateien oder Ordner neben dem 
 
 ## Installation
 
-In Cowork: Seitenleiste oben > Plugins (nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `office` installieren. In Claude Code:
+In Cowork: Seitenleiste oben > Plugins oder Anpassen (je nach App, nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `office` installieren. In Claude Code:
 
 ```
 /plugin install office --marketplace lucasbrcht/claude-kits

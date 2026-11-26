@@ -103,7 +103,7 @@ Alle anderen Freigaben fragt dein Mac später von selbst, wenn Claude zum ersten
 
 > **Wichtig:** Plugins immer über die Seitenleiste installieren, nie über **Einstellungen > Plugins**. Der Weg über die Einstellungen ist in der aktuellen App unzuverlässig: Plugins fehlen danach oder starten nicht.
 
-1. Claude öffnen. Links in der Seitenleiste ganz oben, über deinen Chats und Aufgaben, auf **Plugins** klicken.
+1. Claude öffnen. Links in der Seitenleiste ganz oben, über deinen Chats und Aufgaben, auf **Plugins** klicken. In manchen Versionen der App heißt der Punkt **Anpassen**, beides führt zur selben Liste.
 2. **Add marketplace** wählen, das hier eintragen und bestätigen:
 
    ```text
@@ -186,7 +186,7 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 | Was passiert | Was hilft |
 |---|---|
-| Claude findet keine Werkzeuge für Mail oder Kalender | Seitenleiste oben > **Plugins** (nicht Einstellungen > Plugins): `basis` und `apple` installiert und eingeschaltet? Fehlt eins in der Liste, über das Suchfeld suchen. Dann Claude mit Cmd+Q beenden und neu öffnen |
+| Claude findet keine Werkzeuge für Mail oder Kalender | Seitenleiste oben > **Plugins** oder **Anpassen** (nicht Einstellungen > Plugins): `basis` und `apple` installiert und eingeschaltet? Fehlt eins in der Liste, über das Suchfeld suchen. Dann Claude mit Cmd+Q beenden und neu öffnen |
 | Kontakte, WhatsApp oder iMessage lassen sich nicht lesen | Claude sagen: "Öffne mir den Festplattenvollzugriff", dann `python3.9` aus dem Finder in die Liste ziehen (Schritt 2). Danach Claude mit Cmd+Q neu starten |
 | Meldung `EventKit fehlt` oder `icalBuddy fehlt` | Schritt 1 ab Befehl 3 wiederholen |
 | Meldung `Kein Zugriff auf Kalender` oder `Erinnerungen` | Systemeinstellungen > Datenschutz & Sicherheit > Kalender oder Erinnerungen: beim Eintrag `python3.9` Vollzugriff wählen |
@@ -208,7 +208,7 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 | Ort | Inhalt | Wer es sieht |
 |---|---|---|
-| Seitenleiste > Plugins | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
+| Seitenleiste > Plugins oder Anpassen | die Plugins aus dem Marketplace | Das Paket ist öffentlich, deine Daten sind nicht darin |
 | `~/Claude Kits/kontext/` | dein Kontext: Profil, Personen, Vorlieben, Prüfliste | nur du, nur auf diesem Mac |
 | `~/Library/Application Support/Claude Kits/<plugin>/` | Einstellungen je Plugin (`apple`, `chat`, `office`, `service`): `config.json`, Stilprofile in `style/`, bei `apple` die `.venv` aus Schritt 1, bei `office` die `.venv` des Motors und die Herkunft der Arbeitskopien | nur du, nur auf diesem Mac |
 | `Claude Personal` und `Claude Work` im Downloads-Ordner | Arbeitskopien von Dokumenten je Thema, PDFs | nur du, mit iCloud Drive auch auf deinen anderen Geräten |
@@ -216,7 +216,7 @@ Mac mit Intel-Prozessor: `/opt/homebrew` durch `/usr/local` ersetzen. Welche Ord
 
 ## Entfernen
 
-Seitenleiste oben > **Plugins**, je Plugin **Remove**. Deine Ordner bleiben: `~/Claude Kits/kontext/` und `~/Library/Application Support/Claude Kits/` löschst du bei Bedarf selbst im Finder.
+Seitenleiste oben > **Plugins** oder **Anpassen**, je Plugin **Remove**. Deine Ordner bleiben: `~/Claude Kits/kontext/` und `~/Library/Application Support/Claude Kits/` löschst du bei Bedarf selbst im Finder.
 
 ## Für den Betreuer: Code-Tab
 

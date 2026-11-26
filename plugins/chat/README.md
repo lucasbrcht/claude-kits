@@ -8,7 +8,7 @@ Was das Plugin bei WhatsApp bewusst nicht kann: senden, löschen, als gelesen ma
 
 ## Installation
 
-In Cowork: Seitenleiste oben > Plugins (nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `chat` installieren. In Claude Code:
+In Cowork: Seitenleiste oben > Plugins oder Anpassen (je nach App, nicht Einstellungen > Plugins) > Add marketplace mit `lucasbrcht/claude-kits` (Sync automatically), dann `chat` installieren. In Claude Code:
 
 ```
 /plugin install chat --marketplace lucasbrcht/claude-kits

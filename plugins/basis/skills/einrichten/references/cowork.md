@@ -1,6 +1,6 @@
 # Einrichten: Cowork vorbereiten (Schritte 9 bis 11)
 
-Was im Account steht (Instructions, Projekte, Connectoren), kann Claude nicht selbst einstellen. Der Skill schreibt es fertig nach `<Kontextordner>/einrichtung/`, der Nutzer klickt es nach der Prüfliste ein. Geplante Aufgaben legt Claude selbst an, wenn ein Werkzeug dafür da ist. Menüs heißen in der Desktop-App: Einstellungen > Your Claude (Instructions for Claude), Einstellungen > Capabilities (Memory), Customize > Connectors, Plugins in der Seitenleiste ganz oben über den Chats (nie Einstellungen > Plugins, der Weg ist unzuverlässig, fehlende Plugins über das Suchfeld). Weichen sie ab, den Weg nehmen, den der Nutzer nennt.
+Was im Account steht (Instructions, Projekte, Connectoren), kann Claude nicht selbst einstellen. Der Skill schreibt es fertig nach `<Kontextordner>/einrichtung/`, der Nutzer klickt es nach der Prüfliste ein. Geplante Aufgaben legt Claude selbst an, wenn ein Werkzeug dafür da ist. Menüs heißen in der Desktop-App: Einstellungen > Your Claude (Instructions for Claude), Einstellungen > Capabilities (Memory), Customize > Connectors, Plugins in der Seitenleiste ganz oben über den Chats, in manchen Apps heißt der Punkt Anpassen (nie Einstellungen > Plugins, der Weg ist unzuverlässig, fehlende Plugins über das Suchfeld). Weichen sie ab, den Weg nehmen, den der Nutzer nennt.
 
 Nichts in `einrichtung/` darf Zugangsdaten, Telefonnummern, Adressen oder Inhalte aus Mails und Chats enthalten.
 

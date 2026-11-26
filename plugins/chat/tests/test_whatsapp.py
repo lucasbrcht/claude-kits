@@ -79,13 +79,24 @@ class WhatsAppTest(unittest.TestCase):
         for d in (self.kit, self.daten, self.tempdir):
             d.mkdir()
         self.open_log = self.tmp / "open.log"
+        self.laeuft = self.tmp / "laeuft"  # WhatsApp läuft, solange es diese Datei gibt (Ersatz für pgrep)
+        self.laeuft.touch()
         fake = self.tmp / "fake-open.sh"  # schreibt jeden Aufruf mit, meldet auf stderr den Link wie ein echtes open
+        # open -g -b startet die App: legt laeuft an und schreibt mit startet_schreibend in die Datenbank wie WhatsApp
         fake.write_text(f'#!/bin/sh\nprintf "%s\\n" "---" "$@" >> "{self.open_log}"\necho "open-Fehler mit $*" >&2\n'
+                        f'if [ "$2" = "-b" ]; then touch "{self.laeuft}"; [ -e "{self.tmp}/startet_schreibend" ] && '
+                        f'touch "{self.daten}/ChatStorage.sqlite"; exit 0; fi\n'
                         f'exit "$(cat "{self.tmp}/open.rc" 2>/dev/null || echo 0)"\n')
         fake.chmod(0o755)
+        fake_pgrep = self.tmp / "fake-pgrep.sh"
+        fake_pgrep.write_text(f'#!/bin/sh\n[ -e "{self.laeuft}" ]\n')
+        fake_pgrep.chmod(0o755)
         quelle = SKRIPT.read_text(encoding="utf-8")
-        kopie = quelle.replace('OPEN_BEFEHL = "/usr/bin/open"', f"OPEN_BEFEHL = {str(fake)!r}", 1)
-        self.assertNotEqual(kopie, quelle, "OPEN_BEFEHL nicht im Skript gefunden")
+        kopie = (quelle.replace('OPEN_BEFEHL = "/usr/bin/open"', f"OPEN_BEFEHL = {str(fake)!r}", 1)
+                 .replace('PGREP_BEFEHL = "/usr/bin/pgrep"', f"PGREP_BEFEHL = {str(fake_pgrep)!r}", 1)
+                 .replace("START_WARTEN = 15", "START_WARTEN = 1.5", 1).replace("START_RUHE = 2", "START_RUHE = 0", 1))
+        for ersatz in (str(fake), str(fake_pgrep), "START_WARTEN = 1.5", "START_RUHE = 0"):
+            self.assertIn(ersatz, kopie, "Ersatz nicht im Skript eingesetzt")
         (self.kit / "whatsapp.py").write_text(kopie, encoding="utf-8")
         for basis in ("nachricht_basis.py", "kit_basis.py"):  # gemeinsame Bausteine, das Skript importiert sie (V3)
             shutil.copy(KIT / basis, self.kit)
@@ -780,9 +791,38 @@ class WhatsAppTest(unittest.TestCase):
         (self.kit / "nachricht.txt").write_text("Bin in 10 Minuten da, bis gleich!\n")
         out = self.wa("draft", "Ben Muster", "--text-file", "nachricht.txt")
         self.assertIn("Gesendet wird nur, wenn du in WhatsApp selbst Enter drückst.", out)
+        self.assertIn("Entwurf für Ben Muster (Person, id 2) an WhatsApp übergeben, 33 Zeichen.", out)
+        self.assertIn("WhatsApp nach vorne holen", out)
+        self.assertNotIn("geöffnet,", out)  # open bestätigt nur die Übergabe (Befund 26.11.2026)
+        self.assertNotIn("lief nicht", out)
         self.assertFalse((self.kit / "nachricht.txt").exists())
         self.assertEqual(self.open_aufrufe(), [
             ["-g", "whatsapp://send?phone=4917600000002&text=Bin%20in%2010%20Minuten%20da%2C%20bis%20gleich%21"]])
+
+    def test_draft_kaltstart_wartet_bis_whatsapp_bereit_ist(self):
+        """Befund 26.11.2026: Lief WhatsApp nicht, kam der Text nicht an. draft startet die App erst im Hintergrund und
+        schickt den Link, sobald sie in ihre Datenbank schreibt, und sagt das in der Ausgabe."""
+        self.laeuft.unlink()
+        (self.tmp / "startet_schreibend").touch()
+        out = self.wa("draft", "Ben Muster", "--text", "Hallo")
+        self.assertEqual(self.open_aufrufe(), [["-g", "-b", "net.whatsapp.WhatsApp"],
+                                               ["-g", "whatsapp://send?phone=4917600000002&text=Hallo"]])
+        self.assertIn("WhatsApp lief nicht und wurde im Hintergrund gestartet, bereit nach", out)
+
+    def test_draft_kaltstart_ohne_zeichen_der_app_meldet_es_ehrlich(self):
+        self.laeuft.unlink()  # startet, schreibt aber nicht in die Datenbank
+        beginn = time.monotonic()
+        out = self.wa("draft", "Ben Muster", "--text", "Hallo")
+        self.assertGreaterEqual(time.monotonic() - beginn, 1.5)  # hat bis START_WARTEN gewartet
+        self.assertEqual(len(self.open_aufrufe()), 2)
+        self.assertIn("meldete sich nach", out)
+        self.assertIn("den Entwurf einmal erneut öffnen", out)
+
+    def test_draft_vorne_sagt_es(self):
+        self.schreibe_config(entwurf_im_hintergrund=False)
+        out = self.wa("draft", "Ben Muster", "--text", "Hallo")
+        self.assertIn("WhatsApp ist vorne geöffnet.", out)
+        self.assertNotIn("nach vorne holen", out)
 
     def test_draft_im_hintergrund_auch_ohne_schluessel(self):
         """V3.1.2: Ohne entwurf_im_hintergrund in config.json im Hintergrund, vorn könnte ein Enter aus der Claude-App
@@ -933,7 +973,7 @@ class Funktionen(unittest.TestCase):
     def test_open_mit_absolutem_pfad(self):
         """Prüfung 20.10.2026: open lief über PATH, ein fremdes open davor hätte jeden Entwurf bekommen. Die Tests
         ersetzen genau diese Zeile (setUp), draft ruft also nur OPEN_BEFEHL auf."""
-        self.assertEqual(whatsapp.OPEN_BEFEHL, "/usr/bin/open")
+        self.assertEqual((whatsapp.OPEN_BEFEHL, whatsapp.PGREP_BEFEHL), ("/usr/bin/open", "/usr/bin/pgrep"))
 
 
 class Bausteine(unittest.TestCase):
